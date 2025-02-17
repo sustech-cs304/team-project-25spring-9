@@ -1,1 +1,46 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/_7UQvaE8)
+### 1.需求分析与规划
+
+- 照片管理（按时间、地点、标签等）
+- 高级搜索（基于内容、时间、地点等）
+- 照片编辑工具
+- 照片视频和记忆时间线生成
+- 社交和共享功能
+
+### 2. **系统设计**
+
+- **架构设计**：设计系统架构，确定后端与前端的交互方式。常见的架构可以是客户端-服务器架构。
+- **数据库设计**：设计数据库模型，管理照片、用户、标签、位置等信息。选择合适的数据库技术（例如：SQLite、Firebase等）。
+- **UI/UX设计**：设计用户界面的布局和交互，确保应用直观且易于操作。可以使用设计工具（例如：Figma、Sketch等）绘制原型和交互流程图。
+- **技术栈选择**：确定开发技术栈，例如前端使用React Native/Flutter（跨平台开发）或者原生开发，后端使用Node.js、Django等，图像处理和识别可能需要OpenCV、TensorFlow等工具。
+
+#### 存储数据＋图片
+
+1.MongoDB (NoSQL数据库)
+
+2.MINIO+MySQL/PostgreSQL(图片链接＋关系数据库)
+
+#### 提取数据/打标签+高级搜索
+
+时间、地点、大小、等基本数据直接从图片提取
+
+人物、事件内容打标签（OpenCV、GPT）
+
+#### 照片编辑（使用一些现成的JavaScript库或API）
+
+**Fabric.js** 或 **Pico.js**支持图像裁剪、旋转、调整亮度和对比度、滤镜效果等多种功能，将其集成到你的网页中，来处理图像。
+
+在网页中提供人物或物体消除功能，推荐的解决方案是 **DeepAI Inpainting API** 或 **Remove.bg**
+
+#### 照片视频和记忆时间线生成
+
+基于照片的数据和标签将所有的图片串联在一起
+
+Option：
+
+- 使用固定模板，将串联的照片生成视频
+- FFmpeg / MoviePy (Python)
+
+#### 社交和共享功能
+
+加权限
+
