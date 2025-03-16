@@ -1,0 +1,419 @@
+\documentclass[aspectratio=169, 10pt, xcolor=dvipsnames]{beamer}
+
+\makeatletter
+\appto\input@path{{lib}}
+\makeatother
+
+\usepackage{graphicx}
+\usepackage{lmodern} 
+\usepackage{fontawesome}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+\usepackage{tcolorbox}
+\usetikzlibrary{tikzmark}
+
+\graphicspath{{fig}}
+
+
+\usetheme{gotham}
+
+\gothamset{
+		numbering= framenumber,
+		tocframe template= gotham bullet,
+		parttocframe default=off,
+		sectiontocframe default=off,
+		subsectiontocframe default=off,
+        title page=gotham dividedpic
+}
+
+\gothamset{numbering= totalframenumber}
+
+
+\tikzset{
+    roundnode/.style={circle, draw=black, fill=black, inner sep=1.5pt}, 
+    lw/.style={line width=1.2pt, black}, 
+}
+
+\setbeamersize{text margin right=2.5cm}
+
+
+
+\title[]{\textsc{SPAM}}
+\subtitle{Next-Generation Smart Photo Album}
+\date{\today}
+\author{Shengding Liu, Ziran Gao, Zhanwei Zhang, Yixian Zhou, Shuwei Zhang}
+\institute
+{
+    Southern University of Science and Technology % Your institution for the title page
+}
+
+\gdef\gothamtitlepagebg{\includegraphics[height=\paperheight]{titlebg2.png}}
+
+% \titlegraphic{\includegraphics[width=0.4\textwidth]{thinking cat.jpg}}
+
+\newcommand{\insertlg}[1]{%
+    \begin{tikzpicture}[remember picture, overlay]
+        \node at (current page.south east) [anchor=south east, xshift=-0.3cm, yshift=0.5cm] {
+            \includegraphics[height=1.5cm]{#1}
+        };
+    \end{tikzpicture}
+}
+
+
+
+\begin{document}
+
+
+
+\maketitle
+
+\begin{frame}[toc]{Table of contents}%
+		\tableofcontents%[hideallsubsections]
+\end{frame}
+
+    
+\section{Requirement Analysis}
+
+\subsection{Basic Features}
+\begin{frame}{Basic Features}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    \item \textbf{Effortless Photo Management}
+    
+    Organize your photos seamlessly by time, location, and custom tags. Easily browse and retrieve memories with structured categorization.
+
+    \item \textbf{Advanced Search Capabilities}
+
+    Instantly find your photos based on content, date, location, or tags. Use AI-powered search to recognize faces, objects, and scenes within your photos.
+
+    \item \textbf{Built-in Photo Editing Tools}
+
+    Enhance your photos with powerful editing tools, including cropping, filters, adjustments, and retouching options—all within the app.  
+
+    
+    
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Basic Features (Cont.)}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    \item \textbf{Memory Timeline \& Video Generation}
+        
+    Relive special moments with automatically generated memory timelines. The system can create video highlights using your best photos and clips.
+        
+    \item \textbf{Seamless Social Sharing \& Collaboration}
+
+    Share your favorite moments effortlessly with family and friends. Collaborate on shared albums, comment on photos, and react with emojis.
+\end{itemize}
+
+\end{frame}
+
+\subsection{Non-Functional Features}
+
+\begin{frame}{Non-Functional Features}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    
+    \item \textbf{Usability} 
+    
+    The application offers an intuitive, multilingual, and accessible interface with responsive design for seamless use across devices.
+
+    \item \textbf{Performance}
+    
+    Ensures fast response times, scalability, and efficient caching for handling large albums and high user concurrency.
+
+    \item \textbf{Security}
+    
+    Implements robust authentication, role-based access control, and encryption to protect user data and ensure secure access.
+
+\end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Non-Functional Features (Cont.)}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    \item \textbf{Safety \& Privacy}
+    
+    Complies with data protection regulations, provides data deletion options, and ensures secure handling of sensitive information.
+
+    \item \textbf{Maintainability}
+    
+    Features modular code, comprehensive documentation, automated testing, and CI/CD pipelines for easy maintenance and updates.
+\end{itemize}
+\end{frame}
+
+
+\subsection{Data Requirements}
+\begin{frame}{Data to be Collected and Managed}
+
+\insertlg{thinking cat.jpg}
+
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \fbox{
+                \begin{minipage}{0.9\textwidth}
+                    \textbf{Photo files:} Formats: JPG, PNG, HEIC, etc.
+                \end{minipage}
+            }
+
+            \vspace{1em}
+
+            \fbox{
+                \begin{minipage}{0.9\textwidth}
+                    \textbf{Metadata:} EXIF data: Timestamp, Geolocation, Camera/device info
+                \end{minipage}
+            }
+
+            \vspace{1em}
+
+            \fbox{
+                \begin{minipage}{0.9\textwidth}
+                    \textbf{User data:} Tags: events, people, places; Albums: names, descriptions; Sharing: public/private/collaborative
+                \end{minipage}
+            }
+        \end{column}
+
+        \begin{column}{0.48\textwidth}
+            \fbox{
+                \begin{minipage}{0.9\textwidth}
+                    \textbf{AI-generated tags:} Facial recognition, Object/scene detection
+                \end{minipage}
+            }
+
+            \vspace{1em}
+
+            \fbox{
+                \begin{minipage}{0.9\textwidth}
+                    \textbf{Edited content:} Modified images: crops, filters; Generated videos: moments, timelines
+                \end{minipage}
+            }
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{How to Collect and Process Data}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    \item \textbf{Image Metadata Extraction}
+    
+    Automatically extract EXIF data using libraries (e.g., ExifTool, Python Pillow).
+
+    \item \textbf{AI Tagging \& Classification }
+    
+    Use OpenCV and GPT (or other AI/ML services) for face recognition, object detection, and tagging.
+
+    \item \textbf{Photo Editing Metadata}
+    
+    Store edit history and versioning to allow rollback or undo changes.
+    \item \textbf{Search Indexes}
+    
+    Build search indexes in databases (e.g., ElasticSearch) to enable fast retrieval based on time, location, people, objects, and tags.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Data Storage}
+
+\insertlg{thinking cat.jpg}
+
+\begin{itemize}
+    \item Use \textbf{MINIO} for object storage (photos, videos).
+
+    \item Use \textbf{MySQL/PostgreSQL} for relational data (user accounts, tags, album relationships).
+    
+    \item \textbf{Backup and disaster recovery plans} to protect user data.
+\end{itemize}
+
+\end{frame}
+
+\subsection{Technical Requirements}
+
+\begin{frame}{Operating Environment}
+
+\insertlg{thinking cat.jpg}
+
+\begin{table}
+        \begin{tabular}{|l|l|}
+            \hline
+            \textbf{Category}       & \textbf{Technologies/Tools} \\ \hline
+            Frontend               & React.js, TailwindCSS/Bootstrap \\ \hline
+            Backend                & Node.js (Express/Koa), Python (FastAPI/Django) \\ \hline
+            Database               & MySQL/PostgreSQL, MINIO \\ \hline
+            AI/ML Services         & OpenCV, GPT, Third-party APIs (Remove.bg, DeepAI) \\ \hline
+            Video Generation       & MoviePy, FFmpeg \\ \hline
+            Authentication        & OAuth 2.0, JWT, HTTPS \\ \hline
+            Deployment            & Docker, Kubernetes, Ali Cloud/On-premise \\ \hline
+        \end{tabular}
+    \end{table}
+
+\end{frame}
+
+\section{Task \& Plan}
+\subsection{Task Decomposition}
+
+\begin{frame}{User Stories}
+
+    \insertlg{bd chart.png}
+    
+    \begin{columns}[T] 
+        \begin{column}{0.48\textwidth}
+            \begin{itemize}
+                \item \textbf{Photo Management~\faPhoto}
+                \begin{itemize}
+                    \item Manage photos by time, location, event, or tags.
+                    \item Automatically create albums based on photo characteristics.
+                \end{itemize}
+
+                \item \textbf{Photo Editing~\faEdit}
+                \begin{itemize}
+                    \item Crop, rotate, and adjust brightness/contrast.
+                    \item Remove unwanted objects to improve photo quality.
+                \end{itemize}
+
+                \item \textbf{Advanced Search~\faSearch}
+                \begin{itemize}
+                    \item Search by date, location, tags.
+                    \item Search by image content (face/object recognition).
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+
+        \begin{column}{0.48\textwidth} 
+            \begin{itemize}
+                \item \textbf{Moment Video \& Timeline~\faFilm}
+                \begin{itemize}
+                    \item Automatically generate highlight videos with music.
+                    \item View photos in chronological order.
+                \end{itemize}
+
+                \item \textbf{Sharing \& Social~\faShareAlt}
+                \begin{itemize}
+                    \item Share photos/albums on social media or with friends.
+                    \item Create collaborative albums for team/family.
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Tasks}
+
+    \insertlg{bd chart.png}
+
+    \begin{columns}[T] 
+        \begin{column}{0.48\textwidth} 
+            \begin{itemize}
+                \item \textbf{Photo Management~\faDatabase}
+                \begin{itemize}
+                    \item Design database tables (photos, albums, tags).
+                    \item Implement photo upload \& storage.
+                    \item Categorize albums by time \& location.
+                \end{itemize}
+
+                \item \textbf{Advanced Search~\faSearch}
+                \begin{itemize}
+                    \item Implement search by time \& location.
+                    \item Research image search API.
+                    \item Design search UI/UX.
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+
+        \begin{column}{0.48\textwidth} 
+            \begin{itemize}
+                \item \textbf{Photo Editing~\faEdit}
+                \begin{itemize}
+                    \item Add crop \& rotate features.
+                    \item Investigate image processing libraries (OpenCV, Pillow).
+                \end{itemize}
+
+                \item \textbf{Sharing \& Social~\faShareAlt}
+                \begin{itemize}
+                    \item Design access control for shared albums.
+                    \item Implement social sharing links.
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\subsection{Plan}
+
+\begin{frame}{Task Assignment}
+
+\insertlg{bd chart.png}
+
+\begin{itemize}
+
+    \item \textbf{Frontend}
+    \begin{itemize}
+        \item \textbf{Zhang Zhanwei}: Frontend pages for photo/video and memory timeline generation.
+
+        \item \textbf{Zhou Yixian}: Frontend pages for image editing.
+
+        \item \textbf{Zhang Shuwei}: Frontend pages for image management (create, read, update, delete).
+    \end{itemize}
+
+    \item \textbf{Backend}
+
+    \begin{itemize}
+         \item \textbf{Gao Ziran}: Image storage, authentication, user login (frontend \& backend), photo editing tools.
+
+        \item \textbf{Liu Shengding}: Tagging, advanced search, photo/video and memory timeline generation (backend).
+    \end{itemize}
+   
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}{Project Timeline}
+   
+
+    \insertlg{bd chart.png}
+
+    \begin{itemize}\setlength\itemsep{.7em}
+        \item[\tikzmark{a}] \textbf{Week 5}: Requirements Analysis, Database Design, Basic UI Design
+        \item[\tikzmark{b}] \textbf{Week 6}: Photo upload function, Search function, Basic photo editing function
+        \item[\tikzmark{c}] \textbf{Week 7}: Collaborative Albums \& Social Sharing, Testing \& Debugging
+        \item[\tikzmark{d}] \textbf{Week 8}: Sprint 1 is over, Ready for presentation
+    \end{itemize}
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \coordinate (S) at ([shift={(-2mm,1.5mm)}]pic cs:a);
+        \coordinate (E) at ([shift={(-2mm,-1.1cm)}]pic cs:d);
+        \draw[-{Latex[round, black]}, lw] (S) -- (E);
+
+        \node[roundnode] at (S) {};
+        \node[roundnode] at ([shift={(-2mm,1.5mm)}]pic cs:b) {};
+        \node[roundnode] at ([shift={(-2mm,1.5mm)}]pic cs:c) {};
+        \node[roundnode] at ([shift={(-2mm,1.5mm)}]pic cs:d) {};
+    \end{tikzpicture}
+\end{frame}
+
+
+   \begin{standoutenv}
+   \begin{frame}[fragile]
+
+		\begin{center}
+		  Thank You!
+		\end{center}
+   \end{frame}
+   \end{standoutenv}
+
+
+\end{document}
