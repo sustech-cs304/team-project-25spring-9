@@ -1,11 +1,11 @@
 # report1-09
 
 ### **1.Smart Photo Album Features**
-
-1. **Effortless Photo Management**
-    Organize your photos seamlessly by time, location, and custom tags. Easily browse and retrieve memories with structured categorization.
-2. **Advanced Search Capabilities**
-    Instantly find your photos based on content, date, location, or tags. Use AI-powered search to recognize faces, objects, and scenes within your photos.
+    
+1. **Effortless Photo Management & Advanced Search Capabilities**
+    Organize your photos seamlessly by time, location, and custom tags. Easily browse and retrieve memories with structured categorization.Instantly find your photos based on content, date, location, or tags.
+2. **AI-Powered Photo Recognition & Auto Tagging**
+   Use AI-powered models to recognize faces, objects, and scenes within your photos and generate tags. 
 3. **Built-in Photo Editing Tools**
     Enhance your photos with powerful editing tools, including cropping, filters, adjustments, and retouching options—all within the app.
 4. **Memory Timeline & Video Generation**
