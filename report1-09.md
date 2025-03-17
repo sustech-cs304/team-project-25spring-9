@@ -71,7 +71,7 @@
 
 - **Image Metadata Extraction**: Automatically extract EXIF data using libraries (e.g., ExifTool, Python Pillow).
 - **AI Tagging & Classification**: Use OpenCV and GPT (or other AI/ML services) for face recognition, object detection, and tagging.
-- **Photo Editing Metadata**: Store edit history and versioning to allow rollback or undo changes.
+- **Photo Editing Metadata**: Implement edit history and version control to enable rollbacks or undo changes.
 - **Search Indexes**: Build search indexes in databases (e.g., ElasticSearch) to enable fast retrieval based on time, location, people, objects, and tags.
 
 #### **Data Storage**
