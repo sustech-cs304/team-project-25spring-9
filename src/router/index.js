@@ -23,11 +23,11 @@ const routes = [
   },
   {
     meta: {
-      title: 'Tables',
+      title: 'Photos',
     },
-    path: '/tables',
-    name: 'tables',
-    component: () => import('@/views/TablesView.vue'),
+    path: '/photos',
+    name: 'photos',
+    component: () => import('@/views/PhotosView.vue'),
   },
   {
     meta: {

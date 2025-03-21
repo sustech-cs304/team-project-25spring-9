@@ -5,7 +5,7 @@ import {
   mdiLock,
   mdiAlertCircle,
   mdiSquareEditOutline,
-  mdiTable,
+  mdiImageMultiple,
 } from '@mdi/js'
 
 export default [
@@ -15,9 +15,9 @@ export default [
     label: 'Dashboard',
   },
   {
-    to: '/tables',
-    label: 'Tables',
-    icon: mdiTable,
+    to: '/photos',
+    label: 'Photos',
+    icon: mdiImageMultiple,
   },
   {
     to: '/forms',
