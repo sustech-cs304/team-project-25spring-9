@@ -5,11 +5,11 @@ import Home from '@/views/HomeView.vue'
 const routes = [
   {
     meta: {
-      title: 'Select style',
+      title: 'Dashboard',
     },
     path: '/',
-    name: 'style',
-    component: Style,
+    name: 'home',
+    component: Home,
   },
   {
     // Document title tag
@@ -52,14 +52,6 @@ const routes = [
     path: '/ui',
     name: 'ui',
     component: () => import('@/views/UiView.vue'),
-  },
-  {
-    meta: {
-      title: 'Responsive layout',
-    },
-    path: '/responsive',
-    name: 'responsive',
-    component: () => import('@/views/ResponsiveView.vue'),
   },
   {
     meta: {
