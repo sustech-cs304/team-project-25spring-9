@@ -6,11 +6,16 @@ import {
   mdiClose,
   mdiArrowLeft,
   mdiArrowRight,
-  mdiInformation
+  mdiInformation,
+  mdiImageSearch,
+  mdiViewList,
+  mdiViewGrid,
+  mdiViewGridOutline,
+  mdiViewCompactOutline
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 // Define props for the component
 const props = defineProps({
@@ -18,10 +23,14 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  viewMode: {
+  initialViewMode: {
     type: String,
     default: 'grid',
-    validator: (value) => ['details', 'list', 'grid', 'large', 'small'].includes(value)
+    validator: (value) => ['details', 'grid', 'large', 'small'].includes(value)
+  },
+  availableViewModes: {
+    type: Array,
+    default: () => ['details', 'grid', 'large', 'small']
   },
   isSelectMode: {
     type: Boolean,
@@ -38,11 +47,38 @@ const props = defineProps({
 })
 
 // Define emits
-const emit = defineEmits(['select-photo', 'view-photo', 'action-click'])
+const emit = defineEmits([
+  'select-photo', 
+  'view-photo', 
+  'action-click', 
+  'update:viewMode', 
+  'filter'
+])
+
+// Internal state for the component
+const viewMode = ref(props.initialViewMode)
+const searchQuery = ref('')
 
 // Track modal state and current photo
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
+
+// Filtered photos based on search query
+const filteredPhotos = computed(() => {
+  if (!searchQuery.value) return props.photos
+  
+  const query = searchQuery.value.toLowerCase()
+  return props.photos.filter(photo => {
+    return photo.name.toLowerCase().includes(query) || 
+           (photo.date && photo.date.includes(query)) ||
+           (photo.type && photo.type.toLowerCase().includes(query))
+  })
+})
+
+// Emit filtered photos whenever they change
+watch(filteredPhotos, (newFilteredPhotos) => {
+  emit('filter', newFilteredPhotos)
+})
 
 // Method to check if a photo is selected
 const isPhotoSelected = (photoId) => {
@@ -52,6 +88,12 @@ const isPhotoSelected = (photoId) => {
 // Method to toggle photo selection
 const togglePhotoSelection = (photoId) => {
   emit('select-photo', photoId)
+}
+
+// Method to change view mode
+const setViewMode = (mode) => {
+  viewMode.value = mode
+  emit('update:viewMode', mode)
 }
 
 // Method to open the full image modal
@@ -126,8 +168,56 @@ const handleActionClick = (photo) => {
 
 <template>
   <div>
+    <!-- Search Bar and View Mode Switcher -->
+    <div class="mb-6 flex items-center">
+      <div class="relative flex-grow max-w-md">
+        <input v-model="searchQuery" type="text" placeholder="Search photos"
+          class="w-full py-2 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring focus:border-blue-300" />
+        <div class="absolute left-3 top-2 text-gray-500">
+          <svg class="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiImageSearch" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- View Mode Switcher -->
+      <div class="flex ml-4">
+        <BaseButton v-if="availableViewModes.includes('details')" 
+          :icon="mdiViewList" 
+          :color="viewMode === 'details' ? 'info' : 'whiteDark'" 
+          small
+          @click="setViewMode('details')" 
+          class="mr-1" 
+          title="Details view" />
+          
+        <BaseButton v-if="availableViewModes.includes('large')" 
+          :icon="mdiViewGrid" 
+          :color="viewMode === 'large' ? 'info' : 'whiteDark'" 
+          small
+          @click="setViewMode('large')" 
+          class="mr-1" 
+          title="Large icons" />
+          
+        <BaseButton v-if="availableViewModes.includes('grid')" 
+          :icon="mdiViewGridOutline" 
+          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" 
+          small
+          @click="setViewMode('grid')" 
+          class="mr-1" 
+          title="Medium icons" />
+          
+        <BaseButton v-if="availableViewModes.includes('small')" 
+          :icon="mdiViewCompactOutline" 
+          :color="viewMode === 'small' ? 'info' : 'whiteDark'" 
+          small
+          @click="setViewMode('small')" 
+          title="Small icons" />
+      </div>
+    </div>
+
     <!-- Details View (Table-like) -->
     <div v-if="viewMode === 'details'" class="overflow-x-auto">
+      <!-- Table structure... -->
       <table class="w-full">
         <thead>
           <tr class="border-b">
@@ -141,7 +231,7 @@ const handleActionClick = (photo) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in photos" :key="photo.id" class="border-b hover:bg-gray-50"
+          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-50"
             :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <td v-if="isSelectMode" class="px-3 py-2">
               <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
@@ -165,44 +255,10 @@ const handleActionClick = (photo) => {
       </table>
     </div>
 
-    <!-- List View -->
-    <div v-else-if="viewMode === 'list'" class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="border-b">
-            <th v-if="isSelectMode" class="px-3 py-2 text-left">Select</th>
-            <th class="px-3 py-2 text-left">Preview</th>
-            <th class="px-3 py-2 text-left">Name</th>
-            <th class="px-3 py-2 text-left">Date</th>
-            <th class="px-3 py-2 text-left">Type</th>
-            <th class="px-3 py-2 text-left">Size</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="photo in photos" :key="photo.id" class="border-b hover:bg-gray-50"
-            :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
-            <td v-if="isSelectMode" class="px-3 py-2">
-              <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
-                </svg>
-              </button>
-            </td>
-            <td class="px-3 py-2">
-              <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer" @click="openPhotoModal(photo)" />
-            </td>
-            <td class="px-3 py-2">{{ photo.name }}</td>
-            <td class="px-3 py-2">{{ photo.date }}</td>
-            <td class="px-3 py-2">{{ photo.type }}</td>
-            <td class="px-3 py-2">{{ photo.size }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
     <!-- Large Grid View -->
+    <!-- Same as before -->
     <div v-else-if="viewMode === 'large'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <div v-for="photo in photos" :key="photo.id"
+      <div v-for="photo in filteredPhotos" :key="photo.id"
         class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
@@ -219,8 +275,9 @@ const handleActionClick = (photo) => {
     </div>
 
     <!-- Medium Grid View (Default) -->
+    <!-- Same as before -->
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-      <div v-for="photo in photos" :key="photo.id"
+      <div v-for="photo in filteredPhotos" :key="photo.id"
         class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
@@ -237,8 +294,9 @@ const handleActionClick = (photo) => {
     </div>
 
     <!-- Small Grid View -->
+    <!-- Same as before -->
     <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
-      <div v-for="photo in photos" :key="photo.id"
+      <div v-for="photo in filteredPhotos" :key="photo.id"
         class="flex flex-col items-center relative hover:bg-gray-50 p-1 rounded"
         :class="{ 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
@@ -255,9 +313,10 @@ const handleActionClick = (photo) => {
     </div>
 
     <!-- Empty State -->
-    <CardBoxComponentEmpty v-if="photos.length === 0" />
+    <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
 
     <!-- Photo Modal -->
+    <!-- Same as before -->
     <div v-if="isModalOpen && currentPhoto"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>

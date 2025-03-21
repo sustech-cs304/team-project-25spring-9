@@ -1,8 +1,5 @@
 <script setup>
 import {
-  mdiImageSearch,
-  mdiViewList,
-  mdiViewGridOutline,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
   mdiPlayCircle,
@@ -19,17 +16,19 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import { ref, computed } from 'vue'
-
-// Define view mode and search functionality
-const viewMode = ref('grid')
-const searchQuery = ref('')
+import { ref } from 'vue'
 
 // Track if we're in select mode
 const isSelectMode = ref(false)
 
 // Track selected photos
 const selectedPhotos = ref([])
+
+// Track filtered photos
+const displayedPhotos = ref([])
+
+// Track current view mode
+const currentViewMode = ref('grid')
 
 // Currently generating video status
 const isGeneratingVideo = ref(false)
@@ -45,20 +44,11 @@ const photos = ref([
   { id: 7, name: 'Street Art', src: 'https://picsum.photos/id/22/300/200', date: '2023-11-21', size: '2.1 MB', type: 'JPG' },
   { id: 8, name: 'Cafe Visit', src: 'https://picsum.photos/id/24/300/200', date: '2023-11-21', size: '1.7 MB', type: 'JPG' },
   { id: 9, name: 'Winter Landscape', src: 'https://picsum.photos/id/14/300/200', date: '2024-01-05', size: '2.5 MB', type: 'PNG' },
-  { id: 10, name: 'Holiday Dinner', src: 'https://picsum.photos/id/25/300/200', date: '2024-01-06', size: '3.2 MB', type: 'JPG' }
+  { id: 10, name: 'Holiday Dinner', src: 'https://picsum.photos/id/25/300/200', date: '2024-01-06', size: '3.2 MB', type: 'JPG' },
 ])
 
 // Generated timeline videos
 const timelineVideos = ref([])
-
-// Filtered photos based on search query
-const filteredPhotos = computed(() => {
-  if (!searchQuery.value) return photos.value
-  return photos.value.filter(photo =>
-    photo.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    photo.date.includes(searchQuery.value)
-  )
-})
 
 // Method to toggle photo selection
 const togglePhotoSelection = (photoId) => {
@@ -83,9 +73,14 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Method to change view mode
-const setViewMode = (mode) => {
-  viewMode.value = mode
+// Method to handle filtered photos from the component
+const handleFilteredPhotos = (filteredPhotos) => {
+  displayedPhotos.value = filteredPhotos
+}
+
+// Method to handle view mode changes
+const handleViewModeChange = (mode) => {
+  currentViewMode.value = mode
 }
 
 // Method to generate timeline video from selected photos
@@ -150,36 +145,18 @@ const playVideo = (video) => {
           @click="toggleSelectMode" />
       </SectionTitleLineWithButton>
 
-      <!-- Search Bar -->
-      <div class="mb-6 flex items-center">
-        <div class="relative flex-grow max-w-md">
-          <input v-model="searchQuery" type="text" placeholder="Search photos"
-            class="w-full py-2 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring focus:border-blue-300" />
-          <div class="absolute left-3 top-2 text-gray-500">
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiImageSearch" />
-            </svg>
-          </div>
-        </div>
-
-        <!-- View Mode Switcher -->
-        <div class="flex ml-4">
-          <BaseButton :icon="mdiViewList" :color="viewMode === 'list' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('list')" class="mr-1" title="List view" />
-          <BaseButton :icon="mdiViewGridOutline" :color="viewMode === 'grid' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('grid')" class="mr-1" title="Grid view" />
-        </div>
-      </div>
-
-      <!-- Photos Display Component -->
+      <!-- Photos Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
         <PhotoGallery 
-          :photos="filteredPhotos" 
-          :view-mode="viewMode" 
+          :photos="photos" 
+          :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']"
           :is-select-mode="isSelectMode" 
           :selected-photo-ids="selectedPhotos"
           :show-actions="false"
           @select-photo="togglePhotoSelection"
+          @filter="handleFilteredPhotos"
+          @update:viewMode="handleViewModeChange"
         />
       </CardBox>
 

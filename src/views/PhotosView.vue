@@ -3,12 +3,7 @@ import {
   mdiImageMultiple,
   mdiImagePlus,
   mdiImageRemove,
-  mdiImageSearch,
   mdiImageEdit,
-  mdiViewList,
-  mdiViewGrid,
-  mdiViewGridOutline,
-  mdiViewCompactOutline,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault
 } from '@mdi/js'
@@ -18,17 +13,19 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import { ref, computed } from 'vue'
-
-// Define view mode and search functionality
-const viewMode = ref('grid')
-const searchQuery = ref('')
+import { ref } from 'vue'
 
 // Track if we're in select mode
 const isSelectMode = ref(false)
 
 // Track selected photos
 const selectedPhotos = ref([])
+
+// Track filtered photos
+const displayedPhotos = ref([])
+
+// Track current view mode
+const currentViewMode = ref('grid')
 
 // Sample photo data
 const photos = ref([
@@ -39,14 +36,6 @@ const photos = ref([
   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
 ])
-
-// Filtered photos based on search query
-const filteredPhotos = computed(() => {
-  if (!searchQuery.value) return photos.value
-  return photos.value.filter(photo =>
-    photo.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
-})
 
 // Method to toggle photo selection
 const togglePhotoSelection = (photoId) => {
@@ -71,15 +60,20 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Method to change view mode
-const setViewMode = (mode) => {
-  viewMode.value = mode
-}
-
 // Method to handle photo action clicks
 const handlePhotoAction = (photo) => {
   // Handle actions like edit, delete, etc.
   console.log('Action clicked for photo:', photo)
+}
+
+// Method to handle filtered photos from the component
+const handleFilteredPhotos = (filteredPhotos) => {
+  displayedPhotos.value = filteredPhotos
+}
+
+// Method to handle view mode changes
+const handleViewModeChange = (mode) => {
+  currentViewMode.value = mode
 }
 </script>
 
@@ -93,40 +87,18 @@ const handlePhotoAction = (photo) => {
           @click="toggleSelectMode" />
       </SectionTitleLineWithButton>
 
-      <!-- Search Bar -->
-      <div class="mb-6 flex items-center">
-        <div class="relative flex-grow max-w-md">
-          <input v-model="searchQuery" type="text" placeholder="Search photos"
-            class="w-full py-2 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring focus:border-blue-300" />
-          <div class="absolute left-3 top-2 text-gray-500">
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiImageSearch" />
-            </svg>
-          </div>
-        </div>
-
-        <!-- View Mode Switcher -->
-        <div class="flex ml-4">
-          <BaseButton :icon="mdiViewList" :color="viewMode === 'details' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('details')" class="mr-1" title="Details view" />
-          <BaseButton :icon="mdiViewGrid" :color="viewMode === 'large' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('large')" class="mr-1" title="Large icons" />
-          <BaseButton :icon="mdiViewGridOutline" :color="viewMode === 'grid' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('grid')" class="mr-1" title="Medium icons" />
-          <BaseButton :icon="mdiViewCompactOutline" :color="viewMode === 'small' ? 'info' : 'whiteDark'" small
-            @click="setViewMode('small')" title="Small icons" />
-        </div>
-      </div>
-
-      <!-- Photo Display Component -->
+      <!-- Photo Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
         <PhotoGallery 
-          :photos="filteredPhotos" 
-          :view-mode="viewMode" 
+          :photos="photos" 
+          :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']"
           :is-select-mode="isSelectMode" 
           :selected-photo-ids="selectedPhotos"
           @select-photo="togglePhotoSelection"
           @action-click="handlePhotoAction"
+          @filter="handleFilteredPhotos"
+          @update:viewMode="handleViewModeChange"
         />
       </CardBox>
 
