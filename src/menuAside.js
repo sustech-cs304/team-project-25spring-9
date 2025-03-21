@@ -6,18 +6,24 @@ import {
   mdiAlertCircle,
   mdiSquareEditOutline,
   mdiImageMultiple,
+  mdiTimelineClock
 } from '@mdi/js'
 
 export default [
   {
     to: '/dashboard',
-    icon: mdiMonitor,
     label: 'Dashboard',
+    icon: mdiMonitor,
   },
   {
     to: '/photos',
     label: 'Photos',
     icon: mdiImageMultiple,
+  },
+  {
+    to: '/timeline',
+    label: 'Timeline',
+    icon: mdiTimelineClock,
   },
   {
     to: '/forms',

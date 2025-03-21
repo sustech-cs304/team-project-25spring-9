@@ -31,6 +31,14 @@ const routes = [
   },
   {
     meta: {
+      title: 'Timeline',
+    },
+    path: '/timeline',
+    name: 'timeline',
+    component: () => import('@/views/TimelineView.vue'),
+  },
+  {
+    meta: {
       title: 'Forms',
     },
     path: '/forms',
