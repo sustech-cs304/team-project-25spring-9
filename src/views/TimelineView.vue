@@ -1,39 +1,25 @@
 <script setup>
 import {
-  mdiMonitorCellphone,
-  mdiTableBorder,
-  mdiGithub,
-  mdiImageMultiple,
   mdiImageSearch,
   mdiViewList,
-  mdiViewGrid,
   mdiViewGridOutline,
-  mdiDotsVertical,
-  mdiCheckboxMarked,
-  mdiCheckboxBlankOutline,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
   mdiPlayCircle,
   mdiCalendarMonth,
   mdiMovieOutline,
-  mdiFilmstrip,
   mdiDownload,
   mdiShare,
-  mdiPlayCircleOutline,
-  mdiLoading,
   mdiVideo,
-  mdiClose,
-  mdiArrowLeft,
-  mdiArrowRight,
-  mdiInformation
+  mdiLoading
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
-import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import PhotoGallery from '@/components/PhotoGallery.vue'
+import { ref, computed } from 'vue'
 
 // Define view mode and search functionality
 const viewMode = ref('grid')
@@ -48,7 +34,7 @@ const selectedPhotos = ref([])
 // Currently generating video status
 const isGeneratingVideo = ref(false)
 
-// Sample photo data (instead of full memories)
+// Sample photo data
 const photos = ref([
   { id: 1, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', date: '2023-07-15', size: '2.4 MB', type: 'JPG' },
   { id: 2, name: 'Ocean View', src: 'https://picsum.photos/id/15/300/200', date: '2023-07-15', size: '3.1 MB', type: 'PNG' },
@@ -64,10 +50,6 @@ const photos = ref([
 
 // Generated timeline videos
 const timelineVideos = ref([])
-
-// Track modal state and current photo
-const isModalOpen = ref(false)
-const currentPhoto = ref(null)
 
 // Filtered photos based on search query
 const filteredPhotos = computed(() => {
@@ -101,78 +83,10 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Method to check if a photo is selected
-const isPhotoSelected = (photoId) => {
-  return selectedPhotos.value.includes(photoId)
-}
-
 // Method to change view mode
 const setViewMode = (mode) => {
   viewMode.value = mode
 }
-
-// Method to open the full image modal
-const openPhotoModal = (photo) => {
-  currentPhoto.value = photo
-  isModalOpen.value = true
-}
-
-// Method to close the modal
-const closePhotoModal = () => {
-  isModalOpen.value = false
-  currentPhoto.value = null
-}
-
-// Methods to navigate between photos in the modal
-const viewNextPhoto = () => {
-  if (!currentPhoto.value) return
-
-  const currentIndex = photos.value.findIndex(p => p.id === currentPhoto.value.id)
-  if (currentIndex < photos.value.length - 1) {
-    currentPhoto.value = photos.value[currentIndex + 1]
-  } else {
-    // Wrap around to the first photo
-    currentPhoto.value = photos.value[0]
-  }
-}
-
-const viewPreviousPhoto = () => {
-  if (!currentPhoto.value) return
-
-  const currentIndex = photos.value.findIndex(p => p.id === currentPhoto.value.id)
-  if (currentIndex > 0) {
-    currentPhoto.value = photos.value[currentIndex - 1]
-  } else {
-    // Wrap around to the last photo
-    currentPhoto.value = photos.value[photos.value.length - 1]
-  }
-}
-
-// Handle keyboard navigation in the modal
-const handleKeydown = (event) => {
-  if (!isModalOpen.value) return
-
-  switch (event.key) {
-    case 'Escape':
-      closePhotoModal()
-      break
-    case 'ArrowRight':
-      viewNextPhoto()
-      break
-    case 'ArrowLeft':
-      viewPreviousPhoto()
-      break
-  }
-}
-
-// Add and remove global event listeners
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-})
 
 // Method to generate timeline video from selected photos
 const generateTimelineVideo = async () => {
@@ -259,66 +173,14 @@ const playVideo = (video) => {
 
       <!-- Photos Display Component -->
       <CardBox class="mb-6">
-        <!-- List View -->
-        <div v-if="viewMode === 'list'" class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="border-b">
-                <th v-if="isSelectMode" class="px-3 py-2 text-left">Select</th>
-                <th class="px-3 py-2 text-left">Preview</th>
-                <th class="px-3 py-2 text-left">Name</th>
-                <th class="px-3 py-2 text-left">Date</th>
-                <th class="px-3 py-2 text-left">Type</th>
-                <th class="px-3 py-2 text-left">Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-50"
-                :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
-                <td v-if="isSelectMode" class="px-3 py-2">
-                  <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                      <path fill="currentColor"
-                        :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
-                    </svg>
-                  </button>
-                </td>
-                <td class="px-3 py-2">
-                  <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer"
-                    @click="openPhotoModal(photo)" />
-                </td>
-                <td class="px-3 py-2">{{ photo.name }}</td>
-                <td class="px-3 py-2">{{ photo.date }}</td>
-                <td class="px-3 py-2">{{ photo.type }}</td>
-                <td class="px-3 py-2">{{ photo.size }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Grid View (Default) -->
-        <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <div v-for="photo in filteredPhotos" :key="photo.id"
-            class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
-            :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
-            <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
-              <button @click.stop="togglePhotoSelection(photo.id)"
-                class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="currentColor"
-                    :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
-                </svg>
-              </button>
-            </div>
-            <img :src="photo.src" class="w-full h-32 object-cover rounded mb-2 cursor-pointer"
-              @click="openPhotoModal(photo)" />
-            <span class="text-center text-sm">{{ photo.name }}</span>
-            <span class="text-center text-xs text-gray-500">{{ photo.date }}</span>
-          </div>
-        </div>
-
-        <!-- Empty State -->
-        <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
+        <PhotoGallery 
+          :photos="filteredPhotos" 
+          :view-mode="viewMode" 
+          :is-select-mode="isSelectMode" 
+          :selected-photo-ids="selectedPhotos"
+          :show-actions="false"
+          @select-photo="togglePhotoSelection"
+        />
       </CardBox>
 
       <!-- Generated Timeline Videos Section -->
@@ -380,58 +242,6 @@ const playVideo = (video) => {
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
-        </div>
-      </div>
-
-      <!-- Photo Modal -->
-      <div v-if="isModalOpen && currentPhoto"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
-        <div class="max-w-5xl w-full mx-4 relative" @click.stop>
-          <!-- Photo Container -->
-          <div class="bg-white rounded-lg overflow-hidden shadow-xl">
-            <!-- Navigation and Close Buttons -->
-            <div class="flex justify-between items-center p-4 bg-gray-100">
-              <div class="flex items-center">
-                <button class="p-1 rounded-full hover:bg-gray-200 mr-2" @click="viewPreviousPhoto">
-                  <svg class="w-6 h-6" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="mdiArrowLeft" />
-                  </svg>
-                </button>
-                <button class="p-1 rounded-full hover:bg-gray-200" @click="viewNextPhoto">
-                  <svg class="w-6 h-6" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="mdiArrowRight" />
-                  </svg>
-                </button>
-              </div>
-
-              <div class="text-lg font-medium">{{ currentPhoto.name }}</div>
-
-              <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiClose" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Photo -->
-            <div class="flex justify-center bg-black p-2">
-              <img :src="currentPhoto.src" class="max-h-[70vh] max-w-full object-contain" alt="Full size preview" />
-            </div>
-
-            <!-- Photo Details -->
-            <div class="p-4 bg-white">
-              <div class="flex items-start">
-                <svg class="w-5 h-5 text-gray-500 mr-2 mt-0.5" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiInformation" />
-                </svg>
-                <div>
-                  <div class="mb-1"><span class="font-medium">Type:</span> {{ currentPhoto.type }}</div>
-                  <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                  <div><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </SectionMain>
