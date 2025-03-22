@@ -1,6 +1,7 @@
 <script setup>
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import {useAuthStore} from '@/stores/auth'
 import { mdiAccount, mdiAsterisk } from '@mdi/js'
 import SectionFullScreen from '@/components/SectionFullScreen.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -18,9 +19,18 @@ const form = reactive({
 })
 
 const router = useRouter()
+const authStore = useAuthStore()
 
-const submit = () => {
-  router.push('/dashboard')
+const submit = async () => {
+  try {
+    await authStore.login({
+      username: form.login,
+      password: form.pass
+    })
+    router.push('/dashboard')
+  } catch (error) {
+    console.error('Login failed:', error)
+  }
 }
 </script>
 

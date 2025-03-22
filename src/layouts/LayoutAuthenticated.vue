@@ -2,6 +2,7 @@
 import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import menuAside from '@/menuAside.js'
 import menuNavBar from '@/menuNavBar.js'
 import { useDarkModeStore } from '@/stores/darkMode.js'
@@ -14,7 +15,7 @@ import AsideMenu from '@/components/AsideMenu.vue'
 const layoutAsidePadding = 'xl:pl-60'
 
 const darkModeStore = useDarkModeStore()
-
+const authStore = useAuthStore()
 const router = useRouter()
 
 const isAsideMobileExpanded = ref(false)
@@ -31,7 +32,8 @@ const menuClick = (event, item) => {
   }
 
   if (item.isLogout) {
-    //
+    authStore.logout()
+    router.push('/login')
   }
 }
 </script>
