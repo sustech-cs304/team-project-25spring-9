@@ -141,7 +141,7 @@ const playVideo = (video) => {
       <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline Generator" main>
         <!-- Toggle for select mode -->
         <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-          :label="isSelectMode ? 'View Mode' : 'Select Photos'" :color="isSelectMode ? 'info' : 'contrast'" small
+          :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
           @click="toggleSelectMode" />
       </SectionTitleLineWithButton>
 
@@ -159,6 +159,19 @@ const playVideo = (video) => {
           @update:viewMode="handleViewModeChange"
         />
       </CardBox>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-between mt-6">
+        <div class="flex">
+          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiVideo"
+            :label="isGeneratingVideo ? 'Generating...' : 'Generate Timeline Video'" color="info" rounded-full small
+            :disabled="selectedPhotos.length === 0 || isGeneratingVideo" @click="generateTimelineVideo" />
+        </div>
+        <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
+          <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
+          <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
+        </div>
+      </div>
 
       <!-- Generated Timeline Videos Section -->
       <div v-if="timelineVideos.length > 0" class="mt-8">
@@ -209,18 +222,6 @@ const playVideo = (video) => {
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex justify-between mt-6">
-        <div class="flex">
-          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiVideo"
-            :label="isGeneratingVideo ? 'Generating...' : 'Generate Timeline Video'" color="info" rounded-full small
-            :disabled="selectedPhotos.length === 0 || isGeneratingVideo" @click="generateTimelineVideo" />
-        </div>
-        <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
-          <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
-          <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
-        </div>
-      </div>
     </SectionMain>
   </LayoutAuthenticated>
 </template>
