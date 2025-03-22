@@ -5,11 +5,11 @@ import Home from '@/views/HomeView.vue'
 const routes = [
   {
     meta: {
-      title: 'Select style',
+      title: 'Dashboard',
     },
     path: '/',
-    name: 'style',
-    component: Style,
+    name: 'home',
+    component: Home,
   },
   {
     // Document title tag
@@ -23,11 +23,19 @@ const routes = [
   },
   {
     meta: {
-      title: 'Tables',
+      title: 'Photos',
     },
-    path: '/tables',
-    name: 'tables',
-    component: () => import('@/views/TablesView.vue'),
+    path: '/photos',
+    name: 'photos',
+    component: () => import('@/views/PhotosView.vue'),
+  },
+  {
+    meta: {
+      title: 'Timeline',
+    },
+    path: '/timeline',
+    name: 'timeline',
+    component: () => import('@/views/TimelineView.vue'),
   },
   {
     meta: {
@@ -52,14 +60,6 @@ const routes = [
     path: '/ui',
     name: 'ui',
     component: () => import('@/views/UiView.vue'),
-  },
-  {
-    meta: {
-      title: 'Responsive layout',
-    },
-    path: '/responsive',
-    name: 'responsive',
-    component: () => import('@/views/ResponsiveView.vue'),
   },
   {
     meta: {
