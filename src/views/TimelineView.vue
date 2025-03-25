@@ -8,7 +8,8 @@ import {
   mdiDownload,
   mdiShare,
   mdiVideo,
-  mdiLoading
+  mdiLoading,
+  mdiRefresh
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -16,6 +17,7 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
+import { useMainStore } from '@/stores/main'
 import { ref } from 'vue'
 
 // Track if we're in select mode
@@ -33,7 +35,13 @@ const currentViewMode = ref('grid')
 // Currently generating video status
 const isGeneratingVideo = ref(false)
 
-// Sample photo data
+// API settings
+const useApiData = ref(true)
+// Replace with actual user ID or get from authentication
+const mainStore = useMainStore()
+const userId = ref(mainStore.userId)
+
+// Sample photo data (fallback if API fails)
 const photos = ref([
   { id: 1, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', date: '2023-07-15', size: '2.4 MB', type: 'JPG' },
   { id: 2, name: 'Ocean View', src: 'https://picsum.photos/id/15/300/200', date: '2023-07-15', size: '3.1 MB', type: 'PNG' },
@@ -46,6 +54,9 @@ const photos = ref([
   { id: 9, name: 'Winter Landscape', src: 'https://picsum.photos/id/14/300/200', date: '2024-01-05', size: '2.5 MB', type: 'PNG' },
   { id: 10, name: 'Holiday Dinner', src: 'https://picsum.photos/id/25/300/200', date: '2024-01-06', size: '3.2 MB', type: 'JPG' },
 ])
+
+// API fetched photos
+const apiPhotos = ref([])
 
 // Generated timeline videos
 const timelineVideos = ref([])
@@ -78,6 +89,11 @@ const handleFilteredPhotos = (filteredPhotos) => {
   displayedPhotos.value = filteredPhotos
 }
 
+// Method to handle photos loaded from API
+const handlePhotosLoaded = (loadedPhotos) => {
+  apiPhotos.value = loadedPhotos
+}
+
 // Method to handle view mode changes
 const handleViewModeChange = (mode) => {
   currentViewMode.value = mode
@@ -90,9 +106,10 @@ const generateTimelineVideo = async () => {
   isGeneratingVideo.value = true
 
   try {
-    // Get selected photo data
+    // Get selected photo data from either API photos or sample photos
+    const photosSource = useApiData.value ? apiPhotos.value : photos.value
     const selectedPhotoData = selectedPhotos.value.map(id =>
-      photos.value.find(photo => photo.id === id)
+      photosSource.find(photo => photo.id === id)
     ).filter(Boolean)
 
     console.log('Sending selected photos to server:', selectedPhotoData)
@@ -139,25 +156,22 @@ const playVideo = (video) => {
   <LayoutAuthenticated>
     <SectionMain>
       <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline Generator" main>
-        <!-- Toggle for select mode -->
-        <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-          :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
-          @click="toggleSelectMode" />
+        <div class="flex">
+          <BaseButton :icon="mdiRefresh" tooltip="Refresh Photos" color="whiteDark" small class="mr-2"
+            @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
+            :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
+            @click="toggleSelectMode" />
+        </div>
       </SectionTitleLineWithButton>
 
       <!-- Photos Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
-        <PhotoGallery 
-          :photos="photos" 
-          :initial-view-mode="currentViewMode"
-          :available-view-modes="['details', 'grid', 'large', 'small']"
-          :is-select-mode="isSelectMode" 
-          :selected-photo-ids="selectedPhotos"
-          :show-actions="false"
-          @select-photo="togglePhotoSelection"
-          @filter="handleFilteredPhotos"
-          @update:viewMode="handleViewModeChange"
-        />
+        <PhotoGallery ref="photoGallery" :photos="photos" :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
+          :selected-photo-ids="selectedPhotos" :show-actions="false" :use-api-data="useApiData" :userId="userId"
+          @select-photo="togglePhotoSelection" @filter="handleFilteredPhotos" @update:viewMode="handleViewModeChange"
+          @photos-loaded="handlePhotosLoaded" />
       </CardBox>
 
       <!-- Action Buttons -->
