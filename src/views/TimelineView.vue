@@ -157,8 +157,8 @@ const playVideo = (video) => {
     <SectionMain>
       <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline Generator" main>
         <div class="flex">
-          <BaseButton :icon="mdiRefresh" tooltip="Refresh Photos" color="whiteDark" small class="mr-2"
-            @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos" :color="isSelectMode ? 'info' : 'contrast'"
+            small class="mr-2" label="Refresh" @click="$refs.photoGallery.refreshPhotos()" />
           <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
             :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
             @click="toggleSelectMode" />

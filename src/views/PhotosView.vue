@@ -101,8 +101,8 @@ const handleViewModeChange = (mode) => {
       <SectionTitleLineWithButton :icon="mdiImageMultiple" title="Photos" main>
         <div class="flex">
           <!-- Add refresh button for API photos -->
-          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos" color="whiteDark" small class="mr-2"
-            @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos" :color="isSelectMode ? 'info' : 'contrast'"
+            small class="mr-2" label="Refresh" @click="$refs.photoGallery.refreshPhotos()" />
           <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
             :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
             @click="toggleSelectMode" />
