@@ -48,10 +48,10 @@ const props = defineProps({
 
 // Define emits
 const emit = defineEmits([
-  'select-photo', 
-  'view-photo', 
-  'action-click', 
-  'update:viewMode', 
+  'select-photo',
+  'view-photo',
+  'action-click',
+  'update:viewMode',
   'filter'
 ])
 
@@ -66,10 +66,10 @@ const currentPhoto = ref(null)
 // Filtered photos based on search query
 const filteredPhotos = computed(() => {
   if (!searchQuery.value) return props.photos
-  
+
   const query = searchQuery.value.toLowerCase()
   return props.photos.filter(photo => {
-    return photo.name.toLowerCase().includes(query) || 
+    return photo.name.toLowerCase().includes(query) ||
            (photo.date && photo.date.includes(query)) ||
            (photo.type && photo.type.toLowerCase().includes(query))
   })
@@ -182,35 +182,35 @@ const handleActionClick = (photo) => {
 
       <!-- View Mode Switcher -->
       <div class="flex ml-4">
-        <BaseButton v-if="availableViewModes.includes('details')" 
-          :icon="mdiViewList" 
-          :color="viewMode === 'details' ? 'info' : 'whiteDark'" 
+        <BaseButton v-if="availableViewModes.includes('details')"
+          :icon="mdiViewList"
+          :color="viewMode === 'details' ? 'info' : 'whiteDark'"
           small
-          @click="setViewMode('details')" 
-          class="mr-1" 
+          @click="setViewMode('details')"
+          class="mr-1"
           title="Details view" />
-          
-        <BaseButton v-if="availableViewModes.includes('large')" 
-          :icon="mdiViewGrid" 
-          :color="viewMode === 'large' ? 'info' : 'whiteDark'" 
+
+        <BaseButton v-if="availableViewModes.includes('large')"
+          :icon="mdiViewGrid"
+          :color="viewMode === 'large' ? 'info' : 'whiteDark'"
           small
-          @click="setViewMode('large')" 
-          class="mr-1" 
+          @click="setViewMode('large')"
+          class="mr-1"
           title="Large icons" />
-          
-        <BaseButton v-if="availableViewModes.includes('grid')" 
-          :icon="mdiViewGridOutline" 
-          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" 
+
+        <BaseButton v-if="availableViewModes.includes('grid')"
+          :icon="mdiViewGridOutline"
+          :color="viewMode === 'grid' ? 'info' : 'whiteDark'"
           small
-          @click="setViewMode('grid')" 
-          class="mr-1" 
+          @click="setViewMode('grid')"
+          class="mr-1"
           title="Medium icons" />
-          
-        <BaseButton v-if="availableViewModes.includes('small')" 
-          :icon="mdiViewCompactOutline" 
-          :color="viewMode === 'small' ? 'info' : 'whiteDark'" 
+
+        <BaseButton v-if="availableViewModes.includes('small')"
+          :icon="mdiViewCompactOutline"
+          :color="viewMode === 'small' ? 'info' : 'whiteDark'"
           small
-          @click="setViewMode('small')" 
+          @click="setViewMode('small')"
           title="Small icons" />
       </div>
     </div>
@@ -231,7 +231,7 @@ const handleActionClick = (photo) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-50"
+          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-100 dark:hover:bg-gray-700"
             :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <td v-if="isSelectMode" class="px-3 py-2">
               <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
@@ -259,7 +259,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else-if="viewMode === 'large'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
@@ -278,7 +278,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
@@ -297,7 +297,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-1 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded"
         :class="{ 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
