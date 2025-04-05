@@ -16,10 +16,12 @@ import com.mumu.utils.MinioUtils;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -74,9 +76,10 @@ public class ImgController {
     @ApiOperation(value = "获取全部图片信息", tags = "图片类")
     @GetMapping("/all")
     public AjaxJson getImg(ImgDTO imgDTO
-            , @RequestParam(required = false, defaultValue = "-1") int offset,
-                           @RequestParam(required = false, defaultValue = "10") int limit) {
-        return AjaxJson.getSuccessData(imgService.getImagesByTags(imgDTO, offset, limit));
+            , @RequestParam(required = false, defaultValue = "-1") int offset
+            , @RequestParam(required = false, defaultValue = "10") int limit
+    , @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startDate, @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endDate) {
+        return AjaxJson.getSuccessData(imgService.getImagesByTags(imgDTO, offset, limit,startDate,endDate));
     }
     @ApiOperation(value = "删除图片", tags = "图片类")
     @GetMapping("/delete")

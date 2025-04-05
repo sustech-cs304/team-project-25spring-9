@@ -35,7 +35,7 @@ public class Img implements Serializable {
     private Boolean valid;
 
     private String imgPos;
-
+    private String imgDescribtion;
     private Integer userId;
 
     public Img(ImgDTO img) {

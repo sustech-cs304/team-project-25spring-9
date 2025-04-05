@@ -23,7 +23,7 @@ public class ImgDTO {
     private Boolean pub;
 
     private String imgPos;
-
+    private String imgDescribtion;
     private Integer userId;
     private ResponseEntity<byte[]> img;
     private List<String> peoples;

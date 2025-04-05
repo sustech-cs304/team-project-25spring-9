@@ -15,10 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /**
  * <p>
@@ -50,17 +48,26 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
     }
 
     @Override
-    public List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit) {
+    public List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit,    Date startDate,Date endDate) {
         if (img.getTags() == null) {
             img.setTags(new ArrayList<String>());
         }
         if (img.getPeoples() == null) {
             img.setPeoples(new ArrayList<String>());
         }
+        try {
+            if (startDate == null) {
+                startDate = new SimpleDateFormat("yyyy-MM-dd").parse("1970-01-01");
+            }
+            if (endDate == null) {
+                endDate = new SimpleDateFormat("yyyy-MM-dd").parse("2099-12-31");
+            }
+        }catch (Exception e) {}
         // 1️⃣ 先查询符合条件的图片ID
         List<Integer> imgIds = mapper.selectJoinList(Integer.class, new MPJLambdaWrapper<Img>()
                 .select(Img::getImgId) // 只查询 imgId
                 .eq(img.getUserId() != null, Img::getUserId, img.getUserId())
+                .between(startDate != null&&endDate != null,Img::getImgDate, startDate, endDate)
                 .leftJoin(ImgTag.class, ImgTag::getImgId, Img::getImgId)
                 .leftJoin(Tag.class, Tag::getTagId, ImgTag::getTagId)
                 .leftJoin(ImgPeople.class, ImgPeople::getImgId, Img::getImgId)
@@ -103,6 +110,10 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 ImgDTO dto = new ImgDTO();
                 dto.setImgId(image.getImgId());
                 dto.setImgName(image.getImgName());
+                dto.setImgDate(image.getImgDate());
+                dto.setImgPos(image.getImgPos());
+                dto.setPub(image.getPub());
+                dto.setImgDescribtion(image.getImgDescribtion());
                 dto.setUserId(image.getUserId());
                 dto.setTags(new ArrayList<>());
                 dto.setPeoples(new ArrayList<>());
@@ -126,9 +137,4 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
         return new ArrayList<>(imgMap.values());
     }
 
-//    @Override
-//    public List<ImgDTO> addImg(ImgDTO img){
-//        Img img_in=new Img(img);
-//
-//    }
 }

@@ -4,6 +4,7 @@ import com.mumu.image.DTO.ImgDTO;
 import com.mumu.image.entity.Img;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ import java.util.List;
 public interface ImgService extends IService<Img> {
     List<ImgDTO> getAllImgInfo(Img img);
 
-    List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit);
+    List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit, Date startDate, Date endDate);
 
     // 通过建筑id获取建筑信息
 }
