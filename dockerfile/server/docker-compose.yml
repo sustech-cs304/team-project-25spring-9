@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  springboot-app:
+    # 使用当前目录中的 Dockerfile 构建镜像
+    build: .
+    # 端口映射：将容器的 9090 端口映射到主机的 9090 端口
+    ports:
+      - "9090:9090"
+    # 容器启动时执行的命令
+    entrypoint: ["java", "-jar", "/app/app.jar"]
