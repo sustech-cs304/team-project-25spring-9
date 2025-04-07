@@ -3,8 +3,10 @@ package com.mumu.image.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mumu.entity.Building;
 import com.mumu.entity.BuildingImg;
+import com.mumu.image.DTO.ImageInfo;
 import com.mumu.image.DTO.ImgDTO;
 import com.mumu.image.entity.Img;
 import com.mumu.image.entity.ImgPeople;
@@ -16,13 +18,21 @@ import com.mumu.utils.MinioUtils;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * <p>
@@ -49,6 +59,39 @@ public class ImgController {
     private ImgTagService imgTagService;
     @Value("${minio.uploadImage}")
     private String ImgPath;
+    @Autowired
+    private RestTemplate restTemplate;
+    @Value("${python-backend.endpoint}")
+    private String endpoint;
+    @ApiOperation(value = "接收图片上传并且将上传图片转发到图片处理服务中", tags = "图片类")
+    @PostMapping("/post")
+    public ImageInfo handleImageUpload(@RequestParam("file") MultipartFile files) throws IOException {
+        // 将接收到的MultipartFile转换为FileSystemResource
+        String fileName = UUID.randomUUID().toString()+".jpg";
+        try {
+            fileName = files.getOriginalFilename();
+        }catch (Exception e){}
+        File tempFile = new File(System.getProperty("java.io.tmpdir"), fileName);
+        files.transferTo(tempFile);
+        FileSystemResource fileResource = new FileSystemResource(tempFile);
+
+        // 创建表单数据
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", fileResource);
+
+        // 创建请求头，确保设置 multipart/form-data 内容类型
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        // 创建HttpEntity，包含body和请求头
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        // 发送POST请求到图片处理服务
+        ResponseEntity<String> response = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+// 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(response.getBody(), ImageInfo.class);
+    }
     //    @ApiOperation(value = "上传图片", tags = "图片类")
 //    @SaCheckRole("admin")
 //    @PostMapping("/uploadImg")
@@ -94,21 +137,59 @@ public class ImgController {
 
     @ApiOperation(value = "添加图片信息", tags = "图片类")
     @PostMapping("/add")
-    public AjaxJson uploadImg(ImgDTO imgDTO, MultipartFile files) {
+    public AjaxJson uploadImg(ImgDTO imgDTO, MultipartFile files) throws IOException {
+        MultipartFile file = files;
+        // 将接收到的MultipartFile转换为FileSystemResource
+        String fileName = UUID.randomUUID().toString()+".jpg";
+        try {
+            fileName = files.getOriginalFilename();
+        }catch (Exception e){}
+        File tempFile = new File(System.getProperty("java.io.tmpdir"), fileName);
+        files.transferTo(tempFile);
+        FileSystemResource fileResource = new FileSystemResource(tempFile);
+
+        // 创建表单数据
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", fileResource);
+
+        // 创建请求头，确保设置 multipart/form-data 内容类型
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        // 创建HttpEntity，包含body和请求头
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        // 发送POST请求到图片处理服务
+        ResponseEntity<String> response = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+// 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        ImageInfo res= objectMapper.readValue(response.getBody(), ImageInfo.class);
+        if(imgDTO.getImgDate()==null) {
+            imgDTO.setImgDate(res.getTimestamp());
+        }
+        if(imgDTO.getImgPos() == null) {
+            imgDTO.setImgPos(res.getAddress());
+        }
+        if(imgDTO.getImgDescribtion() == null) {
+            imgDTO.setImgDescribtion(res.getCaption());
+        }
+        if(imgDTO.getTags()==null){
+            imgDTO.setTags(res.getAutoTags());
+        }
         Img img=new Img(imgDTO);
         imgService.save(img);
+        String imgName = String.format("%d.jpeg", img.getImgId());
+        minioUtilS.upload(tempFile, ImgPath, imgName);
         peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
         tagService.checkAndInsertTag(imgDTO.getUserId(),imgDTO.getTags());
         List<Integer> peopleId=peopleService.getPeopleIdsByNames(imgDTO.getPeoples(),imgDTO.getUserId());
         List<Integer> tagId=tagService.getTagIdsByNames(imgDTO.getTags(),imgDTO.getUserId());
         imgPeopleService.addImgPeople(imgDTO.getUserId(),img.getImgId(),peopleId);
         imgTagService.addImgTag(imgDTO.getUserId(),img.getImgId(),tagId);
-        String imgName = String.format("%d.jpeg", img.getImgId());
         peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
         tagService.checkAndInsertTag(imgDTO.getUserId(),imgDTO.getTags());
         // upload img
-        minioUtilS.upload(files, ImgPath, imgName);
-        return AjaxJson.getSuccessData("success");
+        return AjaxJson.getSuccessData(imgDTO);
     }
 }
 

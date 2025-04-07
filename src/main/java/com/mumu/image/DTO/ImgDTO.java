@@ -28,6 +28,7 @@ public class ImgDTO {
     private ResponseEntity<byte[]> img;
     private List<String> peoples;
     private List<String> tags;
+    //duplicated
     private String name;
     private String tagName;
 }

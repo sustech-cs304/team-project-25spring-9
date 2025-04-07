@@ -6,6 +6,6 @@ services:
     build: .
     # 端口映射：将容器的 9090 端口映射到主机的 9090 端口
     ports:
-      - "9090:9090"
+      - "9090:9091"
     # 容器启动时执行的命令
     entrypoint: ["java", "-jar", "/app/app.jar"]

@@ -1,5 +1,5 @@
 server:
-  port: 9090
+  port: 9091
 
 spring:
   redis:
@@ -85,4 +85,5 @@ sa-token:
   token-style: uuid
   # 是否输出操作日志
   is-log: true
-
+python-backend:
+  endpoint: http://localhost:8123/process_image

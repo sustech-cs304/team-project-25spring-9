@@ -17,10 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -304,7 +301,51 @@ public class MinioUtils {
         }
         return "删除文件成功";
     }
-
+    public String upload(File multipartFile, String path, String name) {
+        name = path + "/" + name;
+        FileInputStream in1 = null;
+        InputStream in = null;
+        try {
+            // 读取本地文件
+            in1 = new FileInputStream(multipartFile);
+            BufferedImage originalImage = ImageIO.read(in1);
+            // 压缩图像
+            int newWidth = originalImage.getWidth() / 2;
+            int newHeight = originalImage.getHeight() / 2;
+            BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+            resizedImage.createGraphics().drawImage(originalImage.getScaledInstance(newWidth, newHeight, java.awt.Image.SCALE_SMOOTH), 0, 0, null);
+            // 将压缩后的图像转换为InputStream
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            ImageIO.write(resizedImage, "jpg", os);
+            in = new ByteArrayInputStream(os.toByteArray());
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(name)
+                    .stream(in, in.available(), -1)
+                    .contentType("image/jpeg") // 设置合适的 MIME 类型
+                    .build()
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("upload failed");
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (in1 != null) {
+                try {
+                    in1.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return name;
+    }
     public String upload(MultipartFile multipartFile, String path, String name) {
         name = path + "/" + name;
         InputStream in = null;
