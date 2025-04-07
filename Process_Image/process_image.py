@@ -10,7 +10,6 @@ from datetime import datetime
 from geopy.geocoders import Nominatim
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
-import torch
 import spacy
 from spacy.cli import download
 from fastapi import FastAPI, UploadFile, File
