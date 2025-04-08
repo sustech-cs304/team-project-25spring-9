@@ -293,7 +293,8 @@ def process_images(img_path):
 
     # 人脸识别
     person_label = process_new_photo(img_path)
-
+    if person_label is not None:
+        person_label=[str(person_label)]
     # ✅ 平铺 JSON 格式
     photo_info = {
         'Timestamp': metadata.get('Timestamp').strftime('%Y-%m-%d %H:%M:%S') if isinstance(metadata.get('Timestamp'),
@@ -325,7 +326,7 @@ if __name__ == '__main__':
 
     @app.post("/process_image")
     async def process_image(file: UploadFile = File(...)):
-        try:
+        # try:
             # 创建临时路径，防止文件名冲突
             temp_filename = f"temp_{uuid.uuid4().hex}_{file.filename}"
 
@@ -342,8 +343,8 @@ if __name__ == '__main__':
             # 返回结果
             return JSONResponse(content=result)
 
-        except Exception as e:
-            return JSONResponse(status_code=500, content={"error": str(e)})
+        # except Exception as e:
+            # return JSONResponse(status_code=500, content={"error": str(e)})
 
 
     uvicorn.run(app, host="0.0.0.0", port=8123)
