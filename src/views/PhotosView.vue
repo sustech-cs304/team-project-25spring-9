@@ -158,10 +158,12 @@ const handleViewModeChange = (mode) => {
             :icon="mdiImagePlus"
             label="Upload"
             color="info"
+            rounded-full
+            small
             @click="$refs.fileInput.click()"
           />
           <template v-if="isSelectMode">
-            <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="mx-2"
+            <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length === 0" @click="handleDelete" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length !== 1" />
