@@ -5,6 +5,7 @@ import axios from 'axios'
 export const useMainStore = defineStore('main', () => {
   const userName = ref('John Doe')
   const userEmail = ref('doe.doe.doe@example.com')
+  const userId = ref(4)
 
   const userAvatar = computed(
     () =>
@@ -53,6 +54,7 @@ export const useMainStore = defineStore('main', () => {
   return {
     userName,
     userEmail,
+    userId,
     userAvatar,
     isFieldFocusRegistered,
     clients,

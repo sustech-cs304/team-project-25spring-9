@@ -5,7 +5,8 @@ import {
   mdiImageRemove,
   mdiImageEdit,
   mdiCheckboxMultipleMarkedOutline,
-  mdiCursorDefault
+  mdiCursorDefault,
+  mdiRefresh
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -17,6 +18,10 @@ import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
 const toast = useToast()
+import { useMainStore } from '@/stores/main'
+
+// Get store for user data
+const mainStore = useMainStore()
 
 // Track if we're in select mode
 const isSelectMode = ref(false)
@@ -30,7 +35,14 @@ const displayedPhotos = ref([])
 // Track current view mode
 const currentViewMode = ref('grid')
 
-// Sample photo data
+// Enable API data
+const useApiData = ref(true)
+
+// API data states
+const apiPhotos = ref([])
+const loading = ref(false)
+
+// Sample photo data (fallback if API fails)
 const photos = ref([
   { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
   { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
@@ -113,6 +125,12 @@ const handleFilteredPhotos = (filteredPhotos) => {
   displayedPhotos.value = filteredPhotos
 }
 
+// Method to handle photos loaded from API
+const handlePhotosLoaded = (loadedPhotos) => {
+  apiPhotos.value = loadedPhotos
+  console.log(`Loaded ${loadedPhotos.length} photos from API`)
+}
+
 // Method to handle view mode changes
 const handleViewModeChange = (mode) => {
   currentViewMode.value = mode
@@ -123,25 +141,23 @@ const handleViewModeChange = (mode) => {
   <LayoutAuthenticated>
     <SectionMain>
       <SectionTitleLineWithButton :icon="mdiImageMultiple" title="Photos" main>
-        <!-- Add toggle for select mode -->
-        <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-          :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
-          @click="toggleSelectMode" />
+        <div class="flex">
+          <!-- Add refresh button for API photos -->
+          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos" :color="isSelectMode ? 'info' : 'contrast'"
+            small class="mr-2" label="Refresh" @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
+            :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
+            @click="toggleSelectMode" />
+        </div>
       </SectionTitleLineWithButton>
 
       <!-- Photo Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
-        <PhotoGallery 
-          :photos="photos" 
-          :initial-view-mode="currentViewMode"
-          :available-view-modes="['details', 'grid', 'large', 'small']"
-          :is-select-mode="isSelectMode" 
-          :selected-photo-ids="selectedPhotos"
-          @select-photo="togglePhotoSelection"
-          @action-click="handlePhotoAction"
-          @filter="handleFilteredPhotos"
-          @update:viewMode="handleViewModeChange"
-        />
+        <PhotoGallery ref="photoGallery" :photos="photos" :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
+          :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
+          :userId="mainStore.userId" @select-photo="togglePhotoSelection" @action-click="handlePhotoAction"
+          @filter="handleFilteredPhotos" @update:viewMode="handleViewModeChange" @photos-loaded="handlePhotosLoaded" />
       </CardBox>
 
       <!-- Action Buttons -->
