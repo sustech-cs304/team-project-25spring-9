@@ -164,6 +164,19 @@ onUnmounted(() => {
 const handleActionClick = (photo) => {
   emit('action-click', photo)
 }
+
+const previewImage = ref(null)
+const showPreview = ref(false)
+
+const openPreview = (photo) => {
+  previewImage.value = photo
+  showPreview.value = true
+}
+
+const closePreview = () => {
+  showPreview.value = false
+  previewImage.value = null
+}
 </script>
 
 <template>
@@ -365,6 +378,23 @@ const handleActionClick = (photo) => {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div v-if="showPreview" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+      <div class="relative max-w-4xl max-h-[90vh]">
+        <img 
+          :src="previewImage?.src" 
+          :alt="previewImage?.name"
+          class="max-h-[85vh] object-contain"
+        >
+        <button
+          class="absolute top-4 right-4 text-white hover:text-gray-300"
+          @click="closePreview"
+        >
+          Close
+        </button>
       </div>
     </div>
   </div>

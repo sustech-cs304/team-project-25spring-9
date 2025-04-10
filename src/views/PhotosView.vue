@@ -13,7 +13,10 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 // Track if we're in select mode
 const isSelectMode = ref(false)
@@ -36,6 +39,45 @@ const photos = ref([
   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
 ])
+
+// Method to generate a new unique ID
+const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
+
+// Add new upload method
+const handleUpload = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const newPhoto = {
+        id: getNewId.value,
+        name: file.name,
+        src: e.target.result,
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        date: new Date().toISOString().split('T')[0],
+        type: file.type.split('/')[1].toUpperCase()
+      }
+      photos.value.push(newPhoto)
+      toast.success('Image uploaded successfully')
+    }
+    reader.onerror = () => {
+      toast.error('Error reading file')
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+// Add delete method
+const handleDelete = () => {
+  const count = selectedPhotos.value.length
+  photos.value = photos.value.filter(photo => !selectedPhotos.value.includes(photo.id))
+  clearSelections()
+  toast.success(`${count} photo(s) deleted`)
+}
 
 // Method to toggle photo selection
 const togglePhotoSelection = (photoId) => {
@@ -103,12 +145,24 @@ const handleViewModeChange = (mode) => {
       </CardBox>
 
       <!-- Action Buttons -->
-      <div class="flex justify-between">
-        <div class="flex">
-          <BaseButton :icon="mdiImagePlus" label="Add" color="contrast" rounded-full small class="mr-2" />
+      <div class="flex justify-between mb-6">
+        <div class="flex gap-2">
+          <input
+            ref="fileInput"
+            type="file"
+            class="hidden"
+            @change="handleUpload"
+            accept="image/*"
+          >
+          <BaseButton
+            :icon="mdiImagePlus"
+            label="Upload"
+            color="info"
+            @click="$refs.fileInput.click()"
+          />
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="mx-2"
-              :disabled="selectedPhotos.length === 0" />
+              :disabled="selectedPhotos.length === 0" @click="handleDelete" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length !== 1" />
           </template>
