@@ -148,13 +148,29 @@ const uploadPhotos = (file) => {
       toast.error('Please upload an image file')
       return
     }
+
+    const formatFileSize = (bytes) => {
+      if (bytes < 1024) return `${bytes} B`;
+      
+      const units = ['KB', 'MB', 'GB', 'TB'];
+      let size = bytes;
+      let unitIndex = -1;
+      
+      do {
+        size /= 1024;
+        unitIndex++;
+      } while (size >= 1024 && unitIndex < units.length - 1);
+
+      return `${size.toFixed(1)} ${units[unitIndex]}`;
+    };
+
     const reader = new FileReader()
     reader.onload = (e) => {
       const newPhoto = {
         id: generateNewId(),
         name: file.name,
         src: e.target.result,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        size: formatFileSize(file.size),
         date: new Date().toISOString().split('T')[0],
         type: file.type.split('/')[1].toUpperCase()
       }
