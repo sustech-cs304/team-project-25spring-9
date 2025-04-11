@@ -13,6 +13,7 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
+import PhotoEditor from '@/components/PhotoEditor.vue'
 import { ref } from 'vue'
 
 // Track if we're in select mode
@@ -26,6 +27,9 @@ const displayedPhotos = ref([])
 
 // Track current view mode
 const currentViewMode = ref('grid')
+
+const showEditor = ref(false)
+const editingPhoto = ref(null)
 
 // Sample photo data
 const photos = ref([
@@ -75,6 +79,22 @@ const handleFilteredPhotos = (filteredPhotos) => {
 const handleViewModeChange = (mode) => {
   currentViewMode.value = mode
 }
+
+// Open the editor
+const openEditor = () => {
+  if (selectedPhotos.value.length === 1) {
+    const photo = photos.value.find(p => p.id === selectedPhotos.value[0])
+    editingPhoto.value = photo
+    showEditor.value = true
+  }
+  toggleSelectMode()
+}
+
+// Save edited photo 
+const saveEditedPhoto = (updatedPhoto) => {
+  //TODO: save edited photo
+}
+
 </script>
 
 <template>
@@ -110,7 +130,7 @@ const handleViewModeChange = (mode) => {
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="mx-2"
               :disabled="selectedPhotos.length === 0" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
-              :disabled="selectedPhotos.length !== 1" />
+              :disabled="selectedPhotos.length !== 1" @click="openEditor"/>
           </template>
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
@@ -118,6 +138,14 @@ const handleViewModeChange = (mode) => {
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
         </div>
       </div>
+
+      <!-- Photo Editor Modal -->
+      <PhotoEditor 
+        v-if="showEditor" 
+        :photo="editingPhoto" 
+        @save="saveEditedPhoto" 
+        @close="showEditor = false" 
+      />
     </SectionMain>
   </LayoutAuthenticated>
 </template>
