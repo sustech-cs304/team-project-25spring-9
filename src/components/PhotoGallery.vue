@@ -14,7 +14,15 @@ import {
   mdiViewCompactOutline,
   mdiImageEdit,
   mdiDelete,
-  mdiDownload
+  mdiDownload,
+  mdiChevronDown,
+  mdiFilterVariant,
+  mdiFilterVariantRemove,
+  mdiCalendarMonth,
+  mdiTag,
+  mdiMapMarker,
+  mdiAccount,
+  mdiMagnify,
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
@@ -94,6 +102,39 @@ const apiPhotos = ref([])
 const loading = ref(false)
 const error = ref(null)
 
+// Advanced search state
+const showAdvancedSearch = ref(false)
+const advancedFilters = ref({
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Add applied filter state
+const appliedFilters = ref({
+  query: '',
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Add temporary filter state to store unapplied changes
+const tempFilters = ref({
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Change placeholder text when advanced search is active
+const searchPlaceholder = computed(() => {
+  return showAdvancedSearch.value 
+    ? 'Search by name, type, or any field...' 
+    : 'Quick search photos...'
+})
+
 // Fetch images from API
 const fetchPhotos = async () => {
   if (!props.useApiData) return
@@ -136,13 +177,12 @@ const fetchPhotos = async () => {
 }
 
 const generateNewId = (() => {
-  //todo: generate new id from API
+  // Generate new id from API
   let idCounter = 6
   return () => props.useApiData ? undefined : ++idCounter
 })()
 
 const uploadPhotos = (file) => {
-  // const file = file
   if (file) {
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file')
@@ -178,7 +218,7 @@ const uploadPhotos = (file) => {
         propPhotos.value.push(newPhoto)
       }
       else {
-        //todo: upload to API
+        // Upload to API
       }
       
       toast.success('Image uploaded successfully')
@@ -197,7 +237,7 @@ const deletePhotos = (selectedIds) => {
     propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
   }
   else {
-    //todo: delete from API
+    // Delete from API
   }
   toast.success(`${count} photo(s) deleted`)
 }
@@ -222,9 +262,9 @@ const downloadPhotos = async (selectedIds) => {
       link.click();
       document.body.removeChild(link);
 
-      URL.revokeObjectURL(objectUrl); // 清理内存
+      URL.revokeObjectURL(objectUrl); // Free memory
     } catch (err) {
-      console.error(`下载失败: ${photo.name}`, err);
+      console.error(`Download failed: ${photo.name}`, err);
       toast.error(`Failed to download ${photo.name}`);
     }
   }
@@ -237,17 +277,73 @@ const displayPhotos = computed(() => {
   return props.useApiData ? apiPhotos.value : propPhotos.value
 })
 
-// Filtered photos based on search query
+// Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
-  if (!searchQuery.value) return displayPhotos.value
+  let result = displayPhotos.value
 
-  const query = searchQuery.value.toLowerCase()
-  return displayPhotos.value.filter(photo => {
-    return photo.name.toLowerCase().includes(query) ||
-      (photo.date && photo.date.includes(query)) ||
-      (photo.type && photo.type.toLowerCase().includes(query))
-  })
+  // Use applied filter conditions for search
+  if (appliedFilters.value.query) {
+    const query = appliedFilters.value.query.toLowerCase()
+    result = result.filter(photo => 
+      photo.name.toLowerCase().includes(query) ||
+      photo.type.toLowerCase().includes(query)
+    )
+  }
+
+  // Advanced filters
+  const { dateRange, location, tags, author } = appliedFilters.value
+  
+  if (dateRange.start) {
+    result = result.filter(photo => new Date(photo.date) >= new Date(dateRange.start))
+  }
+  if (dateRange.end) {
+    result = result.filter(photo => new Date(photo.date) <= new Date(dateRange.end))
+  }
+
+  // Location filter
+  if (location) {
+    result = result.filter(photo => 
+      photo.location?.toLowerCase().includes(location.toLowerCase())
+    )
+  }
+
+  // Tags filter
+  if (tags.length > 0) {
+    result = result.filter(photo => 
+      photo.tags?.some(tag => tags.includes(tag.toLowerCase()))
+    )
+  }
+
+  // Author filter
+  if (author) {
+    result = result.filter(photo => 
+      photo.author?.toLowerCase().includes(author.toLowerCase())
+    )
+  }
+
+  return result
 })
+
+// Apply search conditions
+const applyFilters = () => {
+  advancedFilters.value = { ...tempFilters.value }
+  appliedFilters.value = {
+    query: searchQuery.value,
+    ...advancedFilters.value
+  }
+}
+
+// Clear all filter conditions
+const clearAdvancedFilters = () => {
+  searchQuery.value = ''
+  tempFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    author: ''
+  }
+  applyFilters()
+}
 
 // Emit filtered photos whenever they change
 watch(filteredPhotos, (newFilteredPhotos) => {
@@ -346,12 +442,10 @@ const actionMenuPosition = ref({ x: 0, y: 0 })
 
 // Method to handle action button click with menu
 const handleActionClick = (photo, event) => {
-  // 防止冒泡
   event?.stopPropagation()
   
   actionMenuPhoto.value = photo
   if (event) {
-    // 计算菜单位置
     const rect = event.target.getBoundingClientRect()
     actionMenuPosition.value = {
       x: rect.left,
@@ -408,35 +502,150 @@ defineExpose({
 
 <template>
   <div>
-    <!-- Search Bar and View Mode Switcher -->
-    <div class="mb-6 flex items-center">
-      <div class="relative flex-grow max-w-md">
-        <input v-model="searchQuery" type="text" placeholder="Search photos"
-          class="w-full py-2 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring focus:border-blue-300" />
-        <div class="absolute left-3 top-2 text-gray-500">
-          <svg class="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="currentColor" :d="mdiImageSearch" />
-          </svg>
+    <!-- Enhanced Search Bar -->
+    <div class="mb-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <!-- Search input with integrated button -->
+        <div class="relative flex-grow max-w-xl flex shadow-sm">
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            :placeholder="searchPlaceholder"
+            class="w-full py-2 pl-10 pr-4 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all" 
+            @keyup.enter="applyFilters"
+          />
+          <div class="absolute left-3 top-2 text-gray-500">
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="currentColor" :d="mdiImageSearch" />
+            </svg>
+          </div>
+          <BaseButton
+            :icon="mdiMagnify"
+            color="info"
+            class="rounded-l-none px-4"
+            @click="applyFilters"
+          />
+        </div>
+        
+        <!-- Filter toggle button -->
+        <BaseButton
+          :icon="showAdvancedSearch ? mdiFilterVariantRemove : mdiFilterVariant"
+          :color="showAdvancedSearch ? 'info' : 'whiteDark'"
+          :title="showAdvancedSearch ? 'Hide filters' : 'Show filters'"
+          class="shadow-sm"
+          @click="showAdvancedSearch = !showAdvancedSearch"
+        />
+
+        <!-- View Mode Switcher -->
+        <div class="flex border rounded-lg shadow-sm overflow-hidden">
+          <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
+            :color="viewMode === 'details' ? 'info' : 'whiteDark'" @click="setViewMode('details')"
+            class="rounded-none border-r last:border-r-0"
+            title="Details view" />
+
+          <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
+            :color="viewMode === 'large' ? 'info' : 'whiteDark'" @click="setViewMode('large')"
+            class="rounded-none border-r last:border-r-0"
+            title="Large icons" />
+
+          <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
+            :color="viewMode === 'grid' ? 'info' : 'whiteDark'" @click="setViewMode('grid')"
+            class="rounded-none border-r last:border-r-0"
+            title="Medium icons" />
+
+          <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
+            :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
+            class="rounded-none border-r last:border-r-0"
+            title="Small icons" />
         </div>
       </div>
 
-      <!-- View Mode Switcher -->
-      <div class="flex ml-4">
-        <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
-          :color="viewMode === 'details' ? 'info' : 'whiteDark'" small @click="setViewMode('details')" class="mr-1"
-          title="Details view" />
+      <!-- Advanced Search Panel -->
+      <div v-if="showAdvancedSearch" 
+        class="p-5 bg-white border rounded-lg shadow-sm animate-fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Date Range -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiCalendarMonth" /></svg>
+              <span>Date Range</span>
+            </label>
+            <div class="flex gap-2 items-center">
+              <input 
+                v-model="tempFilters.dateRange.start"
+                type="date" 
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
+                placeholder="From date"
+              />
+              <span class="text-gray-500">to</span>
+              <input 
+                v-model="tempFilters.dateRange.end"
+                type="date" 
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
+                placeholder="To date"
+              />
+            </div>
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
-          :color="viewMode === 'large' ? 'info' : 'whiteDark'" small @click="setViewMode('large')" class="mr-1"
-          title="Large icons" />
+          <!-- Location -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiMapMarker" /></svg>
+              <span>Location</span>
+            </label>
+            <input 
+              v-model="tempFilters.location"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Enter location name"
+            />
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
-          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" small @click="setViewMode('grid')" class="mr-1"
-          title="Medium icons" />
+          <!-- Tags -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiTag" /></svg>
+              <span>Tags</span>
+            </label>
+            <input 
+              v-model="tempFilters.tags"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Separate tags with commas"
+              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())"
+            />
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
-          :color="viewMode === 'small' ? 'info' : 'whiteDark'" small @click="setViewMode('small')"
-          title="Small icons" />
+          <!-- Author -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
+              <span>Author</span>
+            </label>
+            <input 
+              v-model="tempFilters.author"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Search by author name"
+            />
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-4 flex justify-end gap-2">
+          <BaseButton
+            label="Reset Filters"
+            color="whiteDark"
+            small
+            @click="clearAdvancedFilters"
+          />
+          <BaseButton
+            label="Apply Filters"
+            color="success"
+            small
+            @click="applyFilters"
+          />
+        </div>
       </div>
     </div>
 
@@ -581,7 +790,7 @@ defineExpose({
 
             <div class="text-lg font-medium">{{ currentPhoto.name }}</div>
 
-            <!-- 添加操作按钮组 -->
+            <!-- Add action button group -->
             <div class="flex items-center gap-2">
               <button 
                 v-for="(action, index) in [
@@ -660,5 +869,14 @@ defineExpose({
 .action-menu-enter-from,
 .action-menu-leave-to {
   opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
