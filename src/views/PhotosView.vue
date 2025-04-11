@@ -102,16 +102,22 @@ const handleViewModeChange = (mode) => {
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
-    const photo = photos.value.find(p => p.id === selectedPhotos.value[0])
+    const source = useApiData.value ? apiPhotos.value : photos.value
+    const photo = source.find(p => p.id === selectedPhotos.value[0])
     editingPhoto.value = photo
     showEditor.value = true
   }
   toggleSelectMode()
 }
 
+const closeEditor = () => {
+  showEditor.value = false
+  editingPhoto.value = null
+}
+
 // Save edited photo 
 const saveEditedPhoto = (updatedPhoto) => {
-  //TODO: save edited photo
+  //TODO: save base64 photo
 }
 
 </script>
@@ -161,7 +167,7 @@ const saveEditedPhoto = (updatedPhoto) => {
         v-if="showEditor" 
         :photo="editingPhoto" 
         @save="saveEditedPhoto" 
-        @close="showEditor = false" 
+        @close="closeEditor" 
       />
     </SectionMain>
   </LayoutAuthenticated>

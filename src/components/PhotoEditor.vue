@@ -13,10 +13,6 @@
 
 <style scoped>
 
-  :deep(.tui-image-editor-logo) {
-    display: none !important;
-  }
-
   .photo-editor-modal {
     position: fixed;
     inset: 0;
@@ -40,6 +36,14 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'close'])
 
+const editorTheme = { 
+  'common.bi.image': '',  
+  'common.bisize.width': '0px',
+  'common.bisize.height': '0px',
+  'downloadButton.display': 'none', 
+  'loadButton.display': 'none',
+}
+
 let editor = null
 
 onMounted(() => {
@@ -51,10 +55,7 @@ onMounted(() => {
           path: props.photo.src,
           name: props.photo.name,
         },
-        theme: { 
-          'downloadButton.display': 'none', 
-          'loadButton.display': 'none',
-        },
+        theme: editorTheme,
         menuBarPosition: 'bottom',
       },
       usageStatistics: false,
