@@ -43,16 +43,25 @@ const props = defineProps({
   showActions: {
     type: Boolean,
     default: true
+  },
+  useApiData: {
+    type: Boolean,
+    default: false
+  },
+  userId: {
+    type: Number,
+    default: null
   }
 })
 
 // Define emits
 const emit = defineEmits([
-  'select-photo', 
-  'view-photo', 
-  'action-click', 
-  'update:viewMode', 
-  'filter'
+  'select-photo',
+  'view-photo',
+  'action-click',
+  'update:viewMode',
+  'filter',
+  'photos-loaded'
 ])
 
 // Internal state for the component
@@ -63,15 +72,66 @@ const searchQuery = ref('')
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
 
+// API data states
+const apiPhotos = ref([])
+const loading = ref(false)
+const error = ref(null)
+
+// Fetch images from API
+const fetchPhotos = async () => {
+  if (!props.useApiData) return
+
+  loading.value = true
+  error.value = null
+
+  try {
+    // Fetch image metadata from first API endpoint
+    const response = await fetch('http://10.16.60.67:9090/img/all?userId=' + props.userId)
+    const result = await response.json()
+
+    if (result && result.data) {
+      // Filter by userId if specified
+      let imageData = result.data
+      if (props.userId) {
+        imageData = imageData.filter(img => img.userId === props.userId)
+      }
+
+      // Transform data to match our component's expected format
+      apiPhotos.value = imageData.map(img => ({
+        id: img.imgId,
+        name: img.imgName || `Image ${img.imgId}`,
+        src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
+        type: img.imgType || 'JPEG',
+        size: img.imgSize ? `${(parseInt(img.imgSize) / 1024).toFixed(2)} KB` : 'Unknown',
+        date: img.createTime || new Date().toISOString().split('T')[0],
+        userId: img.userId
+      }))
+
+      // Emit the loaded photos to parent
+      emit('photos-loaded', apiPhotos.value)
+    }
+  } catch (err) {
+    error.value = 'Failed to fetch photos: ' + err.message
+    console.error(error.value)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Determine which photos to use - API or props
+const displayPhotos = computed(() => {
+  return props.useApiData ? apiPhotos.value : props.photos
+})
+
 // Filtered photos based on search query
 const filteredPhotos = computed(() => {
-  if (!searchQuery.value) return props.photos
-  
+  if (!searchQuery.value) return displayPhotos.value
+
   const query = searchQuery.value.toLowerCase()
-  return props.photos.filter(photo => {
-    return photo.name.toLowerCase().includes(query) || 
-           (photo.date && photo.date.includes(query)) ||
-           (photo.type && photo.type.toLowerCase().includes(query))
+  return displayPhotos.value.filter(photo => {
+    return photo.name.toLowerCase().includes(query) ||
+      (photo.date && photo.date.includes(query)) ||
+      (photo.type && photo.type.toLowerCase().includes(query))
   })
 })
 
@@ -113,24 +173,24 @@ const closePhotoModal = () => {
 const viewNextPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = props.photos.findIndex(p => p.id === currentPhoto.value.id)
-  if (currentIndex < props.photos.length - 1) {
-    currentPhoto.value = props.photos[currentIndex + 1]
+  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
+  if (currentIndex < filteredPhotos.value.length - 1) {
+    currentPhoto.value = filteredPhotos.value[currentIndex + 1]
   } else {
     // Wrap around to the first photo
-    currentPhoto.value = props.photos[0]
+    currentPhoto.value = filteredPhotos.value[0]
   }
 }
 
 const viewPreviousPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = props.photos.findIndex(p => p.id === currentPhoto.value.id)
+  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
   if (currentIndex > 0) {
-    currentPhoto.value = props.photos[currentIndex - 1]
+    currentPhoto.value = filteredPhotos.value[currentIndex - 1]
   } else {
     // Wrap around to the last photo
-    currentPhoto.value = props.photos[props.photos.length - 1]
+    currentPhoto.value = filteredPhotos.value[filteredPhotos.value.length - 1]
   }
 }
 
@@ -154,6 +214,9 @@ const handleKeydown = (event) => {
 // Add and remove global event listeners
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  if (props.useApiData) {
+    fetchPhotos()
+  }
 })
 
 onUnmounted(() => {
@@ -164,6 +227,15 @@ onUnmounted(() => {
 const handleActionClick = (photo) => {
   emit('action-click', photo)
 }
+
+// Method to refresh API photos
+const refreshPhotos = () => {
+  fetchPhotos()
+}
+
+defineExpose({
+  refreshPhotos
+})
 </script>
 
 <template>
@@ -182,39 +254,37 @@ const handleActionClick = (photo) => {
 
       <!-- View Mode Switcher -->
       <div class="flex ml-4">
-        <BaseButton v-if="availableViewModes.includes('details')" 
-          :icon="mdiViewList" 
-          :color="viewMode === 'details' ? 'info' : 'whiteDark'" 
-          small
-          @click="setViewMode('details')" 
-          class="mr-1" 
+        <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
+          :color="viewMode === 'details' ? 'info' : 'whiteDark'" small @click="setViewMode('details')" class="mr-1"
           title="Details view" />
-          
-        <BaseButton v-if="availableViewModes.includes('large')" 
-          :icon="mdiViewGrid" 
-          :color="viewMode === 'large' ? 'info' : 'whiteDark'" 
-          small
-          @click="setViewMode('large')" 
-          class="mr-1" 
+
+        <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
+          :color="viewMode === 'large' ? 'info' : 'whiteDark'" small @click="setViewMode('large')" class="mr-1"
           title="Large icons" />
-          
-        <BaseButton v-if="availableViewModes.includes('grid')" 
-          :icon="mdiViewGridOutline" 
-          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" 
-          small
-          @click="setViewMode('grid')" 
-          class="mr-1" 
+
+        <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
+          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" small @click="setViewMode('grid')" class="mr-1"
           title="Medium icons" />
-          
-        <BaseButton v-if="availableViewModes.includes('small')" 
-          :icon="mdiViewCompactOutline" 
-          :color="viewMode === 'small' ? 'info' : 'whiteDark'" 
-          small
-          @click="setViewMode('small')" 
+
+        <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
+          :color="viewMode === 'small' ? 'info' : 'whiteDark'" small @click="setViewMode('small')"
           title="Small icons" />
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+      <p class="font-bold">Error</p>
+      <p>{{ error }}</p>
+      <BaseButton label="Retry" color="danger" small class="mt-2" @click="refreshPhotos" />
+    </div>
+
+    <!-- Rest of the template remains the same -->
     <!-- Details View (Table-like) -->
     <div v-if="viewMode === 'details'" class="overflow-x-auto">
       <!-- Table structure... -->
@@ -231,17 +301,19 @@ const handleActionClick = (photo) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-50"
+          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-100 dark:hover:bg-gray-700"
             :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <td v-if="isSelectMode" class="px-3 py-2">
               <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
+                  <path fill="currentColor"
+                    :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
                 </svg>
               </button>
             </td>
             <td class="px-3 py-2">
-              <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer" @click="openPhotoModal(photo)" />
+              <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer"
+                @click="openPhotoModal(photo)" />
             </td>
             <td class="px-3 py-2">{{ photo.name }}</td>
             <td class="px-3 py-2">{{ photo.type }}</td>
@@ -259,7 +331,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else-if="viewMode === 'large'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
@@ -269,7 +341,8 @@ const handleActionClick = (photo) => {
             </svg>
           </button>
         </div>
-        <img :src="photo.src" class="w-full h-40 object-cover rounded mb-2 cursor-pointer" @click="openPhotoModal(photo)" />
+        <img :src="photo.src" class="w-full h-40 object-cover rounded mb-2 cursor-pointer"
+          @click="openPhotoModal(photo)" />
         <span class="text-center">{{ photo.name }}</span>
       </div>
     </div>
@@ -278,7 +351,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-2 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
         :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
@@ -288,7 +361,8 @@ const handleActionClick = (photo) => {
             </svg>
           </button>
         </div>
-        <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer" @click="openPhotoModal(photo)" />
+        <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
+          @click="openPhotoModal(photo)" />
         <span class="text-center text-sm">{{ photo.name }}</span>
       </div>
     </div>
@@ -297,7 +371,7 @@ const handleActionClick = (photo) => {
     <!-- Same as before -->
     <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-50 p-1 rounded"
+        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded"
         :class="{ 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
@@ -307,7 +381,8 @@ const handleActionClick = (photo) => {
             </svg>
           </button>
         </div>
-        <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer" @click="openPhotoModal(photo)" />
+        <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer"
+          @click="openPhotoModal(photo)" />
         <span class="text-center text-xs truncate w-full">{{ photo.name }}</span>
       </div>
     </div>
