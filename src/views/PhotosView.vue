@@ -6,7 +6,8 @@ import {
   mdiImageEdit,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
-  mdiRefresh
+  mdiRefresh,
+  mdiDownload
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -67,6 +68,11 @@ const handleUpload = (event) => {
 const handleDelete = () => {
   photoGallery.value.deletePhotos(selectedPhotos)
   clearSelections()
+}
+
+// Add download method
+const handleDownload = () => {
+  photoGallery.value.downloadPhotos(selectedPhotos)
 }
 
 // Method to toggle photo selection
@@ -138,6 +144,8 @@ const clearSelections = () => {
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length === 0" @click="handleDelete" />
+            <BaseButton :icon="mdiDownload" label="Download" color="success" rounded-full small class="ml-2"
+              :disabled="selectedPhotos.length === 0" @click="handleDownload" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length !== 1" />
           </template>

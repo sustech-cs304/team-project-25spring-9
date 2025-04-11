@@ -11,7 +11,10 @@ import {
   mdiViewList,
   mdiViewGrid,
   mdiViewGridOutline,
-  mdiViewCompactOutline
+  mdiViewCompactOutline,
+  mdiImageEdit,
+  mdiDelete,
+  mdiDownload
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
@@ -183,6 +186,36 @@ const deletePhotos = (selectedIds) => {
   toast.success(`${count} photo(s) deleted`)
 }
 
+const downloadPhotos = async (selectedIds) => {
+  if (selectedIds.value.length === 0) return;
+
+  const photosToDownload = selectedIds.value.map(id =>
+    displayPhotos.value.find(p => p.id === id)
+  ).filter(Boolean); 
+
+  for (const photo of photosToDownload) {
+    try {
+      const res = await fetch(photo.src, { mode: 'cors' }); 
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = photo.name || 'download'; 
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(objectUrl); // 清理内存
+    } catch (err) {
+      console.error(`下载失败: ${photo.name}`, err);
+      toast.error(`Failed to download ${photo.name}`);
+    }
+  }
+
+  toast.success(`Successfully downloaded ${photosToDownload.length} photo(s)`);
+}
+
 // Determine which photos to use - API or props
 const displayPhotos = computed(() => {
   return props.useApiData ? apiPhotos.value : propPhotos.value
@@ -282,15 +315,66 @@ onMounted(() => {
   if (props.useApiData) {
     fetchPhotos()
   }
+  document.addEventListener('click', closeActionMenu)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', closeActionMenu)
 })
 
-// Method to handle action button click
-const handleActionClick = (photo) => {
-  emit('action-click', photo)
+// Action menu state
+const showActionMenu = ref(false)
+const actionMenuPhoto = ref(null)
+const actionMenuPosition = ref({ x: 0, y: 0 })
+
+// Method to handle action button click with menu
+const handleActionClick = (photo, event) => {
+  // 防止冒泡
+  event?.stopPropagation()
+  
+  actionMenuPhoto.value = photo
+  if (event) {
+    // 计算菜单位置
+    const rect = event.target.getBoundingClientRect()
+    actionMenuPosition.value = {
+      x: rect.left,
+      y: rect.bottom + window.scrollY
+    }
+  }
+  showActionMenu.value = true
+}
+
+// Handle menu item click
+const handleMenuAction = (action) => {
+  if (isModalOpen.value) {
+    actionMenuPhoto.value = currentPhoto.value
+  }
+  if (!actionMenuPhoto.value) return
+
+  switch (action) {
+    case 'edit':
+      // TODO: Implement edit functionality
+      break
+    case 'delete':
+      deletePhotos({ value: [actionMenuPhoto.value.id] })
+      break
+    case 'download':
+      downloadPhotos({ value: [actionMenuPhoto.value.id] })
+      break
+  }
+  showActionMenu.value = false
+  actionMenuPhoto.value = null
+
+  if (isModalOpen.value && action == 'delete') {
+    closePhotoModal()
+  }
+}
+
+// Close menu when clicking outside
+const closeActionMenu = () => {
+  showActionMenu.value = false
+  actionMenuPhoto.value = null
 }
 
 // Method to refresh API photos
@@ -301,7 +385,8 @@ const refreshPhotos = () => {
 defineExpose({
   refreshPhotos,
   uploadPhotos,
-  deletePhotos
+  deletePhotos,
+  downloadPhotos
 })
 </script>
 
@@ -387,7 +472,7 @@ defineExpose({
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
             <td v-if="showActions" class="px-3 py-2">
-              <BaseButton :icon="mdiDotsVertical" small color="lightDark" @click="handleActionClick(photo)" />
+              <BaseButton :icon="mdiDotsVertical" small color="lightDark" @click="handleActionClick(photo, $event)" />
             </td>
           </tr>
         </tbody>
@@ -458,7 +543,6 @@ defineExpose({
     <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
 
     <!-- Photo Modal -->
-    <!-- Same as before -->
     <div v-if="isModalOpen && currentPhoto"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>
@@ -481,11 +565,28 @@ defineExpose({
 
             <div class="text-lg font-medium">{{ currentPhoto.name }}</div>
 
-            <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
-              <svg class="w-6 h-6" viewBox="0 0 24 24">
-                <path fill="currentColor" :d="mdiClose" />
-              </svg>
-            </button>
+            <!-- 添加操作按钮组 -->
+            <div class="flex items-center gap-2">
+              <button 
+                v-for="(action, index) in [
+                  { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+                  { icon: mdiDelete, label: 'Delete', value: 'delete' },
+                  { icon: mdiDownload, label: 'Download', value: 'download' }
+                ]"
+                :key="index"
+                class="p-1 rounded-full hover:bg-gray-200 flex items-center"
+                @click="handleMenuAction(action.value)">
+                <svg class="w-6 h-6" viewBox="0 0 24 24">
+                  <path fill="currentColor" :d="action.icon" />
+                </svg>
+              </button>
+              
+              <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
+                <svg class="w-6 h-6" viewBox="0 0 24 24">
+                  <path fill="currentColor" :d="mdiClose" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Photo -->
@@ -510,5 +611,38 @@ defineExpose({
       </div>
     </div>
 
+    <!-- Action Menu -->
+    <div v-if="showActionMenu" 
+      class="fixed z-50 bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
+      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
+      @click.stop>
+      <button 
+        v-for="(action, index) in [
+          { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+          { icon: mdiDelete, label: 'Delete', value: 'delete' },
+          { icon: mdiDownload, label: 'Download', value: 'download' }
+        ]"
+        :key="index"
+        class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
+        @click="handleMenuAction(action.value)">
+        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+          <path fill="currentColor" :d="action.icon" />
+        </svg>
+        {{ action.label }}
+      </button>
+    </div>
+
   </div>
 </template>
+
+<style scoped>
+.action-menu-enter-active,
+.action-menu-leave-active {
+  transition: opacity 0.2s;
+}
+
+.action-menu-enter-from,
+.action-menu-leave-to {
+  opacity: 0;
+}
+</style>
