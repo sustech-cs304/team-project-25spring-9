@@ -36,59 +36,37 @@ const displayedPhotos = ref([])
 const currentViewMode = ref('grid')
 
 // Enable API data
-const useApiData = ref(true)
+const useApiData = ref(false)
 
-// API data states
-const apiPhotos = ref([])
-const loading = ref(false)
+
+const photoGallery = ref(null)
+
+// // API data states
+// const apiPhotos = ref([])
+// const loading = ref(false)
 
 // Sample photo data (fallback if API fails)
-const photos = ref([
-  { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-  { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-  { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-  { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-  { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-  { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
-])
+// const photos = ref([
+//   { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
+//   { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
+//   { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
+//   { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
+//   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
+//   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
+// ])
 
 // Method to generate a new unique ID
 const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
 
 // Add new upload method
 const handleUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const newPhoto = {
-        id: getNewId.value,
-        name: file.name,
-        src: e.target.result,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-        date: new Date().toISOString().split('T')[0],
-        type: file.type.split('/')[1].toUpperCase()
-      }
-      photos.value.push(newPhoto)
-      toast.success('Image uploaded successfully')
-    }
-    reader.onerror = () => {
-      toast.error('Error reading file')
-    }
-    reader.readAsDataURL(file)
-  }
+  photoGallery.value.uploadPhotos(event.target.files[0])
 }
 
 // Add delete method
 const handleDelete = () => {
-  const count = selectedPhotos.value.length
-  photos.value = photos.value.filter(photo => !selectedPhotos.value.includes(photo.id))
+  photoGallery.value.deletePhotos(selectedPhotos)
   clearSelections()
-  toast.success(`${count} photo(s) deleted`)
 }
 
 // Method to toggle photo selection
@@ -114,27 +92,6 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Method to handle photo action clicks
-const handlePhotoAction = (photo) => {
-  // Handle actions like edit, delete, etc.
-  console.log('Action clicked for photo:', photo)
-}
-
-// Method to handle filtered photos from the component
-const handleFilteredPhotos = (filteredPhotos) => {
-  displayedPhotos.value = filteredPhotos
-}
-
-// Method to handle photos loaded from API
-const handlePhotosLoaded = (loadedPhotos) => {
-  apiPhotos.value = loadedPhotos
-  console.log(`Loaded ${loadedPhotos.length} photos from API`)
-}
-
-// Method to handle view mode changes
-const handleViewModeChange = (mode) => {
-  currentViewMode.value = mode
-}
 </script>
 
 <template>
@@ -153,11 +110,11 @@ const handleViewModeChange = (mode) => {
 
       <!-- Photo Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
-        <PhotoGallery ref="photoGallery" :photos="photos" :initial-view-mode="currentViewMode"
+        <PhotoGallery ref="photoGallery" :initial-view-mode="currentViewMode"
           :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
           :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
-          :userId="mainStore.userId" @select-photo="togglePhotoSelection" @action-click="handlePhotoAction"
-          @filter="handleFilteredPhotos" @update:viewMode="handleViewModeChange" @photos-loaded="handlePhotosLoaded" />
+          :userId="mainStore.userId" @select-photo="togglePhotoSelection" 
+        />
       </CardBox>
 
       <!-- Action Buttons -->

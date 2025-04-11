@@ -16,12 +16,23 @@ import {
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 // Define props for the component
 const props = defineProps({
   photos: {
     type: Array,
-    required: true
+    // required: true,
+    default: () => [
+      { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
+      { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
+      { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
+      { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
+      { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
+      { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' }
+    ]
   },
   initialViewMode: {
     type: String,
@@ -72,6 +83,9 @@ const searchQuery = ref('')
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
 
+// Test Photos
+const propPhotos = ref(props.photos)
+
 // API data states
 const apiPhotos = ref([])
 const loading = ref(false)
@@ -118,9 +132,60 @@ const fetchPhotos = async () => {
   }
 }
 
+const generateNewId = (() => {
+  //todo: generate new id from API
+  let idCounter = 6
+  return () => props.useApiData ? undefined : ++idCounter
+})()
+
+const uploadPhotos = (file) => {
+  // const file = file
+  if (file) {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const newPhoto = {
+        id: generateNewId(),
+        name: file.name,
+        src: e.target.result,
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        date: new Date().toISOString().split('T')[0],
+        type: file.type.split('/')[1].toUpperCase()
+      }
+      if (!props.useApiData) {
+        propPhotos.value.push(newPhoto)
+      }
+      else {
+        //todo: upload to API
+      }
+      
+      toast.success('Image uploaded successfully')
+    }
+    reader.onerror = () => {
+      toast.error('Error reading file')
+    }
+    reader.readAsDataURL(file)
+  }
+
+}
+
+const deletePhotos = (selectedIds) => {
+  const count = selectedIds.value.length
+  if(!props.useApiData) {
+    propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
+  }
+  else {
+    //todo: delete from API
+  }
+  toast.success(`${count} photo(s) deleted`)
+}
+
 // Determine which photos to use - API or props
 const displayPhotos = computed(() => {
-  return props.useApiData ? apiPhotos.value : props.photos
+  return props.useApiData ? apiPhotos.value : propPhotos.value
 })
 
 // Filtered photos based on search query
@@ -228,25 +293,15 @@ const handleActionClick = (photo) => {
   emit('action-click', photo)
 }
 
-const previewImage = ref(null)
-const showPreview = ref(false)
-
-const openPreview = (photo) => {
-  previewImage.value = photo
-  showPreview.value = true
-}
-
-const closePreview = () => {
-  showPreview.value = false
-  previewImage.value = null
-}
 // Method to refresh API photos
 const refreshPhotos = () => {
   fetchPhotos()
 }
 
 defineExpose({
-  refreshPhotos
+  refreshPhotos,
+  uploadPhotos,
+  deletePhotos
 })
 </script>
 
@@ -455,21 +510,5 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Image Preview Modal -->
-    <div v-if="showPreview" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div class="relative max-w-4xl max-h-[90vh]">
-        <img 
-          :src="previewImage?.src" 
-          :alt="previewImage?.name"
-          class="max-h-[85vh] object-contain"
-        >
-        <button
-          class="absolute top-4 right-4 text-white hover:text-gray-300"
-          @click="closePreview"
-        >
-          Close
-        </button>
-      </div>
-    </div>
   </div>
 </template>
