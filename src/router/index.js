@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import Style from '@/views/StyleView.vue'
 import Home from '@/views/HomeView.vue'
+import RegisterView from '@/views/RegisterView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -77,6 +77,14 @@ const routes = [
     component: () => import('@/views/LoginView.vue'),
   },
   {
+    path: '/register',
+    name: 'register',
+    component: RegisterView,
+    meta: {
+      title: 'User Registration'
+    }
+  },
+  {
     meta: {
       title: 'Error',
     },
@@ -98,7 +106,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  
+
   if (requiresAuth && !authStore.checkAuth()) {
     next('/login')
   } else {
