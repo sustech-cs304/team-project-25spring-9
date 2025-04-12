@@ -102,14 +102,20 @@ const handleViewModeChange = (mode) => {
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
-    const source = useApiData.value ? apiPhotos.value : photos.value
-    const photo = source.find(p => p.id === selectedPhotos.value[0])
-    editingPhoto.value = photo
-    showEditor.value = true
+    openEditorWithPhoto(selectedPhotos.value[0]) 
   }
-  toggleSelectMode()
 }
 
+// Open editor with photo ID
+const openEditorWithPhoto = (photoId) => {
+    const source = useApiData.value ? apiPhotos.value : photos.value
+    const photo = source.find(p => p.id === photoId)
+    editingPhoto.value = photo
+    showEditor.value = true
+    toggleSelectMode()
+}
+
+// Close editor without save
 const closeEditor = () => {
   showEditor.value = false
   editingPhoto.value = null
