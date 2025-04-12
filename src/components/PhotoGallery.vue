@@ -77,6 +77,67 @@ const apiPhotos = ref([])
 const loading = ref(false)
 const error = ref(null)
 
+// Advanced search state
+const showAdvancedSearch = ref(false)
+const advancedFilters = ref({
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Add applied filter state
+const appliedFilters = ref({
+  query: '',
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Add temporary filter state to store unapplied changes
+const tempFilters = ref({
+  dateRange: { start: '', end: '' },
+  location: '',
+  tags: [],
+  author: ''
+})
+
+// Change placeholder text when advanced search is active
+const searchPlaceholder = computed(() => {
+  return showAdvancedSearch.value 
+    ? 'Search by name, type, or any field...' 
+    : 'Quick search photos...'
+})
+
+function formatFileSize(bytes) {
+  if (!bytes) return 'Unknown';
+  if (bytes < 1024) return `${bytes} B`;
+  
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let size = bytes;
+  let unitIndex = -1;
+  
+  do {
+    size /= 1024;
+    unitIndex++;
+  } while (size >= 1024 && unitIndex < units.length - 1);
+
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+async function getImageFileSizeFromUrl(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) throw new Error('Failed to fetch image size');
+    const size = response.headers.get('content-length');
+    return size ? formatFileSize(parseInt(size)) : 'Unknown';
+  } catch (error) {
+    console.error('Error getting image size:', error);
+    return 'Unknown';
+  }
+}
+
 // Fetch images from API
 const fetchPhotos = async () => {
   if (!props.useApiData) return
@@ -85,29 +146,36 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    // Fetch image metadata from first API endpoint
     const response = await fetch('http://10.16.60.67:9090/img/all?userId=' + props.userId)
     const result = await response.json()
 
     if (result && result.data) {
-      // Filter by userId if specified
       let imageData = result.data
       if (props.userId) {
         imageData = imageData.filter(img => img.userId === props.userId)
       }
 
-      // Transform data to match our component's expected format
-      apiPhotos.value = imageData.map(img => ({
-        id: img.imgId,
-        name: img.imgName || `Image ${img.imgId}`,
-        src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
-        type: img.imgType || 'JPEG',
-        size: img.imgSize ? `${(parseInt(img.imgSize) / 1024).toFixed(2)} KB` : 'Unknown',
-        date: img.createTime || new Date().toISOString().split('T')[0],
-        userId: img.userId
-      }))
+      // Transform data and fetch sizes
+      const transformedData = await Promise.all(imageData.map(async img => {
+        const imgUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`;
+        const size = await getImageFileSizeFromUrl(imgUrl);
+        
+        return {
+          id: img.imgId,
+          name: img.imgName || `Image ${img.imgId}`,
+          pub: img.pub,
+          src: imgUrl,
+          type: img.imgType || 'JPEG',
+          size: size,
+          date: img.imgDate || new Date().toISOString().split('T')[0],
+          userId: img.userId,
+          tags: img.tags,
+          peoples: img.peoples,
+          desc: img.imgDescribtion || ""
+        };
+      }));
 
-      // Emit the loaded photos to parent
+      apiPhotos.value = transformedData;
       emit('photos-loaded', apiPhotos.value)
     }
   } catch (err) {
@@ -116,6 +184,112 @@ const fetchPhotos = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const generateNewId = (() => {
+  // Generate new id from API
+  let idCounter = 6
+  return () => props.useApiData ? undefined : ++idCounter
+})()
+
+const uploadPhotos = (file) => {
+  if (file) {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    if (!props.useApiData) {
+      // Local upload logic
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const newPhoto = {
+          id: generateNewId(),
+          name: file.name,
+          src: e.target.result,
+          size: formatFileSize(file.size),
+          date: new Date().toISOString().split('T')[0],
+          type: file.type.split('/')[1].toUpperCase()
+        }
+        propPhotos.value.push(newPhoto)
+        toast.success('Image uploaded successfully')
+      }
+      reader.onerror = () => {
+        toast.error('Error reading file')
+      }
+      reader.readAsDataURL(file)
+    } else {
+      // API upload logic
+      const formData = new FormData()
+      formData.append('files', file)
+
+      const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      const params = new URLSearchParams({
+        imgDate: currentDate,
+        imgName: file.name,
+        userId: props.userId.toString(),
+        pub: true
+      })
+
+      fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => {
+          if (!response.ok) throw new Error('Upload failed')
+          return response.json()
+        })
+        .then(result => {
+          toast.success('Image uploaded successfully')
+          fetchPhotos() // Refresh the photo list
+        })
+        .catch(error => {
+          console.error('Upload error:', error)
+          toast.error('Failed to upload image')
+        })
+    }
+  }
+}
+
+const deletePhotos = (selectedIds) => {
+  const count = selectedIds.value.length
+  if(!props.useApiData) {
+    propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
+  }
+  else {
+    // Delete from API
+  }
+  toast.success(`${count} photo(s) deleted`)
+}
+
+const downloadPhotos = async (selectedIds) => {
+  if (selectedIds.value.length === 0) return;
+
+  const photosToDownload = selectedIds.value.map(id =>
+    displayPhotos.value.find(p => p.id === id)
+  ).filter(Boolean); 
+
+  for (const photo of photosToDownload) {
+    try {
+      const res = await fetch(photo.src, { mode: 'cors' }); 
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = photo.name || 'download'; 
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(objectUrl); // Free memory
+    } catch (err) {
+      console.error(`Download failed: ${photo.name}`, err);
+      toast.error(`Failed to download ${photo.name}`);
+    }
+  }
+
+  toast.success(`Successfully downloaded ${photosToDownload.length} photo(s)`);
 }
 
 // Determine which photos to use - API or props
@@ -233,8 +407,16 @@ const refreshPhotos = () => {
   fetchPhotos()
 }
 
+const getPhotoById = (id) => {
+  return displayPhotos.value.find(photo => photo.id === id)
+}
+
 defineExpose({
-  refreshPhotos
+  refreshPhotos,
+  uploadPhotos,
+  deletePhotos,
+  downloadPhotos,
+  getPhotoById
 })
 </script>
 
