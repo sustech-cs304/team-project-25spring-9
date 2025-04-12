@@ -3,13 +3,13 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 
 export const useMainStore = defineStore('main', () => {
-  const userName = ref('John Doe')
-  const userEmail = ref('doe.doe.doe@example.com')
-  const userId = ref(4)
+  const userName = ref('')
+  const userEmail = ref('')
+  const userId = ref()
 
   const userAvatar = computed(
     () =>
-      `https://api.dicebear.com/7.x/avataaars/svg?seed=${userEmail.value.replace(
+      `https://api.dicebear.com/9.x/avataaars/svg?seed=${userName.value.replace(
         /[^a-z0-9]+/gi,
         '-',
       )}`,
@@ -26,6 +26,9 @@ export const useMainStore = defineStore('main', () => {
     }
     if (payload.email) {
       userEmail.value = payload.email
+    }
+    if (payload.id) {
+      userId.value = payload.id
     }
   }
 
