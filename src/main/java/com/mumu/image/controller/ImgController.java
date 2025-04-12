@@ -202,5 +202,12 @@ public class ImgController {
         // upload img
         return AjaxJson.getSuccessData(imgDTO);
     }
+    @ApiOperation(value = "修改图片", tags = "图片类")
+    @PostMapping("/upgrade")
+    public AjaxJson upgradeImg(Integer userId,Integer imgId, MultipartFile files) throws IOException {
+        String imgName = String.format("%d.jpeg", imgId);
+
+        return AjaxJson.getSuccessData(minioUtilS.upload(files, ImgPath, imgName));
+    }
 }
 

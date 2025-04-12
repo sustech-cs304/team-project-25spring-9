@@ -62,7 +62,7 @@ public class UserController {
             helper.setText(htmlMsg, true); // 设置为true表示启用HTML格式的邮件
             helper.setTo("2497440459@qq.com");
             helper.setSubject("SUSTech Campus Verification Code");
-            helper.setFrom("reset_no_reply@foxmail.com");
+            helper.setFrom("2139005277@qq.com");
 
             javaMailSender.send(mimeMessage);
         } catch (Exception e) {

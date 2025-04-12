@@ -18,7 +18,7 @@ public class MyMailService {
 
     public AjaxJson sendResetMail(String verifyCode, String to) {
         String htmlMsg = "<div style='background-color: #e1f5fe; padding: 20px;'>"
-                + "<h2>Welcome to SUSTech Campus!</h2>"
+                + "<h2>Welcome to Smart Photo Album!</h2>"
                 + "<p>Thank you for your interest.</p>"//todo:change the html format
                 + "<p><strong>Below is your verification code:</strong></p>"
                 + "<div style='background-color: #ffffff;border: 2px solid #0277bd; padding: 5px; margin: 5px 0; text-align: center;'>"
