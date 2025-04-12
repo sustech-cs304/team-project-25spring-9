@@ -30,7 +30,12 @@ public class ImgTagServiceImpl extends ServiceImpl<ImgTagMapper, ImgTag> impleme
     ImgTagMapper imgTagMapper;
     @Autowired
     TagMapper tagMapper;
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public boolean addImgTag(int userId, int imgId, List<Integer> tagIds) {
@@ -63,6 +68,12 @@ public class ImgTagServiceImpl extends ServiceImpl<ImgTagMapper, ImgTag> impleme
         }
         return false; // 没有新数据需要插入
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public boolean addImgTag(int userId, int imgId, String tagName) {
@@ -74,6 +85,12 @@ public class ImgTagServiceImpl extends ServiceImpl<ImgTagMapper, ImgTag> impleme
                         .getTagId()
         )));
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public boolean deleteImgTag(int userId, int imgId, String tagName) {
         int tagId=tagMapper.selectOne(new LambdaQueryWrapper<Tag>()

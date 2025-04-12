@@ -38,6 +38,12 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
                 .eq(Tag::getTagName, tag));
         return count != null && count > 0;
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public boolean checkAndInsertTag(int userId, List<String> tags) {
@@ -73,7 +79,12 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
         }
         return true;
     }
-
+/**
+ * AI-generated-content
+ * tool: ChatGPT
+ * version: 4
+ * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+ */
     /**
      * 根据 tagName 列表查询对应的 tagId 列表
      * @param tagNames 需要查询的标签名列表
@@ -89,6 +100,12 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
                 Wrappers.<Tag>lambdaQuery().in(Tag::getTagName, tagNames).eq(Tag::getUserId, userId)
         ).stream().map(Tag::getTagId).collect(Collectors.toList());
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public Integer getTagIdByName(String tagName) {
         Tag tag = mapper.selectOne(
@@ -96,6 +113,12 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
         );
         return tag != null ? tag.getTagId() : null; // 若未找到，返回 null
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public List<String> deleteExistingTag(int userId, List<String> names) {
@@ -125,7 +148,12 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
 
         return List.copyOf(existingNames); // 返回被删除的 name
     }
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public List<Tag> getAllTag(int userId){
         return mapper.selectList(new LambdaQueryWrapper<Tag>()

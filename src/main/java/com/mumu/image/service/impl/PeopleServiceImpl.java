@@ -33,12 +33,24 @@ public class PeopleServiceImpl extends ServiceImpl<PeopleMapper, People> impleme
     PeopleMapper mapper;
     @Autowired
     ImgPeopleMapper imgPeopleMapper;
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public boolean isPeopleExists(String people) {
         Integer count = mapper.selectCount(new MPJLambdaWrapper<People>()
                 .eq(People::getName, people));
         return count != null && count > 0;
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public List<String> checkAndInsertPeople(int userId, List<String> names) {
@@ -74,7 +86,12 @@ public class PeopleServiceImpl extends ServiceImpl<PeopleMapper, People> impleme
         }
         return newPeople.stream().map(People::getName).collect(Collectors.toList());
     }
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public List<String> deletePeopleAndImgPeople(int userId, List<String> names) {
@@ -123,7 +140,12 @@ public class PeopleServiceImpl extends ServiceImpl<PeopleMapper, People> impleme
                 Wrappers.<People>lambdaQuery().in(People::getName, PeopleNames).eq(People::getUserId, userId)
         ).stream().map(People::getPeopleId).collect(Collectors.toList());
     }
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public Integer getPeopleIdByName(String tagName) {
         People people = mapper.selectOne(
@@ -131,6 +153,12 @@ public class PeopleServiceImpl extends ServiceImpl<PeopleMapper, People> impleme
         );
         return people != null ? people.getPeopleId() : null; // 若未找到，返回 null
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public List<String> deleteExistingPeople(int userId, List<String> names) {
@@ -160,7 +188,12 @@ public class PeopleServiceImpl extends ServiceImpl<PeopleMapper, People> impleme
 
         return List.copyOf(existingNames); // 返回被删除的 name
     }
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public List<People> getAllPeople(int userId){
         return mapper.selectList(new LambdaQueryWrapper<People>()

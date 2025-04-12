@@ -46,7 +46,12 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 .eq(img.getPub() != null, Img::getPub, img.getPub())
         );
     }
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit,    Date startDate,Date endDate) {
         if (img.getTags() == null) {

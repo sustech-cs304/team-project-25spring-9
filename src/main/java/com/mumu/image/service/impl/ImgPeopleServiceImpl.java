@@ -30,7 +30,12 @@ public class ImgPeopleServiceImpl extends ServiceImpl<ImgPeopleMapper, ImgPeople
     ImgPeopleMapper mapper;
     @Autowired
     PeopleMapper peopleMapper;
-
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Transactional
     @Override
     public boolean addImgPeople(int userId, int imgId, List<Integer> tagIds) {
@@ -74,6 +79,12 @@ public class ImgPeopleServiceImpl extends ServiceImpl<ImgPeopleMapper, ImgPeople
                         .getPeopleId()
         )));
     }
+    /**
+     * AI-generated-content
+     * tool: ChatGPT
+     * version: 4
+     * usage: 用于生成初始模板，并根据我们项目需求做了小修改
+     */
     @Override
     public boolean deleteImgPeople(int userId, int imgId, String peopleName) {
         int peopleId=peopleMapper.selectOne(new LambdaQueryWrapper<People>()
