@@ -25,26 +25,26 @@ export default [
     label: 'Timeline',
     icon: mdiTimelineClock,
   },
-  {
-    to: '/forms',
-    label: 'Forms',
-    icon: mdiSquareEditOutline,
-  },
+  // {
+  //   to: '/forms',
+  //   label: 'Forms',
+  //   icon: mdiSquareEditOutline,
+  // },
   {
     to: '/profile',
     label: 'Profile',
     icon: mdiAccountCircle,
   },
-  {
-    to: '/login',
-    label: 'Login',
-    icon: mdiLock,
-  },
-  {
-    to: '/error',
-    label: 'Error',
-    icon: mdiAlertCircle,
-  },
+  // {
+  //   to: '/login',
+  //   label: 'Login',
+  //   icon: mdiLock,
+  // },
+  // {
+  //   to: '/error',
+  //   label: 'Error',
+  //   icon: mdiAlertCircle,
+  // },
   {
     href: 'https://github.com/sustech-cs304/team-project-25spring-9',
     label: 'GitHub',
