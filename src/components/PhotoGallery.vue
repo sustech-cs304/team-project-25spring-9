@@ -106,9 +106,9 @@ const error = ref(null)
 const showAdvancedSearch = ref(false)
 const advancedFilters = ref({
   dateRange: { start: '', end: '' },
-  location: '',
+  location: '',  // maps to imgPos
   tags: [],
-  author: ''
+  peoples: ''    // replaces author
 })
 
 // Add applied filter state
@@ -117,7 +117,7 @@ const appliedFilters = ref({
   dateRange: { start: '', end: '' },
   location: '',
   tags: [],
-  author: ''
+  peoples: ''
 })
 
 // Add temporary filter state to store unapplied changes
@@ -125,7 +125,7 @@ const tempFilters = ref({
   dateRange: { start: '', end: '' },
   location: '',
   tags: [],
-  author: ''
+  peoples: ''
 })
 
 // Change placeholder text when advanced search is active
@@ -171,17 +171,35 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const response = await fetch('http://10.16.60.67:9090/img/all?userId=' + props.userId)
+    const params = new URLSearchParams({
+      userId: props.userId.toString()
+    })
+
+    // 添加筛选参数
+    if (appliedFilters.value.query) {
+      params.append('imgName', appliedFilters.value.query)
+    }
+    if (appliedFilters.value.dateRange.start) {
+      params.append('startDate', appliedFilters.value.dateRange.start)
+    }
+    if (appliedFilters.value.dateRange.end) {
+      params.append('endDate', appliedFilters.value.dateRange.end)
+    }
+    if (appliedFilters.value.location) {
+      params.append('imgPos', appliedFilters.value.location)
+    }
+    if (appliedFilters.value.peoples) {
+      params.append('peoples', appliedFilters.value.peoples)
+    }
+    if (appliedFilters.value.tags?.length > 0) {
+      params.append('tags', appliedFilters.value.tags.join(','))
+    }
+
+    const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`)
     const result = await response.json()
 
     if (result && result.data) {
-      let imageData = result.data
-      if (props.userId) {
-        imageData = imageData.filter(img => img.userId === props.userId)
-      }
-
-      // Transform data and fetch sizes
-      const transformedData = await Promise.all(imageData.map(async img => {
+      const transformedData = await Promise.all(result.data.map(async img => {
         const imgUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`;
         const size = await getImageFileSizeFromUrl(imgUrl);
         
@@ -196,6 +214,7 @@ const fetchPhotos = async () => {
           userId: img.userId,
           tags: img.tags,
           peoples: img.peoples,
+          location: img.imgPos,
           desc: img.imgDescribtion || ""
         };
       }));
@@ -224,6 +243,39 @@ const uploadPhotos = (file) => {
       return
     }
 
+    // 读取图片的EXIF日期信息
+    const getImageDate = (file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const view = new DataView(e.target.result)
+          try {
+            let offset = 2
+            if (view.getUint16(0) === 0xFFD8) { // JPEG file
+              while (offset < view.byteLength) {
+                if (view.getUint16(offset) === 0xFFE1) { // EXIF
+                  const exifLength = view.getUint16(offset + 2)
+                  const exifData = new Uint8Array(e.target.result.slice(offset + 4, offset + 2 + exifLength))
+                  const exifString = new TextDecoder().decode(exifData)
+                  const dateMatch = exifString.match(/\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}/)
+                  if (dateMatch) {
+                    resolve(dateMatch[0].replace(/:/g, '-'))
+                    return
+                  }
+                }
+                offset += 2 + view.getUint16(offset + 2)
+              }
+            }
+            resolve(null)
+          } catch (error) {
+            console.error('Error reading EXIF data:', error)
+            resolve(null)
+          }
+        }
+        reader.readAsArrayBuffer(file)
+      })
+    }
+
     if (!props.useApiData) {
       // Local upload logic
       const reader = new FileReader()
@@ -245,33 +297,35 @@ const uploadPhotos = (file) => {
       reader.readAsDataURL(file)
     } else {
       // API upload logic
-      const formData = new FormData()
-      formData.append('files', file)
+      getImageDate(file).then(imageDate => {
+        const formData = new FormData()
+        formData.append('files', file)
 
-      const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
-      const params = new URLSearchParams({
-        imgDate: currentDate,
-        imgName: file.name,
-        userId: props.userId.toString(),
-        pub: true
-      })
+        const currentDate = imageDate || new Date().toISOString().slice(0, 19).replace('T', ' ')
+        const params = new URLSearchParams({
+          imgDate: currentDate,
+          imgName: file.name,
+          userId: props.userId.toString(),
+          pub: true
+        })
 
-      fetch(`http://10.16.60.67:9090/img/add?${params}`, {
-        method: 'POST',
-        body: formData
+        fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+          method: 'POST',
+          body: formData
+        })
+          .then(response => response.json())
+          .then(result => {
+            if (!result.msg || result.msg !== 'ok') {
+              throw new Error(result.msg || 'Upload failed')
+            }
+            toast.success('Image uploaded successfully')
+            fetchPhotos()
+          })
+          .catch(error => {
+            console.error('Upload error:', error)
+            toast.error(`Failed to upload image: ${error.message}`)
+          })
       })
-        .then(response => response.json())
-        .then(result => {
-          if (!result.msg || result.msg !== 'ok') {
-            throw new Error(result.msg || 'Upload failed')
-          }
-          toast.success('Image uploaded successfully')
-          fetchPhotos() // Refresh the photo list
-        })
-        .catch(error => {
-          console.error('Upload error:', error)
-          toast.error(`Failed to upload image: ${error.message}`)
-        })
     }
   }
 }
@@ -354,58 +408,25 @@ const displayPhotos = computed(() => {
 
 // Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
-  let result = displayPhotos.value
-
-  // Use applied filter conditions for search
-  if (appliedFilters.value.query) {
-    const query = appliedFilters.value.query.toLowerCase()
-    result = result.filter(photo => 
-      photo.name.toLowerCase().includes(query) ||
-      photo.type.toLowerCase().includes(query)
-    )
-  }
-
-  // Advanced filters
-  const { dateRange, location, tags, author } = appliedFilters.value
-  
-  if (dateRange.start) {
-    result = result.filter(photo => new Date(photo.date) >= new Date(dateRange.start))
-  }
-  if (dateRange.end) {
-    result = result.filter(photo => new Date(photo.date) <= new Date(dateRange.end))
-  }
-
-  // Location filter
-  if (location) {
-    result = result.filter(photo => 
-      photo.location?.toLowerCase().includes(location.toLowerCase())
-    )
-  }
-
-  // Tags filter
-  if (tags.length > 0) {
-    result = result.filter(photo => 
-      photo.tags?.some(tag => tags.includes(tag.toLowerCase()))
-    )
-  }
-
-  // Author filter
-  if (author) {
-    result = result.filter(photo => 
-      photo.author?.toLowerCase().includes(author.toLowerCase())
-    )
-  }
-
-  return result
+  // 直接返回显示照片，不进行筛选
+  return displayPhotos.value
 })
 
 // Apply search conditions
 const applyFilters = () => {
   advancedFilters.value = { ...tempFilters.value }
   appliedFilters.value = {
-    query: searchQuery.value,
-    ...advancedFilters.value
+    query: searchQuery.value || '',
+    dateRange: {
+      start: tempFilters.value.dateRange.start || '',
+      end: tempFilters.value.dateRange.end || ''
+    },
+    location: tempFilters.value.location || '',
+    tags: tempFilters.value.tags?.length ? tempFilters.value.tags : [],
+    peoples: tempFilters.value.peoples || ''
   }
+  // 只通过 API 进行筛选
+  fetchPhotos()
 }
 
 // Clear all filter conditions
@@ -415,7 +436,7 @@ const clearAdvancedFilters = () => {
     dateRange: { start: '', end: '' },
     location: '',
     tags: [],
-    author: ''
+    peoples: ''
   }
   applyFilters()
 }
@@ -696,17 +717,17 @@ defineExpose({
             />
           </div>
 
-          <!-- Author -->
+          <!-- Peoples -->
           <div class="space-y-2">
             <label class="text-sm font-medium flex items-center text-gray-700">
               <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
-              <span>Author</span>
+              <span>Peoples</span>
             </label>
             <input 
-              v-model="tempFilters.author"
+              v-model="tempFilters.peoples"
               type="text" 
               class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
-              placeholder="Search by author name"
+              placeholder="Search by people names"
             />
           </div>
         </div>
