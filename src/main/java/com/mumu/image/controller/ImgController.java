@@ -178,6 +178,7 @@ public class ImgController {
         }
         Img img=new Img(imgDTO);
         imgService.save(img);
+        imgDTO.setImgId(img.getImgId());
         String imgName = String.format("%d.jpeg", img.getImgId());
         minioUtilS.upload(tempFile, ImgPath, imgName);
         peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
