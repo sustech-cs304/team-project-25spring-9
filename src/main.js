@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useMainStore } from '@/stores/main.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 import './css/main.css'
 
@@ -13,25 +14,21 @@ const pinia = createPinia()
 // Create Vue app
 createApp(App).use(router).use(pinia).mount('#app')
 
-// Init main store
+// Init stores
 const mainStore = useMainStore(pinia)
+const authStore = useAuthStore(pinia)
 
-// Fetch sample data
-mainStore.fetchSampleClients()
-mainStore.fetchSampleHistory()
+// 可选：添加路由守卫检查登录状态
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = authStore.isAuthenticated
 
-// Dark mode
-// Uncomment, if you'd like to restore persisted darkMode setting, or use `prefers-color-scheme: dark`. Make sure to uncomment localStorage block in src/stores/darkMode.js
-// import { useDarkModeStore } from './stores/darkMode'
-
-// const darkModeStore = useDarkModeStore(pinia)
-
-// if (
-//   (!localStorage['darkMode'] && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
-//   localStorage['darkMode'] === '1'
-// ) {
-//   darkModeStore.set(true)
-// }
+  // 如果路由需要认证且用户未登录
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next('/login')
+  } else {
+    next()
+  }
+})
 
 // Default title tag
 const defaultDocumentTitle = 'Smart Album'
