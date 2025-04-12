@@ -111,7 +111,47 @@ The backend includes services developed in **Python (FastAPI)** and **Java (Spri
 
 ## UI Design
 
+### **Two-Panel Layout (Sidebar + Main View)**
 
+- The screen is split into a **left-side vertical menu (navigation)** and a **right-side content area (dynamic dashboard)**.
+- **Why**:
+  - This pattern allows users to **consistently access navigation options** without leaving the current view.
+  - Promotes **quick context switching** (e.g., from Dashboard to Photos) with minimal friction.
+- **Hidden assumption**:
+  - The app doesn’t rely on deep nested navigation. It assumes users only need **top-level categories** (Dashboard, Photos, Timeline, etc.).
 
+### **Card-Based Metric Display**
 
+- Each metric like **Total Photos** or **Image** is placed in an individual card.
+- **Why**:
+  - Cards offer a **flexible, reusable component** to display various types of data (text, icons, images, charts).
+  - They are **easy to expand** or re-order (e.g., add "Most Active Day" in the future).
 
+### **Iconography & Visual Cues**
+
+- Icons complement the text to reinforce meaning visually (e.g., a mountain image icon for “photos”).
+- **Why**:
+  - Visual shorthand reduces cognitive load, especially for repeat users.
+  - Enhances accessibility and UX through **dual-coding (text + visual)**.
+- **Hidden assumption**:
+  - Users are familiar with basic visual conventions (clock = time, image = photos).
+
+### **Responsive Component Design**
+
+- Though not visible in the wireframe, the layout likely supports **responsive behavior**.
+- **Why**:
+  - Users might access the dashboard on tablets or desktops.
+  - Components like the sidebar, cards, and search fields are commonly **built using a grid or flex-based layout system** for adaptability.
+- **Hidden assumption**:
+  - The team is using a component library or custom CSS system (e.g., Tailwind CSS or Bootstrap) to ensure consistency.
+
+### 🧩 **What the Diagram Doesn't Show (Hidden Assumptions)**
+
+- **State management**:
+  - Not shown, but the app likely uses a central state management solution (Pinia).
+- **API communication**:
+  - Assumes there's an API (REST) delivering the data shown in the dashboard.
+- **Security layers**:
+  - Login/authentication flows aren’t visible but must exist (implied by user profile access).
+- **Error and loading states**:
+  - UI would need to handle empty states, errors, and spinners for real-world usage.
