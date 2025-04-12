@@ -224,31 +224,56 @@ const uploadPhotos = (file) => {
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const newPhoto = {
-        id: generateNewId(),
-        name: file.name,
-        src: e.target.result,
-        size: formatFileSize(file.size),
-        date: new Date().toISOString().split('T')[0],
-        type: file.type.split('/')[1].toUpperCase()
-      }
-      if (!props.useApiData) {
+    if (!props.useApiData) {
+      // Local upload logic
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const newPhoto = {
+          id: generateNewId(),
+          name: file.name,
+          src: e.target.result,
+          size: formatFileSize(file.size),
+          date: new Date().toISOString().split('T')[0],
+          type: file.type.split('/')[1].toUpperCase()
+        }
         propPhotos.value.push(newPhoto)
+        toast.success('Image uploaded successfully')
       }
-      else {
-        // Upload to API
+      reader.onerror = () => {
+        toast.error('Error reading file')
       }
-      
-      toast.success('Image uploaded successfully')
-    }
-    reader.onerror = () => {
-      toast.error('Error reading file')
-    }
-    reader.readAsDataURL(file)
-  }
+      reader.readAsDataURL(file)
+    } else {
+      // API upload logic
+      const formData = new FormData()
+      formData.append('files', file)
 
+      const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+      const params = new URLSearchParams({
+        imgDate: currentDate,
+        imgName: file.name,
+        userId: props.userId.toString(),
+        pub: true
+      })
+
+      fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => {
+          if (!response.ok) throw new Error('Upload failed')
+          return response.json()
+        })
+        .then(result => {
+          toast.success('Image uploaded successfully')
+          fetchPhotos() // Refresh the photo list
+        })
+        .catch(error => {
+          console.error('Upload error:', error)
+          toast.error('Failed to upload image')
+        })
+    }
+  }
 }
 
 const deletePhotos = (selectedIds) => {
@@ -512,11 +537,16 @@ const refreshPhotos = () => {
   fetchPhotos()
 }
 
+const getPhotoById = (id) => {
+  return displayPhotos.value.find(photo => photo.id === id)
+}
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
   deletePhotos,
-  downloadPhotos
+  downloadPhotos,
+  getPhotoById
 })
 </script>
 
