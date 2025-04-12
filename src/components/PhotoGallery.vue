@@ -83,7 +83,8 @@ const emit = defineEmits([
   'action-click',
   'update:viewMode',
   'filter',
-  'photos-loaded'
+  'photos-loaded',
+  'photo-edit'
 ])
 
 // Internal state for the component
@@ -543,9 +544,12 @@ const handleActionClick = (photo, event) => {
   actionMenuPhoto.value = photo
   if (event) {
     const rect = event.target.getBoundingClientRect()
+    const menuWidth = 150 // 估计的菜单宽度
+    const spaceRight = window.innerWidth - rect.right
+    
     actionMenuPosition.value = {
-      x: rect.left,
-      y: rect.bottom + window.scrollY
+      x: spaceRight > menuWidth ? rect.left : rect.right - menuWidth,
+      y: rect.bottom + window.scrollY // 考虑滚动位置
     }
   }
   showActionMenu.value = true
@@ -561,6 +565,8 @@ const handleMenuAction = (action) => {
   switch (action) {
     case 'edit':
       // TODO: Implement edit functionality
+      closePhotoModal()
+      emit('photo-edit', actionMenuPhoto.value.id)
       break
     case 'delete':
       deletePhotos({ value: [actionMenuPhoto.value.id] })
@@ -730,7 +736,6 @@ defineExpose({
     <!-- Rest of the template remains the same -->
     <!-- Details View (Table-like) -->
     <div v-if="viewMode === 'details'" class="overflow-x-auto">
-      <!-- Table structure... -->
       <table class="w-full">
         <thead>
           <tr class="border-b">
@@ -740,14 +745,16 @@ defineExpose({
             <th class="px-3 py-2 text-left">Type</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
-            <th v-if="showActions" class="px-3 py-2 text-left">Actions</th>
+            <th v-if="showActions" class="px-3 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id" class="border-b hover:bg-gray-100 dark:hover:bg-gray-700"
-            :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
+          <tr v-for="photo in filteredPhotos" :key="photo.id" 
+              class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 group"
+              :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <td v-if="isSelectMode" class="px-3 py-2">
-              <button @click.stop="togglePhotoSelection(photo.id)" class="text-gray-500 hover:text-blue-500">
+              <button @click.stop="togglePhotoSelection(photo.id)" 
+                      class="text-gray-500 hover:text-blue-500">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor"
                     :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
@@ -762,8 +769,14 @@ defineExpose({
             <td class="px-3 py-2">{{ photo.type }}</td>
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
-            <td v-if="showActions" class="px-3 py-2">
-              <BaseButton :icon="mdiDotsVertical" small color="lightDark" @click="handleActionClick(photo, $event)" />
+            <td v-if="showActions" class="px-3 py-2 text-right">
+              <BaseButton 
+                :icon="mdiDotsVertical" 
+                small 
+                color="lightDark" 
+                class="opacity-0 group-hover:opacity-100 transition-opacity"
+                @click="handleActionClick(photo, $event)" 
+              />
             </td>
           </tr>
         </tbody>
@@ -900,8 +913,10 @@ defineExpose({
     </div>
 
     <!-- Action Menu -->
-    <div v-if="showActionMenu" class="fixed z-50 bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
-      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`" @click.stop>
+    <div v-if="showActionMenu" 
+      class="absolute bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
+      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
+      @click.stop>
       <button v-for="(action, index) in [
         { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
         { icon: mdiDelete, label: 'Delete', value: 'delete' },
