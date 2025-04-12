@@ -4,8 +4,6 @@ package com.mumu.image.controller;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mumu.entity.Building;
-import com.mumu.entity.BuildingImg;
 import com.mumu.image.DTO.ImageInfo;
 import com.mumu.image.DTO.ImgDTO;
 import com.mumu.image.entity.Img;
