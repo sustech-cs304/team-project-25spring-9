@@ -118,6 +118,7 @@ const closeEditor = () => {
 // Save edited photo 
 const saveEditedPhoto = (updatedPhoto) => {
   //TODO: save base64 photo
+//   console.log(updatedPhoto)
 }
 
 </script>
