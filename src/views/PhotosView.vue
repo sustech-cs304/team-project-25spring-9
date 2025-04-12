@@ -19,7 +19,7 @@ import { useToast } from 'vue-toastification'
 
 const toast = useToast()
 import { useMainStore } from '@/stores/main'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 // Get store for user data
 const mainStore = useMainStore()
@@ -30,9 +30,6 @@ const isSelectMode = ref(true)
 // Track selected photos
 const selectedPhotos = ref([])
 
-// Track filtered photos
-const displayedPhotos = ref([])
-
 // Track current view mode
 const currentViewMode = ref('grid')
 
@@ -41,23 +38,6 @@ const useApiData = ref(true)
 
 
 const photoGallery = ref(null)
-
-// // API data states
-// const apiPhotos = ref([])
-// const loading = ref(false)
-
-// Sample photo data (fallback if API fails)
-// const photos = ref([
-//   { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-//   { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-//   { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-//   { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-//   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-//   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
-// ])
-
-// Method to generate a new unique ID
-const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
 
 // Add new upload method
 const handleUpload = (event) => {
@@ -74,6 +54,7 @@ const handleDelete = () => {
 const handleDownload = () => {
   photoGallery.value.downloadPhotos(selectedPhotos)
 }
+
 const showEditor = ref(false)
 const editingPhoto = ref(null)
 
@@ -139,8 +120,9 @@ const closeEditor = () => {
 
 // Save edited photo 
 const saveEditedPhoto = (updatedPhoto) => {
-  
   //TODO: save edited photo
+  photoGallery.value.uploadPhotos(updatedPhoto)
+  closeEditor()
 }
 
 </script>
