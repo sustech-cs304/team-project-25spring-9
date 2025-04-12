@@ -130,19 +130,19 @@ const tempFilters = ref({
 
 // Change placeholder text when advanced search is active
 const searchPlaceholder = computed(() => {
-  return showAdvancedSearch.value 
-    ? 'Search by name, type, or any field...' 
+  return showAdvancedSearch.value
+    ? 'Search by name, type, or any field...'
     : 'Quick search photos...'
 })
 
 function formatFileSize(bytes) {
   if (!bytes) return 'Unknown';
   if (bytes < 1024) return `${bytes} B`;
-  
+
   const units = ['KB', 'MB', 'GB', 'TB'];
   let size = bytes;
   let unitIndex = -1;
-  
+
   do {
     size /= 1024;
     unitIndex++;
@@ -202,7 +202,7 @@ const fetchPhotos = async () => {
       const transformedData = await Promise.all(result.data.map(async img => {
         const imgUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`;
         const size = await getImageFileSizeFromUrl(imgUrl);
-        
+
         return {
           id: img.imgId,
           name: img.imgName || `Image ${img.imgId}`,
@@ -331,7 +331,7 @@ const uploadPhotos = (file) => {
 }
 
 const deletePhotos = (selectedIds) => {
-  const photosToDelete = selectedIds.value.map(id => 
+  const photosToDelete = selectedIds.value.map(id =>
     displayPhotos.value.find(p => p.id === id)
   ).filter(Boolean);
 
@@ -344,17 +344,17 @@ const deletePhotos = (selectedIds) => {
         userId: photo.userId.toString(),
         imgId: photo.id.toString()
       })
-      
+
       return fetch(`http://10.16.60.67:9090/img/delete?${params}`, {
         method: 'GET'
       })
-      .then(response => response.json())
-      .then(result => {
-        if (!result.msg || result.msg !== 'ok') {
-          throw new Error(result.msg || 'Delete failed')
-        }
-        return result
-      })
+        .then(response => response.json())
+        .then(result => {
+          if (!result.msg || result.msg !== 'ok') {
+            throw new Error(result.msg || 'Delete failed')
+          }
+          return result
+        })
     })
 
     Promise.all(deletePromises)
@@ -376,17 +376,17 @@ const downloadPhotos = async (selectedIds) => {
 
   const photosToDownload = selectedIds.value.map(id =>
     displayPhotos.value.find(p => p.id === id)
-  ).filter(Boolean); 
+  ).filter(Boolean);
 
   for (const photo of photosToDownload) {
     try {
-      const res = await fetch(photo.src, { mode: 'cors' }); 
+      const res = await fetch(photo.src, { mode: 'cors' });
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = photo.name || 'download'; 
+      link.download = photo.name || 'download';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -539,7 +539,7 @@ const actionMenuPosition = ref({ x: 0, y: 0 })
 // Method to handle action button click with menu
 const handleActionClick = (photo, event) => {
   event?.stopPropagation()
-  
+
   actionMenuPhoto.value = photo
   if (event) {
     const rect = event.target.getBoundingClientRect()
@@ -608,113 +608,88 @@ defineExpose({
       <div class="flex items-center gap-3">
         <!-- Search input with integrated button -->
         <div class="relative flex-grow max-w-xl flex shadow-sm">
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            :placeholder="searchPlaceholder"
-            class="w-full py-2 pl-10 pr-4 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all" 
-            @keyup.enter="applyFilters"
-          />
+          <input v-model="searchQuery" type="text" :placeholder="searchPlaceholder"
+            class="w-full py-2 pl-10 pr-4 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all"
+            @keyup.enter="applyFilters" />
           <div class="absolute left-3 top-2 text-gray-500">
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiImageSearch" />
             </svg>
           </div>
-          <BaseButton
-            :icon="mdiMagnify"
-            color="info"
-            class="rounded-l-none px-4"
-            @click="applyFilters"
-          />
+          <BaseButton :icon="mdiMagnify" color="info" class="rounded-l-none px-4" @click="applyFilters" />
         </div>
-        
+
         <!-- Filter toggle button -->
-        <BaseButton
-          :icon="showAdvancedSearch ? mdiFilterVariantRemove : mdiFilterVariant"
+        <BaseButton :icon="showAdvancedSearch ? mdiFilterVariantRemove : mdiFilterVariant"
           :color="showAdvancedSearch ? 'info' : 'whiteDark'"
-          :title="showAdvancedSearch ? 'Hide filters' : 'Show filters'"
-          class="shadow-sm"
-          @click="showAdvancedSearch = !showAdvancedSearch"
-        />
+          :title="showAdvancedSearch ? 'Hide filters' : 'Show filters'" class="shadow-sm"
+          @click="showAdvancedSearch = !showAdvancedSearch" />
 
         <!-- View Mode Switcher -->
         <div class="flex border rounded-lg shadow-sm overflow-hidden">
           <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
             :color="viewMode === 'details' ? 'info' : 'whiteDark'" @click="setViewMode('details')"
-            class="rounded-none border-r last:border-r-0"
-            title="Details view" />
+            class="rounded-none border-r last:border-r-0" title="Details view" />
 
           <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
             :color="viewMode === 'large' ? 'info' : 'whiteDark'" @click="setViewMode('large')"
-            class="rounded-none border-r last:border-r-0"
-            title="Large icons" />
+            class="rounded-none border-r last:border-r-0" title="Large icons" />
 
           <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
             :color="viewMode === 'grid' ? 'info' : 'whiteDark'" @click="setViewMode('grid')"
-            class="rounded-none border-r last:border-r-0"
-            title="Medium icons" />
+            class="rounded-none border-r last:border-r-0" title="Medium icons" />
 
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
-            class="rounded-none border-r last:border-r-0"
-            title="Small icons" />
+            class="rounded-none border-r last:border-r-0" title="Small icons" />
         </div>
       </div>
 
       <!-- Advanced Search Panel -->
-      <div v-if="showAdvancedSearch" 
-        class="p-5 bg-white border rounded-lg shadow-sm animate-fade-in">
+      <div v-if="showAdvancedSearch" class="p-5 bg-white border rounded-lg shadow-sm animate-fade-in">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Date Range -->
           <div class="space-y-2">
             <label class="text-sm font-medium flex items-center text-gray-700">
-              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiCalendarMonth" /></svg>
+              <svg class="w-6 h-6 mr-1">
+                <path fill="currentColor" :d="mdiCalendarMonth" />
+              </svg>
               <span>Date Range</span>
             </label>
             <div class="flex gap-2 items-center">
-              <input 
-                v-model="tempFilters.dateRange.start"
-                type="date" 
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
-                placeholder="From date"
-              />
+              <input v-model="tempFilters.dateRange.start" type="date"
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="From date" />
               <span class="text-gray-500">to</span>
-              <input 
-                v-model="tempFilters.dateRange.end"
-                type="date" 
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
-                placeholder="To date"
-              />
+              <input v-model="tempFilters.dateRange.end" type="date"
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="To date" />
             </div>
           </div>
 
           <!-- Location -->
           <div class="space-y-2">
             <label class="text-sm font-medium flex items-center text-gray-700">
-              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiMapMarker" /></svg>
+              <svg class="w-6 h-6 mr-1">
+                <path fill="currentColor" :d="mdiMapMarker" />
+              </svg>
               <span>Location</span>
             </label>
-            <input 
-              v-model="tempFilters.location"
-              type="text" 
+            <input v-model="tempFilters.location" type="text"
               class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
-              placeholder="Enter location name"
-            />
+              placeholder="Enter location name" />
           </div>
 
           <!-- Tags -->
           <div class="space-y-2">
             <label class="text-sm font-medium flex items-center text-gray-700">
-              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiTag" /></svg>
+              <svg class="w-6 h-6 mr-1">
+                <path fill="currentColor" :d="mdiTag" />
+              </svg>
               <span>Tags</span>
             </label>
-            <input 
-              v-model="tempFilters.tags"
-              type="text" 
+            <input v-model="tempFilters.tags" type="text"
               class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
               placeholder="Separate tags with commas"
-              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())"
-            />
+              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())" />
           </div>
 
           <!-- Peoples -->
@@ -734,18 +709,8 @@ defineExpose({
 
         <!-- Actions -->
         <div class="mt-4 flex justify-end gap-2">
-          <BaseButton
-            label="Reset Filters"
-            color="whiteDark"
-            small
-            @click="clearAdvancedFilters"
-          />
-          <BaseButton
-            label="Apply Filters"
-            color="success"
-            small
-            @click="applyFilters"
-          />
+          <BaseButton label="Reset Filters" color="whiteDark" small @click="clearAdvancedFilters" />
+          <BaseButton label="Apply Filters" color="success" small @click="applyFilters" />
         </div>
       </div>
     </div>
@@ -893,20 +858,17 @@ defineExpose({
 
             <!-- Add action button group -->
             <div class="flex items-center gap-2">
-              <button 
-                v-for="(action, index) in [
-                  { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
-                  { icon: mdiDelete, label: 'Delete', value: 'delete' },
-                  { icon: mdiDownload, label: 'Download', value: 'download' }
-                ]"
-                :key="index"
-                class="p-1 rounded-full hover:bg-gray-200 flex items-center"
+              <button v-for="(action, index) in [
+                { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+                { icon: mdiDelete, label: 'Delete', value: 'delete' },
+                { icon: mdiDownload, label: 'Download', value: 'download' }
+              ]" :key="index" class="p-1 rounded-full hover:bg-gray-200 flex items-center"
                 @click="handleMenuAction(action.value)">
                 <svg class="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="action.icon" />
                 </svg>
               </button>
-              
+
               <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
                 <svg class="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="mdiClose" />
@@ -938,18 +900,13 @@ defineExpose({
     </div>
 
     <!-- Action Menu -->
-    <div v-if="showActionMenu" 
-      class="fixed z-50 bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
-      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
-      @click.stop>
-      <button 
-        v-for="(action, index) in [
-          { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
-          { icon: mdiDelete, label: 'Delete', value: 'delete' },
-          { icon: mdiDownload, label: 'Download', value: 'download' }
-        ]"
-        :key="index"
-        class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
+    <div v-if="showActionMenu" class="fixed z-50 bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
+      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`" @click.stop>
+      <button v-for="(action, index) in [
+        { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+        { icon: mdiDelete, label: 'Delete', value: 'delete' },
+        { icon: mdiDownload, label: 'Download', value: 'download' }
+      ]" :key="index" class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
         @click="handleMenuAction(action.value)">
         <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
           <path fill="currentColor" :d="action.icon" />
@@ -977,7 +934,14 @@ defineExpose({
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

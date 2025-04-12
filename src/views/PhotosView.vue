@@ -6,8 +6,7 @@ import {
   mdiImageEdit,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
-  mdiRefresh,
-  mdiDownload
+  mdiRefresh
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -16,24 +15,20 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import PhotoEditor from '@/components/PhotoEditor.vue'
-import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
 const toast = useToast()
 import { useMainStore } from '@/stores/main'
+import { ref, computed } from 'vue'
 
 // Get store for user data
 const mainStore = useMainStore()
-
 
 // Track if we're in select mode
 const isSelectMode = ref(true)
 
 // Track selected photos
 const selectedPhotos = ref([])
-
-// Track filtered photos
-const displayedPhotos = ref([])
 
 // Track current view mode
 const currentViewMode = ref('grid')
@@ -43,23 +38,6 @@ const useApiData = ref(true)
 
 
 const photoGallery = ref(null)
-
-// // API data states
-// const apiPhotos = ref([])
-// const loading = ref(false)
-
-// Sample photo data (fallback if API fails)
-// const photos = ref([
-//   { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-//   { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-//   { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-//   { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-//   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-//   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
-// ])
-
-// Method to generate a new unique ID
-const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
 
 // Add new upload method
 const handleUpload = (event) => {
@@ -76,6 +54,7 @@ const handleDelete = () => {
 const handleDownload = () => {
   photoGallery.value.downloadPhotos(selectedPhotos)
 }
+
 const showEditor = ref(false)
 const editingPhoto = ref(null)
 
@@ -102,36 +81,32 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// // Method to handle photo action clicks
-// const handlePhotoAction = (photo) => {
-//   // Handle actions like edit, delete, etc.
-//   console.log('Action clicked for photo:', photo)
-// }
-
-// // Method to handle filtered photos from the component
-// const handleFilteredPhotos = (filteredPhotos) => {
-//   displayedPhotos.value = filteredPhotos
-// }
-
-// // Method to handle view mode changes
-// const handleViewModeChange = (mode) => {
-//   currentViewMode.value = mode
-// }
-
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
-    const photo = photoGallery.value.getPhotoById(selectedPhotos.value[0])
+    openEditorWithPhoto(selectedPhotos.value[0]) 
+  }
+}
+
+// Open editor with photo ID
+const openEditorWithPhoto = (photoId) => {
+    const photo = photoGallery.value.getPhotoById(photoId)
     editingPhoto.value = photo
     showEditor.value = true
-  }
-  toggleSelectMode()
+    toggleSelectMode()
+}
+
+// Close editor without save
+const closeEditor = () => {
+  showEditor.value = false
+  editingPhoto.value = null
 }
 
 // Save edited photo 
 const saveEditedPhoto = (updatedPhoto) => {
-  
   //TODO: save edited photo
+  photoGallery.value.uploadPhotos(updatedPhoto)
+  closeEditor()
 }
 
 </script>
@@ -152,34 +127,20 @@ const saveEditedPhoto = (updatedPhoto) => {
 
       <!-- Photo Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
-        <PhotoGallery ref="photoGallery" :initial-view-mode="currentViewMode"
+        <PhotoGallery ref="photoGallery" :photos="photos" :initial-view-mode="currentViewMode"
           :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
           :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
-          :userId="mainStore.userId" @select-photo="togglePhotoSelection" 
-        />
+          :userId="mainStore.userId" @select-photo="togglePhotoSelection" @action-click="handlePhotoAction"
+          @filter="handleFilteredPhotos" @update:viewMode="handleViewModeChange" @photos-loaded="handlePhotosLoaded" />
       </CardBox>
 
       <!-- Action Buttons -->
-      <div class="flex justify-between mb-6">
-        <div class="flex gap-2">
-          <input
-            ref="fileInput"
-            type="file"
-            class="hidden"
-            @change="handleUpload"
-            accept="image/*"
-          >
-          <BaseButton
-            :icon="mdiImagePlus"
-            label="Upload"
-            color="info"
-            rounded-full
-            small
-            @click="$refs.fileInput.click()"
-          />
+      <div class="flex justify-between">
+        <div class="flex">
+          <BaseButton :icon="mdiImagePlus" label="Add" color="contrast" rounded-full small class="mr-2" />
           <template v-if="isSelectMode">
-            <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
-              :disabled="selectedPhotos.length === 0" @click="handleDelete" />
+            <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="mx-2"
+              :disabled="selectedPhotos.length === 0" @click="handleDelete"/>
             <BaseButton :icon="mdiDownload" label="Download" color="success" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length === 0" @click="handleDownload" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
@@ -197,7 +158,7 @@ const saveEditedPhoto = (updatedPhoto) => {
         v-if="showEditor" 
         :photo="editingPhoto" 
         @save="saveEditedPhoto" 
-        @close="showEditor = false" 
+        @close="closeEditor" 
       />
     </SectionMain>
   </LayoutAuthenticated>

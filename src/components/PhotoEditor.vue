@@ -1,34 +1,35 @@
 <template>
-  <div class="photo-editor-modal pl-60">
-    <CardBox class="photo-editor-container flex flex-col w-4/5 h-4/5"> 
-      <div id="image-editor" class="flex-1 overflow-hidden" ></div>
-      <div class="flex justify-end gap-2 border-t px-6 py-4 bg-gray-50">
-        <BaseButton label="Cancel" color="whiteDark" @click="closeEditor" />
-        <BaseButton label="Save" color="success" @click="savePhoto" />
+  <div class="photo-editor-modal pl-60 pt-14">
+    <CardBox class="photo-editor-container flex flex-col w-7/8 h-7/8">
+      <div class="flex justify-between items-center gap-2 px-6 py-2 bg-[#151515]">
+        <h2 class="text-white text-lg font-semibold truncate max-w-[50%]">
+          Title: {{ photo?.name || 'Untitled Photo' }}
+        </h2>
+
+        <div class="flex gap-2">
+          <BaseButton label="Cancel" color="danger" @click="closeEditor" />
+          <BaseButton label="Save" color="success" @click="savePhoto" />
+        </div>
       </div>
+      <div id="image-editor" class="flex-1 overflow-hidden"></div>
     </CardBox>
 
   </div>
 </template>
 
 <style scoped>
-
-  :deep(.tui-image-editor-logo) {
-    display: none !important;
-  }
-
-  .photo-editor-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+.photo-editor-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 </style>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import {onMounted, watch } from 'vue'
 import "tui-image-editor/dist/tui-image-editor.css"
 import "tui-color-picker/dist/tui-color-picker.css"
 import ImageEditor from "tui-image-editor";
@@ -39,6 +40,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['save', 'close'])
+
+const editorTheme = {
+  'common.bi.image': '',
+  'common.bisize.width': '0px',
+  'common.bisize.height': '0px',
+  'downloadButton.display': 'none',
+  'loadButton.display': 'none',
+}
 
 let editor = null
 
@@ -51,10 +60,7 @@ onMounted(() => {
           path: props.photo.src,
           name: props.photo.name,
         },
-        theme: { 
-          'downloadButton.display': 'none', 
-          'loadButton.display': 'none',
-        },
+        theme: editorTheme,
         menuBarPosition: 'bottom',
       },
       usageStatistics: false,
@@ -63,9 +69,23 @@ onMounted(() => {
   }
 })
 
+const dataURLtoFile=(dataurl, filename)=> {
+  let arr = dataurl.split(",");
+  let mime = arr[0].match(/:(.*?);/)[1];
+  let bstr = window.atob(arr[1]);
+  let n = bstr.length;
+  let u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
 const savePhoto = () => {
-  const editedImage = editor.toDataURL();
-  emit('save', { ...props.photo, src: editedImage });
+  let b64file = editor.toDataURL()
+  let file = dataURLtoFile(b64file, props.photo.name)
+  console.log(props.name)
+  emit('save', file)
 }
 
 const closeEditor = () => {
