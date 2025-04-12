@@ -1,7 +1,8 @@
 <script setup>
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import {useAuthStore} from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import { useMainStore } from '@/stores/main'
 import { mdiAccount, mdiAsterisk } from '@mdi/js'
 import SectionFullScreen from '@/components/SectionFullScreen.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -13,23 +14,38 @@ import BaseButtons from '@/components/BaseButtons.vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 
 const form = reactive({
-  login: 'john.doe',
-  pass: 'highly-secure-password-fYjUw-',
-  remember: true,
+  login: '',
+  pass: '',
+  remember: false,
 })
 
 const router = useRouter()
 const authStore = useAuthStore()
+const mainStore = useMainStore()
 
 const submit = async () => {
   try {
-    await authStore.login({
+    const response = await authStore.login({
       username: form.login,
       password: form.pass
     })
+
+    // 如果登录成功并返回用户信息，则更新 mainStore 的数据
+    if (response) {
+      const userInfo = {
+        name: form.login,
+        email: "example@example.com",
+        id: parseInt(response.msg)
+      }
+      console.log(userInfo)
+      mainStore.setUser(userInfo)
+    }
+
     router.push('/dashboard')
   } catch (error) {
     console.error('Login failed:', error)
+    // Display error message to the user, here using alert for simplicity
+    alert(error.message)
   }
 }
 </script>
