@@ -35,7 +35,6 @@ const toast = useToast()
 const props = defineProps({
   photos: {
     type: Array,
-    // required: true,
     default: () => [
       { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
       { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
@@ -113,9 +112,9 @@ const error = ref(null)
 const showAdvancedSearch = ref(false)
 const advancedFilters = ref({
   dateRange: { start: '', end: '' },
-  location: '',  // maps to imgPos
+  location: '',
   tags: [],
-  peoples: ''    // replaces author
+  peoples: ''
 })
 
 // Add applied filter state
@@ -135,10 +134,10 @@ const tempFilters = ref({
   peoples: ''
 })
 
-// 添加新的 tag 输入状态管理
+// Add tag input state management
 const newTagInput = ref('')
 
-// 处理标签输入
+// Handle tag input
 const handleTagInput = (event) => {
   if (event.key === 'Enter' || event.key === ',') {
     event.preventDefault()
@@ -148,12 +147,11 @@ const handleTagInput = (event) => {
     }
     newTagInput.value = ''
   } else if (event.key === 'Backspace' && !newTagInput.value) {
-    // 如果输入框为空且按下退格键，则删除最后一个标签
     tempFilters.value.tags.pop()
   }
 }
 
-// 删除标签
+// Remove tag
 const removeTag = (index) => {
   tempFilters.value.tags.splice(index, 1)
 }
@@ -205,7 +203,6 @@ const fetchPhotos = async () => {
       userId: props.userId.toString()
     })
 
-    // 添加筛选参数
     if (appliedFilters.value.query) {
       params.append('imgName', appliedFilters.value.query)
     }
@@ -261,23 +258,43 @@ const fetchPhotos = async () => {
 }
 
 const generateNewId = (() => {
-  // Generate new id from API
   let idCounter = 6
   return () => props.useApiData ? undefined : ++idCounter
 })()
 
-// 添加上传缓存队列
+// Add upload queue
 const uploadingPhotos = ref([])
 
-// 修改上传方法
+// Modify upload method
 const uploadPhotos = (file) => {
+  searchQuery.value = ''
+  tempFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  appliedFilters.value = {
+    query: '',
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  advancedFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  showAdvancedSearch.value = false
+  fetchPhotos()
   if (file) {
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file')
       return
     }
 
-    // Create a temporary local photo object
     const localUrl = URL.createObjectURL(file)
     const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
     const tempPhoto = {
@@ -298,10 +315,8 @@ const uploadPhotos = (file) => {
       return
     }
 
-    // Add to upload queue
     uploadingPhotos.value.push(tempPhoto)
 
-    // Then start API upload
     const formData = new FormData()
     formData.append('files', file)
 
@@ -321,14 +336,12 @@ const uploadPhotos = (file) => {
         if (!result.msg || result.msg !== 'ok') {
           throw new Error(result.msg || 'Upload failed')
         }
-        // Remove temporary photo from queue
         uploadingPhotos.value = uploadingPhotos.value.filter(p => p.id !== tempPhoto.id)
         URL.revokeObjectURL(localUrl)
         toast.success('Image uploaded successfully')
         fetchPhotos()
       })
       .catch(error => {
-        // Mark as failed but keep in queue
         const failedPhoto = uploadingPhotos.value.find(p => p.id === tempPhoto.id)
         if (failedPhoto) {
           failedPhoto.isUploading = false
@@ -340,12 +353,10 @@ const uploadPhotos = (file) => {
   }
 }
 
-// 修改清空上传队列方法
+// Method to clear failed uploads from queue
 const clearUploadFailedQueue = () => {
-  // 只清除上传失败的图片
   uploadingPhotos.value = uploadingPhotos.value.filter(photo => {
     if (photo.uploadFailed) {
-      // 释放失败图片的内存
       if (photo.tempUrl) {
         URL.revokeObjectURL(photo.tempUrl)
       }
@@ -355,6 +366,7 @@ const clearUploadFailedQueue = () => {
   })
 }
 
+// Method to clear entire upload queue
 const clearUploadQueue = () => {
   uploadingPhotos.value.forEach(photo => {
     if (photo.tempUrl) {
@@ -364,18 +376,15 @@ const clearUploadQueue = () => {
   uploadingPhotos.value = []
 }
 
-
-
-// 修改显示照片计算属性
+// Modify display photos computed property
 const displayPhotos = computed(() => {
   if (props.useApiData) {
-    // Combine API photos with uploading photos
     return [...uploadingPhotos.value, ...apiPhotos.value]
   }
   return propPhotos.value
 })
 
-// 组件卸载时清理内存
+// Clean up memory when component unmounts
 onUnmounted(() => {
   clearUploadQueue()
 })
@@ -388,7 +397,6 @@ const deletePhotos = (selectedIds) => {
   if (!props.useApiData) {
     propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
   } else {
-    // Delete from API
     const deletePromises = photosToDelete.map(photo => {
       const params = new URLSearchParams({
         userId: photo.userId.toString(),
@@ -410,7 +418,7 @@ const deletePhotos = (selectedIds) => {
     Promise.all(deletePromises)
       .then(() => {
         toast.success(`${photosToDelete.length} photo(s) deleted`)
-        fetchPhotos() // Refresh the photo list
+        fetchPhotos()
       })
       .catch(error => {
         console.error('Delete error:', error)
@@ -441,7 +449,7 @@ const downloadPhotos = async (selectedIds) => {
       link.click();
       document.body.removeChild(link);
 
-      URL.revokeObjectURL(objectUrl); // Free memory
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
       console.error(`Download failed: ${photo.name}`, err);
       toast.error(`Failed to download ${photo.name}`);
@@ -453,12 +461,13 @@ const downloadPhotos = async (selectedIds) => {
 
 // Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
-  // 直接返回显示照片，不进行筛选
   return displayPhotos.value
 })
 
-// Apply search conditions
+// Modify apply filters method
 const applyFilters = () => {
+  clearUploadQueue()
+  
   advancedFilters.value = { ...tempFilters.value }
   appliedFilters.value = {
     query: searchQuery.value || '',
@@ -470,7 +479,6 @@ const applyFilters = () => {
     tags: tempFilters.value.tags?.length ? tempFilters.value.tags : [],
     peoples: tempFilters.value.peoples || ''
   }
-  // 只通过 API 进行筛选
   fetchPhotos()
 }
 
@@ -514,7 +522,7 @@ const setViewMode = (mode) => {
   emit('update:viewMode', mode)
 }
 
-// 修改 openPhotoModal 方法，移除对上传状态的限制
+// Modify photo modal opening method
 const openPhotoModal = (photo) => {
   if (photo.uploadFailed) {
     toast.error('Cannot preview failed upload')
@@ -526,7 +534,7 @@ const openPhotoModal = (photo) => {
   emit('view-photo', photo)
 }
 
-// 修改获取前后图片的方法
+// Modify photo index lookup method
 const getPhotoIndex = (photoId) => {
   const allPhotos = displayPhotos.value
   return allPhotos.findIndex(p => p.id === photoId)
@@ -594,15 +602,13 @@ const showActionMenu = ref(false)
 const actionMenuPhoto = ref(null)
 const actionMenuPosition = ref({ x: 0, y: 0 })
 
-// 修改 handleActionClick 方法
+// Modify action click handler
 const handleActionClick = (photo, event) => {
-  // 只限制操作失败的照片
   if (photo.uploadFailed) {
     toast.error('Cannot perform actions on failed uploads')
     return
   }
   
-  // 正在上传的照片只允许预览和取消上传
   if (photo.isUploading) {
     toast.info('Photo is still uploading. Only preview is available.')
     return
@@ -632,7 +638,6 @@ const handleMenuAction = (action) => {
 
   switch (action) {
     case 'edit':
-      // TODO: Implement edit functionality
       closePhotoModal()
       emit('photo-edit', actionMenuPhoto.value.id)
       break
@@ -659,7 +664,7 @@ const closeActionMenu = () => {
 
 // Method to refresh API photos
 const refreshPhotos = () => {
-  clearUploadFailedQueue()
+  clearUploadQueue()
   fetchPhotos()
 }
 
@@ -667,7 +672,7 @@ const getPhotoById = (id) => {
   return displayPhotos.value.find(photo => photo.id === id)
 }
 
-// 修改颜色类名定义，使用固定的颜色类而不是动态类名
+// Set fixed color classes for tags
 const tagColorClasses = [
   'bg-indigo-100 text-indigo-700',
   'bg-emerald-100 text-emerald-700',
@@ -678,18 +683,16 @@ const tagColorClasses = [
   'bg-orange-100 text-orange-700'
 ]
 
-// 修改getTagColor函数
+// Get color for tag by index
 const getTagColor = (index) => {
   return tagColorClasses[index % tagColorClasses.length]
 }
 
-// 添加标签点击处理方法
+// Handle tag click
 const handleTagClick = (tag) => {
-  // 设置筛选条件
   tempFilters.value.tags = [tag]
   showAdvancedSearch.value = true
   closePhotoModal()
-  // 应用筛选
   applyFilters()
 }
 
@@ -852,7 +855,6 @@ defineExpose({
             <th v-if="isSelectMode" class="px-3 py-2 text-left">Select</th>
             <th class="px-3 py-2 text-left">Preview</th>
             <th class="px-3 py-2 text-left">Name</th>
-            <th class="px-3 py-2 text-left">Type</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
             <th class="px-3 py-2 text-left">Tags</th>
@@ -902,7 +904,6 @@ defineExpose({
             </td>
 
             <!-- Regular columns -->
-            <td class="px-3 py-2">{{ photo.type }}</td>
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
             
@@ -929,13 +930,6 @@ defineExpose({
                 @click="handleActionClick(photo, $event)" 
               />
             </td>
-
-            <!-- Failed indicator -->
-            <!-- <div v-if="photo.uploadFailed" 
-                 class="absolute right-2 top-1/2 -translate-y-1/2 text-red-500"
-                 title="Upload failed">
-              ⚠️
-            </div> -->
           </tr>
         </tbody>
       </table>
@@ -1087,7 +1081,7 @@ defineExpose({
 
             <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
 
-            <!-- 修改操作按钮的显示逻辑 -->
+            <!-- Modify action button display logic -->
             <div class="flex items-center gap-2">
               <template v-if="showActions && !currentPhoto.uploadFailed">
                 <button v-for="(action, index) in [
@@ -1127,7 +1121,6 @@ defineExpose({
                 <path fill="currentColor" :d="mdiInformation" />
               </svg>
               <div class="flex-1">
-                <div class="mb-1"><span class="font-medium">Type:</span> {{ currentPhoto.type }}</div>
                 <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
                 <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
                 <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
