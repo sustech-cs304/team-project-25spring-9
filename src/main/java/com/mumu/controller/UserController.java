@@ -124,7 +124,7 @@ public class UserController {
             return AjaxJson.get(502, "用户名或密码错误");
         } else {
             StpUtil.login(service.getUserId(user.getUserName()));
-            return AjaxJson.getSuccess();
+            return AjaxJson.getSuccess(String.valueOf(service.getUserId(user.getUserName())));
         }
     }
 

@@ -72,13 +72,18 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
         List<Integer> imgIds = mapper.selectJoinList(Integer.class, new MPJLambdaWrapper<Img>()
                 .select(Img::getImgId) // 只查询 imgId
                 .eq(img.getUserId() != null, Img::getUserId, img.getUserId())
+                        .eq(Img::getValid,true)
+                        .like(img.getImgPos() != null, Img::getImgPos, img.getImgPos())
+                        .like(img.getImgName() != null, Img::getImgName, img.getImgName())
                 .between(startDate != null&&endDate != null,Img::getImgDate, startDate, endDate)
                 .leftJoin(ImgTag.class, ImgTag::getImgId, Img::getImgId)
-                .leftJoin(Tag.class, Tag::getTagId, ImgTag::getTagId)
+                .join("LEFT JOIN", Tag.class,
+                        on -> on.eq(Tag::getTagId, ImgTag::getTagId)
+                                .eq(Tag::getValid, 1))
                 .leftJoin(ImgPeople.class, ImgPeople::getImgId, Img::getImgId)
-                .leftJoin(People.class, People::getPeopleId, ImgPeople::getPeopleId)
-                .eq(People::getValid, 1)
-                .eq(Tag::getValid, 1)
+                .join("LEFT JOIN", People.class,
+                        on -> on.eq(People::getPeopleId, ImgPeople::getPeopleId)
+                                .eq(People::getValid, 1))
                 .in(!img.getTags().isEmpty(), Tag::getTagName, img.getTags())
                 .in(!img.getPeoples().isEmpty(), People::getName, img.getPeoples())
                 .groupBy(Img::getImgId)
