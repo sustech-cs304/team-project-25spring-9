@@ -191,6 +191,18 @@ async function getImageFileSizeFromUrl(url) {
   }
 }
 
+// Add date formatter function
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const options = { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+  }
+  return date.toLocaleDateString('en-US', options)
+}
+
 // Fetch images from API
 const fetchPhotos = async () => {
   if (!props.useApiData) return
@@ -238,6 +250,7 @@ const fetchPhotos = async () => {
           type: img.imgType || 'JPEG',
           size: size,
           date: img.imgDate || new Date().toISOString().split('T')[0],
+          displayDate: formatDate(img.imgDate) || formatDate(new Date()),
           userId: img.userId,
           tags: img.tags,
           peoples: img.peoples,
@@ -905,7 +918,7 @@ defineExpose({
 
             <!-- Regular columns -->
             <td class="px-3 py-2">{{ photo.size }}</td>
-            <td class="px-3 py-2">{{ photo.date }}</td>
+            <td class="px-3 py-2">{{ photo.displayDate }}</td>
             
             <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
@@ -1122,7 +1135,7 @@ defineExpose({
               </svg>
               <div class="flex-1">
                 <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
+                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.displayDate }}</div>
                 <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
                   <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
                         class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
