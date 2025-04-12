@@ -135,6 +135,34 @@ const searchPlaceholder = computed(() => {
     : 'Quick search photos...'
 })
 
+function formatFileSize(bytes) {
+  if (!bytes) return 'Unknown';
+  if (bytes < 1024) return `${bytes} B`;
+  
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let size = bytes;
+  let unitIndex = -1;
+  
+  do {
+    size /= 1024;
+    unitIndex++;
+  } while (size >= 1024 && unitIndex < units.length - 1);
+
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+async function getImageFileSizeFromUrl(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) throw new Error('Failed to fetch image size');
+    const size = response.headers.get('content-length');
+    return size ? formatFileSize(parseInt(size)) : 'Unknown';
+  } catch (error) {
+    console.error('Error getting image size:', error);
+    return 'Unknown';
+  }
+}
+
 // Fetch images from API
 const fetchPhotos = async () => {
   if (!props.useApiData) return
@@ -143,29 +171,36 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    // Fetch image metadata from first API endpoint
     const response = await fetch('http://10.16.60.67:9090/img/all?userId=' + props.userId)
     const result = await response.json()
 
     if (result && result.data) {
-      // Filter by userId if specified
       let imageData = result.data
       if (props.userId) {
         imageData = imageData.filter(img => img.userId === props.userId)
       }
 
-      // Transform data to match our component's expected format
-      apiPhotos.value = imageData.map(img => ({
-        id: img.imgId,
-        name: img.imgName || `Image ${img.imgId}`,
-        src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
-        type: img.imgType || 'JPEG',
-        size: img.imgSize ? `${(parseInt(img.imgSize) / 1024).toFixed(2)} KB` : 'Unknown',
-        date: img.createTime || new Date().toISOString().split('T')[0],
-        userId: img.userId
-      }))
+      // Transform data and fetch sizes
+      const transformedData = await Promise.all(imageData.map(async img => {
+        const imgUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`;
+        const size = await getImageFileSizeFromUrl(imgUrl);
+        
+        return {
+          id: img.imgId,
+          name: img.imgName || `Image ${img.imgId}`,
+          pub: img.pub,
+          src: imgUrl,
+          type: img.imgType || 'JPEG',
+          size: size,
+          date: img.imgDate || new Date().toISOString().split('T')[0],
+          userId: img.userId,
+          tags: img.tags,
+          peoples: img.peoples,
+          desc: img.imgDescribtion || ""
+        };
+      }));
 
-      // Emit the loaded photos to parent
+      apiPhotos.value = transformedData;
       emit('photos-loaded', apiPhotos.value)
     }
   } catch (err) {
@@ -188,21 +223,6 @@ const uploadPhotos = (file) => {
       toast.error('Please upload an image file')
       return
     }
-
-    const formatFileSize = (bytes) => {
-      if (bytes < 1024) return `${bytes} B`;
-      
-      const units = ['KB', 'MB', 'GB', 'TB'];
-      let size = bytes;
-      let unitIndex = -1;
-      
-      do {
-        size /= 1024;
-        unitIndex++;
-      } while (size >= 1024 && unitIndex < units.length - 1);
-
-      return `${size.toFixed(1)} ${units[unitIndex]}`;
-    };
 
     const reader = new FileReader()
     reader.onload = (e) => {

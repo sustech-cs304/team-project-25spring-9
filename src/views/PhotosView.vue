@@ -25,7 +25,7 @@ import { useMainStore } from '@/stores/main'
 const mainStore = useMainStore()
 
 // Track if we're in select mode
-const isSelectMode = ref(false)
+const isSelectMode = ref(true)
 
 // Track selected photos
 const selectedPhotos = ref([])
@@ -37,7 +37,7 @@ const displayedPhotos = ref([])
 const currentViewMode = ref('grid')
 
 // Enable API data
-const useApiData = ref(false)
+const useApiData = ref(true)
 
 
 const photoGallery = ref(null)
