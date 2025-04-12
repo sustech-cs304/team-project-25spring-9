@@ -95,6 +95,12 @@ const searchQuery = ref('')
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
 
+// Method to close the modal
+const closePhotoModal = () => {
+  isModalOpen.value = false
+  currentPhoto.value = null
+}
+
 // Test Photos
 const propPhotos = ref(props.photos)
 
@@ -260,6 +266,10 @@ const generateNewId = (() => {
   return () => props.useApiData ? undefined : ++idCounter
 })()
 
+// 添加上传缓存队列
+const uploadingPhotos = ref([])
+
+// 修改上传方法
 const uploadPhotos = (file) => {
   if (file) {
     if (!file.type.startsWith('image/')) {
@@ -267,92 +277,108 @@ const uploadPhotos = (file) => {
       return
     }
 
-    // 读取图片的EXIF日期信息
-    const getImageDate = (file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const view = new DataView(e.target.result)
-          try {
-            let offset = 2
-            if (view.getUint16(0) === 0xFFD8) { // JPEG file
-              while (offset < view.byteLength) {
-                if (view.getUint16(offset) === 0xFFE1) { // EXIF
-                  const exifLength = view.getUint16(offset + 2)
-                  const exifData = new Uint8Array(e.target.result.slice(offset + 4, offset + 2 + exifLength))
-                  const exifString = new TextDecoder().decode(exifData)
-                  const dateMatch = exifString.match(/\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}/)
-                  if (dateMatch) {
-                    resolve(dateMatch[0].replace(/:/g, '-'))
-                    return
-                  }
-                }
-                offset += 2 + view.getUint16(offset + 2)
-              }
-            }
-            resolve(null)
-          } catch (error) {
-            console.error('Error reading EXIF data:', error)
-            resolve(null)
-          }
-        }
-        reader.readAsArrayBuffer(file)
-      })
+    // Create a temporary local photo object
+    const localUrl = URL.createObjectURL(file)
+    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+    const tempPhoto = {
+      id: `temp_${Date.now()}`,
+      name: file.name,
+      src: localUrl,
+      size: formatFileSize(file.size),
+      date: currentDate.split(' ')[0],
+      type: file.type.split('/')[1].toUpperCase(),
+      isUploading: true,
+      tempUrl: localUrl
     }
 
     if (!props.useApiData) {
-      // Local upload logic
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const newPhoto = {
-          id: generateNewId(),
-          name: file.name,
-          src: e.target.result,
-          size: formatFileSize(file.size),
-          date: new Date().toISOString().split('T')[0],
-          type: file.type.split('/')[1].toUpperCase()
-        }
-        propPhotos.value.push(newPhoto)
-        toast.success('Image uploaded successfully')
-      }
-      reader.onerror = () => {
-        toast.error('Error reading file')
-      }
-      reader.readAsDataURL(file)
-    } else {
-      // API upload logic
-      getImageDate(file).then(imageDate => {
-        const formData = new FormData()
-        formData.append('files', file)
-
-        const currentDate = imageDate || new Date().toISOString().slice(0, 19).replace('T', ' ')
-        const params = new URLSearchParams({
-          imgDate: currentDate,
-          imgName: file.name,
-          userId: props.userId.toString(),
-          pub: true
-        })
-
-        fetch(`http://10.16.60.67:9090/img/add?${params}`, {
-          method: 'POST',
-          body: formData
-        })
-          .then(response => response.json())
-          .then(result => {
-            if (!result.msg || result.msg !== 'ok') {
-              throw new Error(result.msg || 'Upload failed')
-            }
-            toast.success('Image uploaded successfully')
-            fetchPhotos()
-          })
-          .catch(error => {
-            console.error('Upload error:', error)
-            toast.error(`Failed to upload image: ${error.message}`)
-          })
-      })
+      propPhotos.value.push(tempPhoto)
+      toast.success('Image uploaded successfully')
+      URL.revokeObjectURL(localUrl)
+      return
     }
+
+    // Add to upload queue
+    uploadingPhotos.value.push(tempPhoto)
+
+    // Then start API upload
+    const formData = new FormData()
+    formData.append('files', file)
+
+    const params = new URLSearchParams({
+      imgDate: currentDate,
+      imgName: file.name,
+      userId: props.userId.toString(),
+      pub: true
+    })
+
+    fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+      method: 'POST',
+      body: formData
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.msg || result.msg !== 'ok') {
+          throw new Error(result.msg || 'Upload failed')
+        }
+        // Remove temporary photo from queue
+        uploadingPhotos.value = uploadingPhotos.value.filter(p => p.id !== tempPhoto.id)
+        URL.revokeObjectURL(localUrl)
+        toast.success('Image uploaded successfully')
+        fetchPhotos()
+      })
+      .catch(error => {
+        // Mark as failed but keep in queue
+        const failedPhoto = uploadingPhotos.value.find(p => p.id === tempPhoto.id)
+        if (failedPhoto) {
+          failedPhoto.isUploading = false
+          failedPhoto.uploadFailed = true
+        }
+        console.error('Upload error:', error)
+        toast.error(`Failed to upload image: ${error.message}`)
+      })
   }
 }
+
+// 修改清空上传队列方法
+const clearUploadFailedQueue = () => {
+  // 只清除上传失败的图片
+  uploadingPhotos.value = uploadingPhotos.value.filter(photo => {
+    if (photo.uploadFailed) {
+      // 释放失败图片的内存
+      if (photo.tempUrl) {
+        URL.revokeObjectURL(photo.tempUrl)
+      }
+      return false
+    }
+    return true
+  })
+}
+
+const clearUploadQueue = () => {
+  uploadingPhotos.value.forEach(photo => {
+    if (photo.tempUrl) {
+      URL.revokeObjectURL(photo.tempUrl)
+    }
+  })
+  uploadingPhotos.value = []
+}
+
+
+
+// 修改显示照片计算属性
+const displayPhotos = computed(() => {
+  if (props.useApiData) {
+    // Combine API photos with uploading photos
+    return [...uploadingPhotos.value, ...apiPhotos.value]
+  }
+  return propPhotos.value
+})
+
+// 组件卸载时清理内存
+onUnmounted(() => {
+  clearUploadQueue()
+})
 
 const deletePhotos = (selectedIds) => {
   const photosToDelete = selectedIds.value.map(id =>
@@ -425,11 +451,6 @@ const downloadPhotos = async (selectedIds) => {
   toast.success(`Successfully downloaded ${photosToDownload.length} photo(s)`);
 }
 
-// Determine which photos to use - API or props
-const displayPhotos = computed(() => {
-  return props.useApiData ? apiPhotos.value : propPhotos.value
-})
-
 // Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
   // 直接返回显示照片，不进行筛选
@@ -475,8 +496,15 @@ const isPhotoSelected = (photoId) => {
   return props.selectedPhotoIds.includes(photoId)
 }
 
-// Method to toggle photo selection
+// Method to check if a photo can be selected
+const canSelectPhoto = (photo) => {
+  return !photo.isUploading && !photo.uploadFailed
+}
+
+// Modify toggle selection method
 const togglePhotoSelection = (photoId) => {
+  const photo = displayPhotos.value.find(p => p.id === photoId)
+  if (!photo || !canSelectPhoto(photo)) return
   emit('select-photo', photoId)
 }
 
@@ -486,41 +514,47 @@ const setViewMode = (mode) => {
   emit('update:viewMode', mode)
 }
 
-// Method to open the full image modal
+// 修改 openPhotoModal 方法，移除对上传状态的限制
 const openPhotoModal = (photo) => {
+  if (photo.uploadFailed) {
+    toast.error('Cannot preview failed upload')
+    return
+  }
+  
   currentPhoto.value = photo
   isModalOpen.value = true
   emit('view-photo', photo)
 }
 
-// Method to close the modal
-const closePhotoModal = () => {
-  isModalOpen.value = false
-  currentPhoto.value = null
+// 修改获取前后图片的方法
+const getPhotoIndex = (photoId) => {
+  const allPhotos = displayPhotos.value
+  return allPhotos.findIndex(p => p.id === photoId)
 }
 
-// Methods to navigate between photos in the modal
 const viewNextPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
-  if (currentIndex < filteredPhotos.value.length - 1) {
-    currentPhoto.value = filteredPhotos.value[currentIndex + 1]
+  const currentIndex = getPhotoIndex(currentPhoto.value.id)
+  const allPhotos = displayPhotos.value
+  
+  if (currentIndex < allPhotos.length - 1) {
+    currentPhoto.value = allPhotos[currentIndex + 1]
   } else {
-    // Wrap around to the first photo
-    currentPhoto.value = filteredPhotos.value[0]
+    currentPhoto.value = allPhotos[0]
   }
 }
 
 const viewPreviousPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
+  const currentIndex = getPhotoIndex(currentPhoto.value.id)
+  const allPhotos = displayPhotos.value
+  
   if (currentIndex > 0) {
-    currentPhoto.value = filteredPhotos.value[currentIndex - 1]
+    currentPhoto.value = allPhotos[currentIndex - 1]
   } else {
-    // Wrap around to the last photo
-    currentPhoto.value = filteredPhotos.value[filteredPhotos.value.length - 1]
+    currentPhoto.value = allPhotos[allPhotos.length - 1]
   }
 }
 
@@ -560,19 +594,30 @@ const showActionMenu = ref(false)
 const actionMenuPhoto = ref(null)
 const actionMenuPosition = ref({ x: 0, y: 0 })
 
-// Method to handle action button click with menu
+// 修改 handleActionClick 方法
 const handleActionClick = (photo, event) => {
+  // 只限制操作失败的照片
+  if (photo.uploadFailed) {
+    toast.error('Cannot perform actions on failed uploads')
+    return
+  }
+  
+  // 正在上传的照片只允许预览和取消上传
+  if (photo.isUploading) {
+    toast.info('Photo is still uploading. Only preview is available.')
+    return
+  }
+  
   event?.stopPropagation()
-
   actionMenuPhoto.value = photo
   if (event) {
     const rect = event.target.getBoundingClientRect()
-    const menuWidth = 150 // 估计的菜单宽度
+    const menuWidth = 150
     const spaceRight = window.innerWidth - rect.right
     
     actionMenuPosition.value = {
       x: spaceRight > menuWidth ? rect.left : rect.right - menuWidth,
-      y: rect.bottom + window.scrollY // 考虑滚动位置
+      y: rect.bottom + window.scrollY
     }
   }
   showActionMenu.value = true
@@ -614,6 +659,7 @@ const closeActionMenu = () => {
 
 // Method to refresh API photos
 const refreshPhotos = () => {
+  clearUploadFailedQueue()
   fetchPhotos()
 }
 
@@ -817,25 +863,50 @@ defineExpose({
           <tr v-for="photo in filteredPhotos" :key="photo.id" 
               class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 group"
               :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
-            <td v-if="isSelectMode" class="px-3 py-2">
+            <!-- Add select column -->
+            <td v-if="isSelectMode" class="px-3 py-2 w-10">
               <button @click.stop="togglePhotoSelection(photo.id)" 
-                      class="text-gray-500 hover:text-blue-500">
+                      :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+                      class="text-gray-500 hover:text-blue-500"
+                      :disabled="!canSelectPhoto(photo)">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor"
                     :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
                 </svg>
               </button>
             </td>
-            <td class="px-3 py-2">
-              <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer"
-                @click="openPhotoModal(photo)" />
+
+            <!-- Preview column with upload indicator -->
+            <td class="px-3 py-2 w-20 relative">
+              <div class="relative">
+                <img :src="photo.src" 
+                     class="h-12 w-16 object-cover rounded cursor-pointer"
+                     @click="openPhotoModal(photo)" />
+                <!-- Add upload indicator inside preview cell -->
+                <div v-if="photo.isUploading" 
+                     class="absolute inset-0 flex items-center justify-center">
+                  <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+                    <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                  </div>
+                </div>
+              </div>
             </td>
+
+            <!-- Name column with status -->
             <td class="px-3 py-2">
-              <span class="truncate block max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+              <div class="flex flex-col">
+                <span class="truncate max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+                <span v-if="photo.isUploading" class="text-xs text-blue-500">Uploading...</span>
+                <span v-if="photo.uploadFailed" class="text-xs text-red-500">Upload failed</span>
+              </div>
             </td>
+
+            <!-- Regular columns -->
             <td class="px-3 py-2">{{ photo.type }}</td>
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
+            
+            <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
                 <span v-for="(tag, index) in photo.tags" :key="tag"
@@ -846,8 +917,11 @@ defineExpose({
                 </span>
               </div>
             </td>
-            <td v-if="showActions" class="px-3 py-2 text-right">
+
+            <!-- Actions column -->
+            <td v-if="showActions" class="px-3 py-2 text-right w-10">
               <BaseButton 
+                v-if="!photo.isUploading && !photo.uploadFailed"
                 :icon="mdiDotsVertical" 
                 small 
                 color="lightDark" 
@@ -855,20 +929,47 @@ defineExpose({
                 @click="handleActionClick(photo, $event)" 
               />
             </td>
+
+            <!-- Failed indicator -->
+            <!-- <div v-if="photo.uploadFailed" 
+                 class="absolute right-2 top-1/2 -translate-y-1/2 text-red-500"
+                 title="Upload failed">
+              ⚠️
+            </div> -->
           </tr>
         </tbody>
       </table>
     </div>
 
     <!-- Large Grid View -->
-    <!-- Same as before -->
     <div v-else-if="viewMode === 'large'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
-        :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded',
+          { 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator to be less intrusive -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-1 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-1 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -881,14 +982,34 @@ defineExpose({
     </div>
 
     <!-- Medium Grid View (Default) -->
-    <!-- Same as before -->
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
-        :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded',
+          { 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -901,14 +1022,34 @@ defineExpose({
     </div>
 
     <!-- Small Grid View -->
-    <!-- Same as before -->
     <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded"
-        :class="{ 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded',
+          { 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-3 h-3" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -925,9 +1066,9 @@ defineExpose({
 
     <!-- Photo Modal -->
     <div v-if="isModalOpen && currentPhoto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" 
+      @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>
-        <!-- Photo Container -->
         <div class="bg-white rounded-lg overflow-hidden shadow-xl">
           <!-- Navigation and Close Buttons -->
           <div class="flex justify-between items-center p-4 bg-gray-100">
@@ -946,19 +1087,23 @@ defineExpose({
 
             <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
 
-            <!-- Add action button group -->
+            <!-- 修改操作按钮的显示逻辑 -->
             <div class="flex items-center gap-2">
-              <button v-for="(action, index) in [
-                { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
-                { icon: mdiDelete, label: 'Delete', value: 'delete' },
-                { icon: mdiDownload, label: 'Download', value: 'download' }
-              ]" :key="index" class="p-1 rounded-full hover:bg-gray-200 flex items-center"
-                @click="handleMenuAction(action.value)">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="action.icon" />
-                </svg>
-              </button>
-
+              <template v-if="showActions && !currentPhoto.uploadFailed">
+                <button v-for="(action, index) in [
+                  { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
+                  { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
+                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading }
+                ]" :key="index" 
+                  class="p-1 rounded-full hover:bg-gray-200 flex items-center"
+                  :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
+                  @click="!action.disabled && handleMenuAction(action.value)"
+                  :title="action.disabled ? 'Not available while uploading' : action.label">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="action.icon" />
+                  </svg>
+                </button>
+              </template>
               <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
                 <svg class="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="mdiClose" />
@@ -969,7 +1114,10 @@ defineExpose({
 
           <!-- Photo -->
           <div class="flex justify-center bg-black p-2">
-            <img :src="currentPhoto.src" class="max-h-[70vh] max-w-full object-contain" alt="Full size preview" />
+            <img :src="currentPhoto.src" 
+                 class="max-h-[70vh] max-w-full object-contain" 
+                 :class="{ 'opacity-70': currentPhoto.isUploading }"
+                 alt="Full size preview" />
           </div>
 
           <!-- Enhanced Photo Details -->
@@ -993,6 +1141,10 @@ defineExpose({
                 <div v-if="currentPhoto.desc" class="mt-2">
                   <span class="font-medium">Description:</span>
                   <p class="mt-1 text-gray-600">{{ currentPhoto.desc }}</p>
+                </div>
+                <!-- Add upload status if applicable -->
+                <div v-if="currentPhoto.isUploading" class="mt-2 text-blue-500">
+                  Upload in progress...
                 </div>
               </div>
             </div>

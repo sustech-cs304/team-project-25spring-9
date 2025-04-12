@@ -94,7 +94,6 @@ const clearSelections = () => {
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
     openEditorWithPhoto(selectedPhotos.value[0]) 
-    toggleSelectMode()
   }
 }
 
@@ -103,6 +102,8 @@ const openEditorWithPhoto = (photoId) => {
     const photo = photoGallery.value.getPhotoById(photoId)
     editingPhoto.value = photo
     showEditor.value = true
+    isSelectMode.value = false
+    selectedPhotos.value = []
 }
 
 // Close editor without save
