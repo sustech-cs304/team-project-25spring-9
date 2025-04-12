@@ -4,8 +4,6 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useMainStore } from '@/stores/main.js'
-import Toast from 'vue-toastification'
-import 'vue-toastification/dist/index.css' 
 
 import './css/main.css'
 
@@ -13,13 +11,7 @@ import './css/main.css'
 const pinia = createPinia()
 
 // Create Vue app
-createApp(App).use(router).use(pinia).use(Toast, {
-  timeout: 3000,                
-  position: 'top-right',        
-  closeOnClick: true,           
-  pauseOnFocusLoss: false,      
-  newestOnTop: true             
-}).mount('#app')
+createApp(App).use(router).use(pinia).mount('#app')
 
 // Init main store
 const mainStore = useMainStore(pinia)
