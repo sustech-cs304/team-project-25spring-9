@@ -11,17 +11,39 @@ import {
   mdiViewList,
   mdiViewGrid,
   mdiViewGridOutline,
-  mdiViewCompactOutline
+  mdiViewCompactOutline,
+  mdiImageEdit,
+  mdiDelete,
+  mdiDownload,
+  mdiChevronDown,
+  mdiFilterVariant,
+  mdiFilterVariantRemove,
+  mdiCalendarMonth,
+  mdiTag,
+  mdiMapMarker,
+  mdiAccount,
+  mdiMagnify,
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 // Define props for the component
 const props = defineProps({
   photos: {
     type: Array,
-    required: true
+    // required: true,
+    default: () => [
+      { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
+      { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
+      { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
+      { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
+      { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
+      { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' }
+    ]
   },
   initialViewMode: {
     type: String,
@@ -71,6 +93,9 @@ const searchQuery = ref('')
 // Track modal state and current photo
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
+
+// Test Photos
+const propPhotos = ref(props.photos)
 
 // API data states
 const apiPhotos = ref([])
@@ -324,20 +349,76 @@ const downloadPhotos = async (selectedIds) => {
 
 // Determine which photos to use - API or props
 const displayPhotos = computed(() => {
-  return props.useApiData ? apiPhotos.value : props.photos
+  return props.useApiData ? apiPhotos.value : propPhotos.value
 })
 
-// Filtered photos based on search query
+// Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
-  if (!searchQuery.value) return displayPhotos.value
+  let result = displayPhotos.value
 
-  const query = searchQuery.value.toLowerCase()
-  return displayPhotos.value.filter(photo => {
-    return photo.name.toLowerCase().includes(query) ||
-      (photo.date && photo.date.includes(query)) ||
-      (photo.type && photo.type.toLowerCase().includes(query))
-  })
+  // Use applied filter conditions for search
+  if (appliedFilters.value.query) {
+    const query = appliedFilters.value.query.toLowerCase()
+    result = result.filter(photo => 
+      photo.name.toLowerCase().includes(query) ||
+      photo.type.toLowerCase().includes(query)
+    )
+  }
+
+  // Advanced filters
+  const { dateRange, location, tags, author } = appliedFilters.value
+  
+  if (dateRange.start) {
+    result = result.filter(photo => new Date(photo.date) >= new Date(dateRange.start))
+  }
+  if (dateRange.end) {
+    result = result.filter(photo => new Date(photo.date) <= new Date(dateRange.end))
+  }
+
+  // Location filter
+  if (location) {
+    result = result.filter(photo => 
+      photo.location?.toLowerCase().includes(location.toLowerCase())
+    )
+  }
+
+  // Tags filter
+  if (tags.length > 0) {
+    result = result.filter(photo => 
+      photo.tags?.some(tag => tags.includes(tag.toLowerCase()))
+    )
+  }
+
+  // Author filter
+  if (author) {
+    result = result.filter(photo => 
+      photo.author?.toLowerCase().includes(author.toLowerCase())
+    )
+  }
+
+  return result
 })
+
+// Apply search conditions
+const applyFilters = () => {
+  advancedFilters.value = { ...tempFilters.value }
+  appliedFilters.value = {
+    query: searchQuery.value,
+    ...advancedFilters.value
+  }
+}
+
+// Clear all filter conditions
+const clearAdvancedFilters = () => {
+  searchQuery.value = ''
+  tempFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    author: ''
+  }
+  applyFilters()
+}
 
 // Emit filtered photos whenever they change
 watch(filteredPhotos, (newFilteredPhotos) => {
@@ -421,15 +502,64 @@ onMounted(() => {
   if (props.useApiData) {
     fetchPhotos()
   }
+  document.addEventListener('click', closeActionMenu)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', closeActionMenu)
 })
 
-// Method to handle action button click
-const handleActionClick = (photo) => {
-  emit('action-click', photo)
+// Action menu state
+const showActionMenu = ref(false)
+const actionMenuPhoto = ref(null)
+const actionMenuPosition = ref({ x: 0, y: 0 })
+
+// Method to handle action button click with menu
+const handleActionClick = (photo, event) => {
+  event?.stopPropagation()
+  
+  actionMenuPhoto.value = photo
+  if (event) {
+    const rect = event.target.getBoundingClientRect()
+    actionMenuPosition.value = {
+      x: rect.left,
+      y: rect.bottom + window.scrollY
+    }
+  }
+  showActionMenu.value = true
+}
+
+// Handle menu item click
+const handleMenuAction = (action) => {
+  if (isModalOpen.value) {
+    actionMenuPhoto.value = currentPhoto.value
+  }
+  if (!actionMenuPhoto.value) return
+
+  switch (action) {
+    case 'edit':
+      // TODO: Implement edit functionality
+      break
+    case 'delete':
+      deletePhotos({ value: [actionMenuPhoto.value.id] })
+      break
+    case 'download':
+      downloadPhotos({ value: [actionMenuPhoto.value.id] })
+      break
+  }
+  showActionMenu.value = false
+  actionMenuPhoto.value = null
+
+  if (isModalOpen.value && action == 'delete') {
+    closePhotoModal()
+  }
+}
+
+// Close menu when clicking outside
+const closeActionMenu = () => {
+  showActionMenu.value = false
+  actionMenuPhoto.value = null
 }
 
 // Method to refresh API photos
@@ -452,35 +582,150 @@ defineExpose({
 
 <template>
   <div>
-    <!-- Search Bar and View Mode Switcher -->
-    <div class="mb-6 flex items-center">
-      <div class="relative flex-grow max-w-md">
-        <input v-model="searchQuery" type="text" placeholder="Search photos"
-          class="w-full py-2 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring focus:border-blue-300" />
-        <div class="absolute left-3 top-2 text-gray-500">
-          <svg class="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="currentColor" :d="mdiImageSearch" />
-          </svg>
+    <!-- Enhanced Search Bar -->
+    <div class="mb-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <!-- Search input with integrated button -->
+        <div class="relative flex-grow max-w-xl flex shadow-sm">
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            :placeholder="searchPlaceholder"
+            class="w-full py-2 pl-10 pr-4 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all" 
+            @keyup.enter="applyFilters"
+          />
+          <div class="absolute left-3 top-2 text-gray-500">
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="currentColor" :d="mdiImageSearch" />
+            </svg>
+          </div>
+          <BaseButton
+            :icon="mdiMagnify"
+            color="info"
+            class="rounded-l-none px-4"
+            @click="applyFilters"
+          />
+        </div>
+        
+        <!-- Filter toggle button -->
+        <BaseButton
+          :icon="showAdvancedSearch ? mdiFilterVariantRemove : mdiFilterVariant"
+          :color="showAdvancedSearch ? 'info' : 'whiteDark'"
+          :title="showAdvancedSearch ? 'Hide filters' : 'Show filters'"
+          class="shadow-sm"
+          @click="showAdvancedSearch = !showAdvancedSearch"
+        />
+
+        <!-- View Mode Switcher -->
+        <div class="flex border rounded-lg shadow-sm overflow-hidden">
+          <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
+            :color="viewMode === 'details' ? 'info' : 'whiteDark'" @click="setViewMode('details')"
+            class="rounded-none border-r last:border-r-0"
+            title="Details view" />
+
+          <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
+            :color="viewMode === 'large' ? 'info' : 'whiteDark'" @click="setViewMode('large')"
+            class="rounded-none border-r last:border-r-0"
+            title="Large icons" />
+
+          <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
+            :color="viewMode === 'grid' ? 'info' : 'whiteDark'" @click="setViewMode('grid')"
+            class="rounded-none border-r last:border-r-0"
+            title="Medium icons" />
+
+          <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
+            :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
+            class="rounded-none border-r last:border-r-0"
+            title="Small icons" />
         </div>
       </div>
 
-      <!-- View Mode Switcher -->
-      <div class="flex ml-4">
-        <BaseButton v-if="availableViewModes.includes('details')" :icon="mdiViewList"
-          :color="viewMode === 'details' ? 'info' : 'whiteDark'" small @click="setViewMode('details')" class="mr-1"
-          title="Details view" />
+      <!-- Advanced Search Panel -->
+      <div v-if="showAdvancedSearch" 
+        class="p-5 bg-white border rounded-lg shadow-sm animate-fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Date Range -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiCalendarMonth" /></svg>
+              <span>Date Range</span>
+            </label>
+            <div class="flex gap-2 items-center">
+              <input 
+                v-model="tempFilters.dateRange.start"
+                type="date" 
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
+                placeholder="From date"
+              />
+              <span class="text-gray-500">to</span>
+              <input 
+                v-model="tempFilters.dateRange.end"
+                type="date" 
+                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300"
+                placeholder="To date"
+              />
+            </div>
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('large')" :icon="mdiViewGrid"
-          :color="viewMode === 'large' ? 'info' : 'whiteDark'" small @click="setViewMode('large')" class="mr-1"
-          title="Large icons" />
+          <!-- Location -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiMapMarker" /></svg>
+              <span>Location</span>
+            </label>
+            <input 
+              v-model="tempFilters.location"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Enter location name"
+            />
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('grid')" :icon="mdiViewGridOutline"
-          :color="viewMode === 'grid' ? 'info' : 'whiteDark'" small @click="setViewMode('grid')" class="mr-1"
-          title="Medium icons" />
+          <!-- Tags -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiTag" /></svg>
+              <span>Tags</span>
+            </label>
+            <input 
+              v-model="tempFilters.tags"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Separate tags with commas"
+              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())"
+            />
+          </div>
 
-        <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
-          :color="viewMode === 'small' ? 'info' : 'whiteDark'" small @click="setViewMode('small')"
-          title="Small icons" />
+          <!-- Author -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
+              <span>Author</span>
+            </label>
+            <input 
+              v-model="tempFilters.author"
+              type="text" 
+              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              placeholder="Search by author name"
+            />
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-4 flex justify-end gap-2">
+          <BaseButton
+            label="Reset Filters"
+            color="whiteDark"
+            small
+            @click="clearAdvancedFilters"
+          />
+          <BaseButton
+            label="Apply Filters"
+            color="success"
+            small
+            @click="applyFilters"
+          />
+        </div>
       </div>
     </div>
 
@@ -532,7 +777,7 @@ defineExpose({
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
             <td v-if="showActions" class="px-3 py-2">
-              <BaseButton :icon="mdiDotsVertical" small color="lightDark" @click="handleActionClick(photo)" />
+              <BaseButton :icon="mdiDotsVertical" small color="lightDark" @click="handleActionClick(photo, $event)" />
             </td>
           </tr>
         </tbody>
@@ -603,7 +848,6 @@ defineExpose({
     <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
 
     <!-- Photo Modal -->
-    <!-- Same as before -->
     <div v-if="isModalOpen && currentPhoto"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>
@@ -626,11 +870,28 @@ defineExpose({
 
             <div class="text-lg font-medium">{{ currentPhoto.name }}</div>
 
-            <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
-              <svg class="w-6 h-6" viewBox="0 0 24 24">
-                <path fill="currentColor" :d="mdiClose" />
-              </svg>
-            </button>
+            <!-- Add action button group -->
+            <div class="flex items-center gap-2">
+              <button 
+                v-for="(action, index) in [
+                  { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+                  { icon: mdiDelete, label: 'Delete', value: 'delete' },
+                  { icon: mdiDownload, label: 'Download', value: 'download' }
+                ]"
+                :key="index"
+                class="p-1 rounded-full hover:bg-gray-200 flex items-center"
+                @click="handleMenuAction(action.value)">
+                <svg class="w-6 h-6" viewBox="0 0 24 24">
+                  <path fill="currentColor" :d="action.icon" />
+                </svg>
+              </button>
+              
+              <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
+                <svg class="w-6 h-6" viewBox="0 0 24 24">
+                  <path fill="currentColor" :d="mdiClose" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Photo -->
@@ -654,5 +915,48 @@ defineExpose({
         </div>
       </div>
     </div>
+
+    <!-- Action Menu -->
+    <div v-if="showActionMenu" 
+      class="fixed z-50 bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
+      :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
+      @click.stop>
+      <button 
+        v-for="(action, index) in [
+          { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
+          { icon: mdiDelete, label: 'Delete', value: 'delete' },
+          { icon: mdiDownload, label: 'Download', value: 'download' }
+        ]"
+        :key="index"
+        class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
+        @click="handleMenuAction(action.value)">
+        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+          <path fill="currentColor" :d="action.icon" />
+        </svg>
+        {{ action.label }}
+      </button>
+    </div>
+
   </div>
 </template>
+
+<style scoped>
+.action-menu-enter-active,
+.action-menu-leave-active {
+  transition: opacity 0.2s;
+}
+
+.action-menu-enter-from,
+.action-menu-leave-to {
+  opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>

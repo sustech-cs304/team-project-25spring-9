@@ -81,22 +81,6 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// // Method to handle photo action clicks
-// const handlePhotoAction = (photo) => {
-//   // Handle actions like edit, delete, etc.
-//   console.log('Action clicked for photo:', photo)
-// }
-
-// // Method to handle filtered photos from the component
-// const handleFilteredPhotos = (filteredPhotos) => {
-//   displayedPhotos.value = filteredPhotos
-// }
-
-// // Method to handle view mode changes
-// const handleViewModeChange = (mode) => {
-//   currentViewMode.value = mode
-// }
-
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
@@ -156,7 +140,9 @@ const saveEditedPhoto = (updatedPhoto) => {
           <BaseButton :icon="mdiImagePlus" label="Add" color="contrast" rounded-full small class="mr-2" />
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="mx-2"
-              :disabled="selectedPhotos.length === 0" />
+              :disabled="selectedPhotos.length === 0" @click="handleDelete"/>
+            <BaseButton :icon="mdiDownload" label="Download" color="success" rounded-full small class="ml-2"
+              :disabled="selectedPhotos.length === 0" @click="handleDownload" />
             <BaseButton :icon="mdiImageEdit" label="Edit" color="info" rounded-full small class="ml-2"
               :disabled="selectedPhotos.length !== 1" @click="openEditor"/>
           </template>
