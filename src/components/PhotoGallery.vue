@@ -260,31 +260,61 @@ const uploadPhotos = (file) => {
         method: 'POST',
         body: formData
       })
-        .then(response => {
-          if (!response.ok) throw new Error('Upload failed')
-          return response.json()
-        })
+        .then(response => response.json())
         .then(result => {
+          if (!result.msg || result.msg !== 'ok') {
+            throw new Error(result.msg || 'Upload failed')
+          }
           toast.success('Image uploaded successfully')
           fetchPhotos() // Refresh the photo list
         })
         .catch(error => {
           console.error('Upload error:', error)
-          toast.error('Failed to upload image')
+          toast.error(`Failed to upload image: ${error.message}`)
         })
     }
   }
 }
 
 const deletePhotos = (selectedIds) => {
-  const count = selectedIds.value.length
-  if(!props.useApiData) {
+  const photosToDelete = selectedIds.value.map(id => 
+    displayPhotos.value.find(p => p.id === id)
+  ).filter(Boolean);
+
+  if (!props.useApiData) {
     propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
-  }
-  else {
+  } else {
     // Delete from API
+    const deletePromises = photosToDelete.map(photo => {
+      const params = new URLSearchParams({
+        userId: photo.userId.toString(),
+        imgId: photo.id.toString()
+      })
+      
+      return fetch(`http://10.16.60.67:9090/img/delete?${params}`, {
+        method: 'GET'
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.msg || result.msg !== 'ok') {
+          throw new Error(result.msg || 'Delete failed')
+        }
+        return result
+      })
+    })
+
+    Promise.all(deletePromises)
+      .then(() => {
+        toast.success(`${photosToDelete.length} photo(s) deleted`)
+        fetchPhotos() // Refresh the photo list
+      })
+      .catch(error => {
+        console.error('Delete error:', error)
+        toast.error(`Failed to delete photos: ${error.message}`)
+      })
+    return
   }
-  toast.success(`${count} photo(s) deleted`)
+  toast.success(`${photosToDelete.length} photo(s) deleted`)
 }
 
 const downloadPhotos = async (selectedIds) => {
