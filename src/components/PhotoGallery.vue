@@ -15,6 +15,7 @@ import {
   mdiImageEdit,
   mdiDelete,
   mdiDownload,
+  mdiChevronDown,
   mdiFilterVariant,
   mdiFilterVariantRemove,
   mdiCalendarMonth,
@@ -34,7 +35,6 @@ const toast = useToast()
 const props = defineProps({
   photos: {
     type: Array,
-    // required: true,
     default: () => [
       { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
       { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
@@ -94,6 +94,12 @@ const searchQuery = ref('')
 const isModalOpen = ref(false)
 const currentPhoto = ref(null)
 
+// Method to close the modal
+const closePhotoModal = () => {
+  isModalOpen.value = false
+  currentPhoto.value = null
+}
+
 // Test Photos
 const propPhotos = ref(props.photos)
 
@@ -106,9 +112,9 @@ const error = ref(null)
 const showAdvancedSearch = ref(false)
 const advancedFilters = ref({
   dateRange: { start: '', end: '' },
-  location: '',  // maps to imgPos
+  location: '',
   tags: [],
-  peoples: ''    // replaces author
+  peoples: ''
 })
 
 // Add applied filter state
@@ -127,6 +133,28 @@ const tempFilters = ref({
   tags: [],
   peoples: ''
 })
+
+// Add tag input state management
+const newTagInput = ref('')
+
+// Handle tag input
+const handleTagInput = (event) => {
+  if (event.key === 'Enter' || event.key === ',') {
+    event.preventDefault()
+    const tag = newTagInput.value.trim().toLowerCase()
+    if (tag && !tempFilters.value.tags.includes(tag)) {
+      tempFilters.value.tags.push(tag)
+    }
+    newTagInput.value = ''
+  } else if (event.key === 'Backspace' && !newTagInput.value) {
+    tempFilters.value.tags.pop()
+  }
+}
+
+// Remove tag
+const removeTag = (index) => {
+  tempFilters.value.tags.splice(index, 1)
+}
 
 // Change placeholder text when advanced search is active
 const searchPlaceholder = computed(() => {
@@ -163,6 +191,18 @@ async function getImageFileSizeFromUrl(url) {
   }
 }
 
+// Add date formatter function
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const options = { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+  }
+  return date.toLocaleDateString('en-US', options)
+}
+
 // Fetch images from API
 const fetchPhotos = async () => {
   if (!props.useApiData) return
@@ -175,7 +215,6 @@ const fetchPhotos = async () => {
       userId: props.userId.toString()
     })
 
-    // 添加筛选参数
     if (appliedFilters.value.query) {
       params.append('imgName', appliedFilters.value.query)
     }
@@ -211,6 +250,7 @@ const fetchPhotos = async () => {
           type: img.imgType || 'JPEG',
           size: size,
           date: img.imgDate || new Date().toISOString().split('T')[0],
+          displayDate: formatDate(img.imgDate) || formatDate(new Date()),
           userId: img.userId,
           tags: img.tags,
           peoples: img.peoples,
@@ -231,104 +271,136 @@ const fetchPhotos = async () => {
 }
 
 const generateNewId = (() => {
-  // Generate new id from API
   let idCounter = 6
   return () => props.useApiData ? undefined : ++idCounter
 })()
 
+// Add upload queue
+const uploadingPhotos = ref([])
+
+// Modify upload method
 const uploadPhotos = (file) => {
+  searchQuery.value = ''
+  tempFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  appliedFilters.value = {
+    query: '',
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  advancedFilters.value = {
+    dateRange: { start: '', end: '' },
+    location: '',
+    tags: [],
+    peoples: ''
+  }
+  showAdvancedSearch.value = false
+  fetchPhotos()
   if (file) {
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file')
       return
     }
 
-    // 读取图片的EXIF日期信息
-    const getImageDate = (file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const view = new DataView(e.target.result)
-          try {
-            let offset = 2
-            if (view.getUint16(0) === 0xFFD8) { // JPEG file
-              while (offset < view.byteLength) {
-                if (view.getUint16(offset) === 0xFFE1) { // EXIF
-                  const exifLength = view.getUint16(offset + 2)
-                  const exifData = new Uint8Array(e.target.result.slice(offset + 4, offset + 2 + exifLength))
-                  const exifString = new TextDecoder().decode(exifData)
-                  const dateMatch = exifString.match(/\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}/)
-                  if (dateMatch) {
-                    resolve(dateMatch[0].replace(/:/g, '-'))
-                    return
-                  }
-                }
-                offset += 2 + view.getUint16(offset + 2)
-              }
-            }
-            resolve(null)
-          } catch (error) {
-            console.error('Error reading EXIF data:', error)
-            resolve(null)
-          }
-        }
-        reader.readAsArrayBuffer(file)
-      })
+    const localUrl = URL.createObjectURL(file)
+    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+    const tempPhoto = {
+      id: `temp_${Date.now()}`,
+      name: file.name,
+      src: localUrl,
+      size: formatFileSize(file.size),
+      date: currentDate.split(' ')[0],
+      type: file.type.split('/')[1].toUpperCase(),
+      isUploading: true,
+      tempUrl: localUrl
     }
 
     if (!props.useApiData) {
-      // Local upload logic
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const newPhoto = {
-          id: generateNewId(),
-          name: file.name,
-          src: e.target.result,
-          size: formatFileSize(file.size),
-          date: new Date().toISOString().split('T')[0],
-          type: file.type.split('/')[1].toUpperCase()
-        }
-        propPhotos.value.push(newPhoto)
-        toast.success('Image uploaded successfully')
-      }
-      reader.onerror = () => {
-        toast.error('Error reading file')
-      }
-      reader.readAsDataURL(file)
-    } else {
-      // API upload logic
-      getImageDate(file).then(imageDate => {
-        const formData = new FormData()
-        formData.append('files', file)
-
-        const currentDate = imageDate || new Date().toISOString().slice(0, 19).replace('T', ' ')
-        const params = new URLSearchParams({
-          imgDate: currentDate,
-          imgName: file.name,
-          userId: props.userId.toString(),
-          pub: true
-        })
-
-        fetch(`http://10.16.60.67:9090/img/add?${params}`, {
-          method: 'POST',
-          body: formData
-        })
-          .then(response => response.json())
-          .then(result => {
-            if (!result.msg || result.msg !== 'ok') {
-              throw new Error(result.msg || 'Upload failed')
-            }
-            toast.success('Image uploaded successfully')
-            fetchPhotos()
-          })
-          .catch(error => {
-            console.error('Upload error:', error)
-            toast.error(`Failed to upload image: ${error.message}`)
-          })
-      })
+      propPhotos.value.push(tempPhoto)
+      toast.success('Image uploaded successfully')
+      URL.revokeObjectURL(localUrl)
+      return
     }
+
+    uploadingPhotos.value.push(tempPhoto)
+
+    const formData = new FormData()
+    formData.append('files', file)
+
+    const params = new URLSearchParams({
+      imgDate: currentDate,
+      imgName: file.name,
+      userId: props.userId.toString(),
+      pub: true
+    })
+
+    fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+      method: 'POST',
+      body: formData
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.msg || result.msg !== 'ok') {
+          throw new Error(result.msg || 'Upload failed')
+        }
+        uploadingPhotos.value = uploadingPhotos.value.filter(p => p.id !== tempPhoto.id)
+        URL.revokeObjectURL(localUrl)
+        toast.success('Image uploaded successfully')
+        fetchPhotos()
+      })
+      .catch(error => {
+        const failedPhoto = uploadingPhotos.value.find(p => p.id === tempPhoto.id)
+        if (failedPhoto) {
+          failedPhoto.isUploading = false
+          failedPhoto.uploadFailed = true
+        }
+        console.error('Upload error:', error)
+        toast.error(`Failed to upload image: ${error.message}`)
+      })
   }
 }
+
+// Method to clear failed uploads from queue
+const clearUploadFailedQueue = () => {
+  uploadingPhotos.value = uploadingPhotos.value.filter(photo => {
+    if (photo.uploadFailed) {
+      if (photo.tempUrl) {
+        URL.revokeObjectURL(photo.tempUrl)
+      }
+      return false
+    }
+    return true
+  })
+}
+
+// Method to clear entire upload queue
+const clearUploadQueue = () => {
+  uploadingPhotos.value.forEach(photo => {
+    if (photo.tempUrl) {
+      URL.revokeObjectURL(photo.tempUrl)
+    }
+  })
+  uploadingPhotos.value = []
+}
+
+// Modify display photos computed property
+const displayPhotos = computed(() => {
+  if (props.useApiData) {
+    return [...uploadingPhotos.value, ...apiPhotos.value]
+  }
+  return propPhotos.value
+})
+
+// Clean up memory when component unmounts
+onUnmounted(() => {
+  clearUploadQueue()
+})
 
 const deletePhotos = (selectedIds) => {
   const photosToDelete = selectedIds.value.map(id =>
@@ -338,7 +410,6 @@ const deletePhotos = (selectedIds) => {
   if (!props.useApiData) {
     propPhotos.value = propPhotos.value.filter(photo => !selectedIds.value.includes(photo.id))
   } else {
-    // Delete from API
     const deletePromises = photosToDelete.map(photo => {
       const params = new URLSearchParams({
         userId: photo.userId.toString(),
@@ -360,7 +431,7 @@ const deletePhotos = (selectedIds) => {
     Promise.all(deletePromises)
       .then(() => {
         toast.success(`${photosToDelete.length} photo(s) deleted`)
-        fetchPhotos() // Refresh the photo list
+        fetchPhotos()
       })
       .catch(error => {
         console.error('Delete error:', error)
@@ -391,7 +462,7 @@ const downloadPhotos = async (selectedIds) => {
       link.click();
       document.body.removeChild(link);
 
-      URL.revokeObjectURL(objectUrl); // Free memory
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
       console.error(`Download failed: ${photo.name}`, err);
       toast.error(`Failed to download ${photo.name}`);
@@ -401,19 +472,15 @@ const downloadPhotos = async (selectedIds) => {
   toast.success(`Successfully downloaded ${photosToDownload.length} photo(s)`);
 }
 
-// Determine which photos to use - API or props
-const displayPhotos = computed(() => {
-  return props.useApiData ? apiPhotos.value : propPhotos.value
-})
-
 // Enhanced filtered photos computed
 const filteredPhotos = computed(() => {
-  // 直接返回显示照片，不进行筛选
   return displayPhotos.value
 })
 
-// Apply search conditions
+// Modify apply filters method
 const applyFilters = () => {
+  clearUploadQueue()
+  
   advancedFilters.value = { ...tempFilters.value }
   appliedFilters.value = {
     query: searchQuery.value || '',
@@ -425,7 +492,6 @@ const applyFilters = () => {
     tags: tempFilters.value.tags?.length ? tempFilters.value.tags : [],
     peoples: tempFilters.value.peoples || ''
   }
-  // 只通过 API 进行筛选
   fetchPhotos()
 }
 
@@ -451,8 +517,15 @@ const isPhotoSelected = (photoId) => {
   return props.selectedPhotoIds.includes(photoId)
 }
 
-// Method to toggle photo selection
+// Method to check if a photo can be selected
+const canSelectPhoto = (photo) => {
+  return !photo.isUploading && !photo.uploadFailed
+}
+
+// Modify toggle selection method
 const togglePhotoSelection = (photoId) => {
+  const photo = displayPhotos.value.find(p => p.id === photoId)
+  if (!photo || !canSelectPhoto(photo)) return
   emit('select-photo', photoId)
 }
 
@@ -462,41 +535,47 @@ const setViewMode = (mode) => {
   emit('update:viewMode', mode)
 }
 
-// Method to open the full image modal
+// Modify photo modal opening method
 const openPhotoModal = (photo) => {
+  if (photo.uploadFailed) {
+    toast.error('Cannot preview failed upload')
+    return
+  }
+  
   currentPhoto.value = photo
   isModalOpen.value = true
   emit('view-photo', photo)
 }
 
-// Method to close the modal
-const closePhotoModal = () => {
-  isModalOpen.value = false
-  currentPhoto.value = null
+// Modify photo index lookup method
+const getPhotoIndex = (photoId) => {
+  const allPhotos = displayPhotos.value
+  return allPhotos.findIndex(p => p.id === photoId)
 }
 
-// Methods to navigate between photos in the modal
 const viewNextPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
-  if (currentIndex < filteredPhotos.value.length - 1) {
-    currentPhoto.value = filteredPhotos.value[currentIndex + 1]
+  const currentIndex = getPhotoIndex(currentPhoto.value.id)
+  const allPhotos = displayPhotos.value
+  
+  if (currentIndex < allPhotos.length - 1) {
+    currentPhoto.value = allPhotos[currentIndex + 1]
   } else {
-    // Wrap around to the first photo
-    currentPhoto.value = filteredPhotos.value[0]
+    currentPhoto.value = allPhotos[0]
   }
 }
 
 const viewPreviousPhoto = () => {
   if (!currentPhoto.value) return
 
-  const currentIndex = filteredPhotos.value.findIndex(p => p.id === currentPhoto.value.id)
+  const currentIndex = getPhotoIndex(currentPhoto.value.id)
+  const allPhotos = displayPhotos.value
+  
   if (currentIndex > 0) {
-    currentPhoto.value = filteredPhotos.value[currentIndex - 1]
+    currentPhoto.value = allPhotos[currentIndex - 1]
   } else {
-    // Wrap around to the last photo
-    currentPhoto.value = filteredPhotos.value[filteredPhotos.value.length - 1]
+    currentPhoto.value = allPhotos[allPhotos.length - 1]
   }
 }
 
@@ -536,19 +615,28 @@ const showActionMenu = ref(false)
 const actionMenuPhoto = ref(null)
 const actionMenuPosition = ref({ x: 0, y: 0 })
 
-// Method to handle action button click with menu
+// Modify action click handler
 const handleActionClick = (photo, event) => {
+  if (photo.uploadFailed) {
+    toast.error('Cannot perform actions on failed uploads')
+    return
+  }
+  
+  if (photo.isUploading) {
+    toast.info('Photo is still uploading. Only preview is available.')
+    return
+  }
+  
   event?.stopPropagation()
-
   actionMenuPhoto.value = photo
   if (event) {
     const rect = event.target.getBoundingClientRect()
-    const menuWidth = 150 // 估计的菜单宽度
+    const menuWidth = 150
     const spaceRight = window.innerWidth - rect.right
-
+    
     actionMenuPosition.value = {
       x: spaceRight > menuWidth ? rect.left : rect.right - menuWidth,
-      y: rect.bottom + window.scrollY // 考虑滚动位置
+      y: rect.bottom + window.scrollY
     }
   }
   showActionMenu.value = true
@@ -563,7 +651,6 @@ const handleMenuAction = (action) => {
 
   switch (action) {
     case 'edit':
-      // TODO: Implement edit functionality
       closePhotoModal()
       emit('photo-edit', actionMenuPhoto.value.id)
       break
@@ -590,6 +677,7 @@ const closeActionMenu = () => {
 
 // Method to refresh API photos
 const refreshPhotos = () => {
+  clearUploadQueue()
   fetchPhotos()
 }
 
@@ -597,7 +685,7 @@ const getPhotoById = (id) => {
   return displayPhotos.value.find(photo => photo.id === id)
 }
 
-// 修改颜色类名定义，使用固定的颜色类而不是动态类名
+// Set fixed color classes for tags
 const tagColorClasses = [
   'bg-indigo-100 text-indigo-700',
   'bg-emerald-100 text-emerald-700',
@@ -608,9 +696,17 @@ const tagColorClasses = [
   'bg-orange-100 text-orange-700'
 ]
 
-// 修改getTagColor函数
+// Get color for tag by index
 const getTagColor = (index) => {
   return tagColorClasses[index % tagColorClasses.length]
+}
+
+// Handle tag click
+const handleTagClick = (tag) => {
+  tempFilters.value.tags = [tag]
+  showAdvancedSearch.value = true
+  closePhotoModal()
+  applyFilters()
 }
 
 defineExpose({
@@ -679,10 +775,12 @@ defineExpose({
             </label>
             <div class="flex gap-2 items-center">
               <input v-model="tempFilters.dateRange.start" type="date"
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="From date" />
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                placeholder="From date" />
               <span class="text-gray-500">to</span>
               <input v-model="tempFilters.dateRange.end" type="date"
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="To date" />
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                placeholder="To date" />
             </div>
           </div>
 
@@ -695,7 +793,7 @@ defineExpose({
               <span>Location</span>
             </label>
             <input v-model="tempFilters.location" type="text"
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
               placeholder="Enter location name" />
           </div>
 
@@ -707,10 +805,24 @@ defineExpose({
               </svg>
               <span>Tags</span>
             </label>
-            <input v-model="tempFilters.tags" type="text"
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
-              placeholder="Separate tags with commas"
-              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())" />
+            <div class="flex flex-wrap gap-2 px-3 py-2 border border-gray-700 rounded focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-blue-300">
+              <span v-for="(tag, index) in tempFilters.tags" 
+                    :key="index"
+                    :class="getTagColor(index)"
+                    class="px-2 py-1 rounded-full flex items-center gap-1 text-sm">
+                {{ tag }}
+                <button @click="removeTag(index)" 
+                        class="hover:text-red-500 focus:outline-none"
+                        type="button">
+                  ×
+                </button>
+              </span>
+              <input v-model="newTagInput"
+                    type="text"
+                    class="flex-1 min-w-[120px] border-0 p-0 focus:outline-none focus:ring-0 bg-transparent"
+                    placeholder="Type tag and press Enter"
+                    @keydown="handleTagInput" />
+            </div>
           </div>
 
           <!-- Peoples -->
@@ -719,10 +831,10 @@ defineExpose({
               <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
               <span>Peoples</span>
             </label>
-            <input
+            <input 
               v-model="tempFilters.peoples"
-              type="text"
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              type="text" 
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
               placeholder="Search by people names"
             />
           </div>
@@ -756,7 +868,6 @@ defineExpose({
             <th v-if="isSelectMode" class="px-3 py-2 text-left">Select</th>
             <th class="px-3 py-2 text-left">Preview</th>
             <th class="px-3 py-2 text-left">Name</th>
-            <th class="px-3 py-2 text-left">Type</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
             <th class="px-3 py-2 text-left">Tags</th>
@@ -764,44 +875,72 @@ defineExpose({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id"
+          <tr v-for="photo in filteredPhotos" :key="photo.id" 
               class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 group"
               :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
-            <td v-if="isSelectMode" class="px-3 py-2">
-              <button @click.stop="togglePhotoSelection(photo.id)"
-                      class="text-gray-500 hover:text-blue-500">
+            <!-- Add select column -->
+            <td v-if="isSelectMode" class="px-3 py-2 w-10">
+              <button @click.stop="togglePhotoSelection(photo.id)" 
+                      :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+                      class="text-gray-500 hover:text-blue-500"
+                      :disabled="!canSelectPhoto(photo)">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor"
                     :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
                 </svg>
               </button>
             </td>
-            <td class="px-3 py-2">
-              <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer"
-                @click="openPhotoModal(photo)" />
+
+            <!-- Preview column with upload indicator -->
+            <td class="px-3 py-2 w-20 relative">
+              <div class="relative">
+                <img :src="photo.src" 
+                     class="h-12 w-16 object-cover rounded cursor-pointer"
+                     @click="openPhotoModal(photo)" />
+                <!-- Add upload indicator inside preview cell -->
+                <div v-if="photo.isUploading" 
+                     class="absolute inset-0 flex items-center justify-center">
+                  <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+                    <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                  </div>
+                </div>
+              </div>
             </td>
+
+            <!-- Name column with status -->
             <td class="px-3 py-2">
-              <span class="truncate block max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+              <div class="flex flex-col">
+                <span class="truncate max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+                <span v-if="photo.isUploading" class="text-xs text-blue-500">Uploading...</span>
+                <span v-if="photo.uploadFailed" class="text-xs text-red-500">Upload failed</span>
+              </div>
             </td>
-            <td class="px-3 py-2">{{ photo.type }}</td>
+
+            <!-- Regular columns -->
             <td class="px-3 py-2">{{ photo.size }}</td>
-            <td class="px-3 py-2">{{ photo.date }}</td>
+            <td class="px-3 py-2">{{ photo.displayDate }}</td>
+            
+            <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
                 <span v-for="(tag, index) in photo.tags" :key="tag"
-                      class="px-2 py-0.5 text-xs rounded whitespace-nowrap"
-                      :class="getTagColor(index)">
+                      class="px-2 py-0.5 text-xs rounded whitespace-nowrap cursor-pointer hover:opacity-80"
+                      :class="getTagColor(index)"
+                      @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
               </div>
             </td>
-            <td v-if="showActions" class="px-3 py-2 text-right">
-              <BaseButton
-                :icon="mdiDotsVertical"
-                small
-                color="lightDark"
+
+            <!-- Actions column -->
+            <td v-if="showActions" class="px-3 py-2 text-right w-10">
+              <BaseButton 
+                v-if="!photo.isUploading && !photo.uploadFailed"
+                :icon="mdiDotsVertical" 
+                small 
+                color="lightDark" 
                 class="opacity-0 group-hover:opacity-100 transition-opacity"
-                @click="handleActionClick(photo, $event)"
+                @click="handleActionClick(photo, $event)" 
               />
             </td>
           </tr>
@@ -810,14 +949,34 @@ defineExpose({
     </div>
 
     <!-- Large Grid View -->
-    <!-- Same as before -->
     <div v-else-if="viewMode === 'large'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
-        :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded',
+          { 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator to be less intrusive -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-1 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-1 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -830,14 +989,34 @@ defineExpose({
     </div>
 
     <!-- Medium Grid View (Default) -->
-    <!-- Same as before -->
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded"
-        :class="{ 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded',
+          { 'ring-2 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -850,14 +1029,34 @@ defineExpose({
     </div>
 
     <!-- Small Grid View -->
-    <!-- Same as before -->
     <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
-        class="flex flex-col items-center relative hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded"
-        :class="{ 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }">
+        class="relative flex flex-col items-center"
+        :class="[
+          'hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded',
+          { 'ring-1 ring-blue-500': isSelectMode && isPhotoSelected(photo.id) }
+        ]"
+      >
+        <!-- Modify upload indicator -->
+        <div v-if="photo.isUploading" 
+             class="absolute inset-0 flex items-center justify-center z-10">
+          <div class="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+        </div>
+        
+        <!-- Add upload failed indicator -->
+        <div v-if="photo.uploadFailed" 
+             class="absolute top-2 right-2 text-red-500"
+             title="Upload failed">
+          ⚠️
+        </div>
+        
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
-            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500">
+            :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+            class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
+            :disabled="!canSelectPhoto(photo)">
             <svg class="w-3 h-3" viewBox="0 0 24 24">
               <path fill="currentColor" :d="isPhotoSelected(photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
             </svg>
@@ -874,9 +1073,9 @@ defineExpose({
 
     <!-- Photo Modal -->
     <div v-if="isModalOpen && currentPhoto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closePhotoModal">
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" 
+      @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>
-        <!-- Photo Container -->
         <div class="bg-white rounded-lg overflow-hidden shadow-xl">
           <!-- Navigation and Close Buttons -->
           <div class="flex justify-between items-center p-4 bg-gray-100">
@@ -895,19 +1094,23 @@ defineExpose({
 
             <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
 
-            <!-- Add action button group -->
+            <!-- Modify action button display logic -->
             <div class="flex items-center gap-2">
-              <button v-for="(action, index) in [
-                { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
-                { icon: mdiDelete, label: 'Delete', value: 'delete' },
-                { icon: mdiDownload, label: 'Download', value: 'download' }
-              ]" :key="index" class="p-1 rounded-full hover:bg-gray-200 flex items-center"
-                @click="handleMenuAction(action.value)">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="action.icon" />
-                </svg>
-              </button>
-
+              <template v-if="showActions && !currentPhoto.uploadFailed">
+                <button v-for="(action, index) in [
+                  { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
+                  { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
+                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading }
+                ]" :key="index" 
+                  class="p-1 rounded-full hover:bg-gray-200 flex items-center"
+                  :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
+                  @click="!action.disabled && handleMenuAction(action.value)"
+                  :title="action.disabled ? 'Not available while uploading' : action.label">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="action.icon" />
+                  </svg>
+                </button>
+              </template>
               <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
                 <svg class="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="mdiClose" />
@@ -918,7 +1121,10 @@ defineExpose({
 
           <!-- Photo -->
           <div class="flex justify-center bg-black p-2">
-            <img :src="currentPhoto.src" class="max-h-[70vh] max-w-full object-contain" alt="Full size preview" />
+            <img :src="currentPhoto.src" 
+                 class="max-h-[70vh] max-w-full object-contain" 
+                 :class="{ 'opacity-70': currentPhoto.isUploading }"
+                 alt="Full size preview" />
           </div>
 
           <!-- Enhanced Photo Details -->
@@ -928,23 +1134,23 @@ defineExpose({
                 <path fill="currentColor" :d="mdiInformation" />
               </svg>
               <div class="flex-1">
-                <div class="mb-1"><span class="font-medium">Type:</span> {{ currentPhoto.type }}</div>
                 <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
-                <div v-if="currentPhoto.location" class="mb-1">
-                  <span class="font-medium">Location:</span> {{ currentPhoto.location }}
-                </div>
-                <!-- 修改后的标签显示 -->
+                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.displayDate }}</div>
                 <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
                   <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
-                        class="px-2 py-1 rounded"
-                        :class="getTagColor(index)">
+                        class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
+                        :class="getTagColor(index)"
+                        @click="handleTagClick(tag)">
                     {{ tag }}
                   </span>
                 </div>
                 <div v-if="currentPhoto.desc" class="mt-2">
                   <span class="font-medium">Description:</span>
                   <p class="mt-1 text-gray-600">{{ currentPhoto.desc }}</p>
+                </div>
+                <!-- Add upload status if applicable -->
+                <div v-if="currentPhoto.isUploading" class="mt-2 text-blue-500">
+                  Upload in progress...
                 </div>
               </div>
             </div>
@@ -954,7 +1160,7 @@ defineExpose({
     </div>
 
     <!-- Action Menu -->
-    <div v-if="showActionMenu"
+    <div v-if="showActionMenu" 
       class="absolute bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
       :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
       @click.stop>

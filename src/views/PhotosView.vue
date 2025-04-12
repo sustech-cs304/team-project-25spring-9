@@ -16,6 +16,7 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import PhotoEditor from '@/components/PhotoEditor.vue'
+import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -24,7 +25,6 @@ import { useMainStore } from '@/stores/main'
 
 // Get store for user data
 const mainStore = useMainStore()
-
 
 // Track if we're in select mode
 const isSelectMode = ref(true)
@@ -41,29 +41,17 @@ const currentViewMode = ref('grid')
 // Enable API data
 const useApiData = ref(true)
 
-
 const photoGallery = ref(null)
 
-// // API data states
-// const apiPhotos = ref([])
-// const loading = ref(false)
-
-// Sample photo data (fallback if API fails)
-// const photos = ref([
-//   { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-//   { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-//   { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-//   { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-//   { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-//   { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' },
-// ])
+// Add showUploader state
+const showUploader = ref(false)
 
 // Method to generate a new unique ID
 const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
 
-// Add new upload method
-const handleUpload = (event) => {
-  photoGallery.value.uploadPhotos(event.target.files[0])
+// Modify handleUpload to handle both single and multiple files
+const handleUpload = (file) => {
+  photoGallery.value.uploadPhotos(file)
 }
 
 // Add delete method
@@ -102,27 +90,10 @@ const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// // Method to handle photo action clicks
-// const handlePhotoAction = (photo) => {
-//   // Handle actions like edit, delete, etc.
-//   console.log('Action clicked for photo:', photo)
-// }
-
-// // Method to handle filtered photos from the component
-// const handleFilteredPhotos = (filteredPhotos) => {
-//   displayedPhotos.value = filteredPhotos
-// }
-
-// // Method to handle view mode changes
-// const handleViewModeChange = (mode) => {
-//   currentViewMode.value = mode
-// }
-
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
     openEditorWithPhoto(selectedPhotos.value[0]) 
-    toggleSelectMode()
   }
 }
 
@@ -131,6 +102,8 @@ const openEditorWithPhoto = (photoId) => {
     const photo = photoGallery.value.getPhotoById(photoId)
     editingPhoto.value = photo
     showEditor.value = true
+    isSelectMode.value = false
+    selectedPhotos.value = []
 }
 
 // Close editor without save
@@ -174,20 +147,13 @@ const saveEditedPhoto = (updatedPhoto) => {
       <!-- Action Buttons -->
       <div class="flex justify-between mb-6">
         <div class="flex gap-2">
-          <input
-            ref="fileInput"
-            type="file"
-            class="hidden"
-            @change="handleUpload"
-            accept="image/*"
-          >
           <BaseButton
             :icon="mdiImagePlus"
             label="Upload"
             color="info"
             rounded-full
             small
-            @click="$refs.fileInput.click()"
+            @click="showUploader = true"
           />
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
@@ -203,6 +169,13 @@ const saveEditedPhoto = (updatedPhoto) => {
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
         </div>
       </div>
+
+      <!-- Add PhotoUploader component -->
+      <PhotoUploader
+        :show="showUploader"
+        @close="showUploader = false"
+        @upload="handleUpload"
+      />
 
       <!-- Photo Editor Modal -->
       <PhotoEditor 
