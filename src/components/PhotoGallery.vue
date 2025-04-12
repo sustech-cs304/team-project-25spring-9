@@ -15,7 +15,6 @@ import {
   mdiImageEdit,
   mdiDelete,
   mdiDownload,
-  mdiChevronDown,
   mdiFilterVariant,
   mdiFilterVariantRemove,
   mdiCalendarMonth,
@@ -546,7 +545,7 @@ const handleActionClick = (photo, event) => {
     const rect = event.target.getBoundingClientRect()
     const menuWidth = 150 // 估计的菜单宽度
     const spaceRight = window.innerWidth - rect.right
-    
+
     actionMenuPosition.value = {
       x: spaceRight > menuWidth ? rect.left : rect.right - menuWidth,
       y: rect.bottom + window.scrollY // 考虑滚动位置
@@ -720,9 +719,9 @@ defineExpose({
               <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
               <span>Peoples</span>
             </label>
-            <input 
+            <input
               v-model="tempFilters.peoples"
-              type="text" 
+              type="text"
               class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
               placeholder="Search by people names"
             />
@@ -765,11 +764,11 @@ defineExpose({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id" 
+          <tr v-for="photo in filteredPhotos" :key="photo.id"
               class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 group"
               :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <td v-if="isSelectMode" class="px-3 py-2">
-              <button @click.stop="togglePhotoSelection(photo.id)" 
+              <button @click.stop="togglePhotoSelection(photo.id)"
                       class="text-gray-500 hover:text-blue-500">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor"
@@ -797,12 +796,12 @@ defineExpose({
               </div>
             </td>
             <td v-if="showActions" class="px-3 py-2 text-right">
-              <BaseButton 
-                :icon="mdiDotsVertical" 
-                small 
-                color="lightDark" 
+              <BaseButton
+                :icon="mdiDotsVertical"
+                small
+                color="lightDark"
                 class="opacity-0 group-hover:opacity-100 transition-opacity"
-                @click="handleActionClick(photo, $event)" 
+                @click="handleActionClick(photo, $event)"
               />
             </td>
           </tr>
@@ -955,7 +954,7 @@ defineExpose({
     </div>
 
     <!-- Action Menu -->
-    <div v-if="showActionMenu" 
+    <div v-if="showActionMenu"
       class="absolute bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
       :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
       @click.stop>
