@@ -598,6 +598,22 @@ const getPhotoById = (id) => {
   return displayPhotos.value.find(photo => photo.id === id)
 }
 
+// 修改颜色类名定义，使用固定的颜色类而不是动态类名
+const tagColorClasses = [
+  'bg-indigo-100 text-indigo-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-rose-100 text-rose-700',
+  'bg-purple-100 text-purple-700',
+  'bg-sky-100 text-sky-700',
+  'bg-orange-100 text-orange-700'
+]
+
+// 修改getTagColor函数
+const getTagColor = (index) => {
+  return tagColorClasses[index % tagColorClasses.length]
+}
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -733,7 +749,6 @@ defineExpose({
       <BaseButton label="Retry" color="danger" small class="mt-2" @click="refreshPhotos" />
     </div>
 
-    <!-- Rest of the template remains the same -->
     <!-- Details View (Table-like) -->
     <div v-if="viewMode === 'details'" class="overflow-x-auto">
       <table class="w-full">
@@ -745,6 +760,7 @@ defineExpose({
             <th class="px-3 py-2 text-left">Type</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
+            <th class="px-3 py-2 text-left">Tags</th>
             <th v-if="showActions" class="px-3 py-2 text-right">Actions</th>
           </tr>
         </thead>
@@ -765,10 +781,21 @@ defineExpose({
               <img :src="photo.src" class="h-12 w-16 object-cover rounded cursor-pointer"
                 @click="openPhotoModal(photo)" />
             </td>
-            <td class="px-3 py-2">{{ photo.name }}</td>
+            <td class="px-3 py-2">
+              <span class="truncate block max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+            </td>
             <td class="px-3 py-2">{{ photo.type }}</td>
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.date }}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+              <div class="flex gap-1 overflow-x-auto">
+                <span v-for="(tag, index) in photo.tags" :key="tag"
+                      class="px-2 py-0.5 text-xs rounded whitespace-nowrap"
+                      :class="getTagColor(index)">
+                  {{ tag }}
+                </span>
+              </div>
+            </td>
             <td v-if="showActions" class="px-3 py-2 text-right">
               <BaseButton 
                 :icon="mdiDotsVertical" 
@@ -799,7 +826,7 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-40 object-cover rounded mb-2 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center">{{ photo.name }}</span>
+        <span class="text-center truncate w-full block" :title="photo.name">{{ photo.name }}</span>
       </div>
     </div>
 
@@ -819,7 +846,7 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-sm">{{ photo.name }}</span>
+        <span class="text-center text-sm truncate w-full block" :title="photo.name">{{ photo.name }}</span>
       </div>
     </div>
 
@@ -839,7 +866,7 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-xs truncate w-full">{{ photo.name }}</span>
+        <span class="text-center text-xs truncate w-full block" :title="photo.name">{{ photo.name }}</span>
       </div>
     </div>
 
@@ -867,7 +894,7 @@ defineExpose({
               </button>
             </div>
 
-            <div class="text-lg font-medium">{{ currentPhoto.name }}</div>
+            <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
 
             <!-- Add action button group -->
             <div class="flex items-center gap-2">
@@ -895,16 +922,31 @@ defineExpose({
             <img :src="currentPhoto.src" class="max-h-[70vh] max-w-full object-contain" alt="Full size preview" />
           </div>
 
-          <!-- Photo Details -->
+          <!-- Enhanced Photo Details -->
           <div class="p-4 bg-white">
             <div class="flex items-start">
               <svg class="w-5 h-5 text-gray-500 mr-2 mt-0.5" viewBox="0 0 24 24">
                 <path fill="currentColor" :d="mdiInformation" />
               </svg>
-              <div>
+              <div class="flex-1">
                 <div class="mb-1"><span class="font-medium">Type:</span> {{ currentPhoto.type }}</div>
                 <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                <div><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
+                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
+                <div v-if="currentPhoto.location" class="mb-1">
+                  <span class="font-medium">Location:</span> {{ currentPhoto.location }}
+                </div>
+                <!-- 修改后的标签显示 -->
+                <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
+                  <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
+                        class="px-2 py-1 rounded"
+                        :class="getTagColor(index)">
+                    {{ tag }}
+                  </span>
+                </div>
+                <div v-if="currentPhoto.desc" class="mt-2">
+                  <span class="font-medium">Description:</span>
+                  <p class="mt-1 text-gray-600">{{ currentPhoto.desc }}</p>
+                </div>
               </div>
             </div>
           </div>
