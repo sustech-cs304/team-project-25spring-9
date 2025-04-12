@@ -132,6 +132,18 @@ public class ImgController {
                  ));
     }
 
+    @ApiOperation(value = "修改图片信息", tags = "图片类")
+    @GetMapping("/cname")
+    public AjaxJson changeName(int imgId,int userId,@RequestParam(required = false)String name, @RequestParam(required = false)boolean pub) {
+        return AjaxJson.getSuccessData(imgService.update(new LambdaUpdateWrapper<Img>()
+                .eq(Img::getUserId, userId)  // 条件：userId == user1
+                .eq(Img::getImgId, imgId)    // 条件：imgId == img1
+                .set(name!=null,Img::getImgName, name)   // 更新 valid 字段为 false
+                .set(Img::getPub, pub)
+        ));
+    }
+
+
 
     @ApiOperation(value = "添加图片信息", tags = "图片类")
     @PostMapping("/add")
