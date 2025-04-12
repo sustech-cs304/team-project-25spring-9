@@ -129,6 +129,29 @@ const tempFilters = ref({
   peoples: ''
 })
 
+// 添加新的 tag 输入状态管理
+const newTagInput = ref('')
+
+// 处理标签输入
+const handleTagInput = (event) => {
+  if (event.key === 'Enter' || event.key === ',') {
+    event.preventDefault()
+    const tag = newTagInput.value.trim().toLowerCase()
+    if (tag && !tempFilters.value.tags.includes(tag)) {
+      tempFilters.value.tags.push(tag)
+    }
+    newTagInput.value = ''
+  } else if (event.key === 'Backspace' && !newTagInput.value) {
+    // 如果输入框为空且按下退格键，则删除最后一个标签
+    tempFilters.value.tags.pop()
+  }
+}
+
+// 删除标签
+const removeTag = (index) => {
+  tempFilters.value.tags.splice(index, 1)
+}
+
 // Change placeholder text when advanced search is active
 const searchPlaceholder = computed(() => {
   return showAdvancedSearch.value
@@ -614,6 +637,16 @@ const getTagColor = (index) => {
   return tagColorClasses[index % tagColorClasses.length]
 }
 
+// 添加标签点击处理方法
+const handleTagClick = (tag) => {
+  // 设置筛选条件
+  tempFilters.value.tags = [tag]
+  showAdvancedSearch.value = true
+  closePhotoModal()
+  // 应用筛选
+  applyFilters()
+}
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -680,10 +713,12 @@ defineExpose({
             </label>
             <div class="flex gap-2 items-center">
               <input v-model="tempFilters.dateRange.start" type="date"
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="From date" />
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                placeholder="From date" />
               <span class="text-gray-500">to</span>
               <input v-model="tempFilters.dateRange.end" type="date"
-                class="flex-1 px-3 py-1 border rounded focus:ring focus:border-blue-300" placeholder="To date" />
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                placeholder="To date" />
             </div>
           </div>
 
@@ -696,7 +731,7 @@ defineExpose({
               <span>Location</span>
             </label>
             <input v-model="tempFilters.location" type="text"
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
               placeholder="Enter location name" />
           </div>
 
@@ -708,10 +743,24 @@ defineExpose({
               </svg>
               <span>Tags</span>
             </label>
-            <input v-model="tempFilters.tags" type="text"
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
-              placeholder="Separate tags with commas"
-              @input="e => tempFilters.tags = e.target.value.split(',').map(t => t.trim().toLowerCase())" />
+            <div class="flex flex-wrap gap-2 px-3 py-2 border border-gray-700 rounded focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-blue-300">
+              <span v-for="(tag, index) in tempFilters.tags" 
+                    :key="index"
+                    :class="getTagColor(index)"
+                    class="px-2 py-1 rounded-full flex items-center gap-1 text-sm">
+                {{ tag }}
+                <button @click="removeTag(index)" 
+                        class="hover:text-red-500 focus:outline-none"
+                        type="button">
+                  ×
+                </button>
+              </span>
+              <input v-model="newTagInput"
+                    type="text"
+                    class="flex-1 min-w-[120px] border-0 p-0 focus:outline-none focus:ring-0 bg-transparent"
+                    placeholder="Type tag and press Enter"
+                    @keydown="handleTagInput" />
+            </div>
           </div>
 
           <!-- Peoples -->
@@ -723,7 +772,7 @@ defineExpose({
             <input 
               v-model="tempFilters.peoples"
               type="text" 
-              class="w-full px-3 py-1 border rounded focus:ring focus:border-blue-300"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
               placeholder="Search by people names"
             />
           </div>
@@ -790,8 +839,9 @@ defineExpose({
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
                 <span v-for="(tag, index) in photo.tags" :key="tag"
-                      class="px-2 py-0.5 text-xs rounded whitespace-nowrap"
-                      :class="getTagColor(index)">
+                      class="px-2 py-0.5 text-xs rounded whitespace-nowrap cursor-pointer hover:opacity-80"
+                      :class="getTagColor(index)"
+                      @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
               </div>
@@ -932,14 +982,11 @@ defineExpose({
                 <div class="mb-1"><span class="font-medium">Type:</span> {{ currentPhoto.type }}</div>
                 <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
                 <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.date }}</div>
-                <div v-if="currentPhoto.location" class="mb-1">
-                  <span class="font-medium">Location:</span> {{ currentPhoto.location }}
-                </div>
-                <!-- 修改后的标签显示 -->
                 <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
                   <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
-                        class="px-2 py-1 rounded"
-                        :class="getTagColor(index)">
+                        class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
+                        :class="getTagColor(index)"
+                        @click="handleTagClick(tag)">
                     {{ tag }}
                   </span>
                 </div>
