@@ -3,13 +3,16 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 
 export const useMainStore = defineStore('main', () => {
-  const userName = ref('')
-  const userEmail = ref('')
-  const userId = ref()
+  // 从 localStorage 获取初始用户信息 (如果有的话)
+  const savedUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+
+  const userName = ref(savedUserInfo.name || '')
+  const userEmail = ref(savedUserInfo.email || '')
+  const userId = ref(savedUserInfo.id || null)
 
   const userAvatar = computed(
     () =>
-      `https://api.dicebear.com/9.x/avataaars/svg?seed=${userName.value.replace(
+      `https://api.dicebear.com/9.x/lorelei-neutral/svg?seed=${userName.value.replace(
         /[^a-z0-9]+/gi,
         '-',
       )}`,
@@ -30,6 +33,16 @@ export const useMainStore = defineStore('main', () => {
     if (payload.id) {
       userId.value = payload.id
     }
+
+    // 保存用户信息到 localStorage
+    localStorage.setItem(
+      'userInfo',
+      JSON.stringify({
+        name: userName.value,
+        email: userEmail.value,
+        id: userId.value,
+      }),
+    )
   }
 
   function fetchSampleClients() {

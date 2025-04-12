@@ -2,9 +2,9 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useAuthStore = defineStore('auth', () => {
-  const isAuthenticated = ref(false)
-  // We can still initialize token for consistency even if the API doesn't return one
   const token = ref(localStorage.getItem('token') || null)
+  // 根据是否有 token 初始化认证状态
+  const isAuthenticated = ref(!!token.value)
 
   async function login(credentials) {
     try {
@@ -40,6 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false
     token.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('userInfo') // 清除用户信息
   }
 
   function checkAuth() {
