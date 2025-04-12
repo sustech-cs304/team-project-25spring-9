@@ -80,6 +80,13 @@ const submit = async () => {
           :input-value="true"
         />
 
+        <div class="flex justify-between items-center mt-4">
+          <div class="text-sm">
+            <span>Don't have an account? </span>
+            <router-link to="/register" class="text-blue-600 hover:underline">Register now</router-link>
+          </div>
+        </div>
+
         <template #footer>
           <BaseButtons>
             <BaseButton type="submit" color="info" label="Login" />

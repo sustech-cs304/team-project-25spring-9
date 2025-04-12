@@ -9,7 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(credentials) {
     try {
       // Build the URL with query parameters
-      const url = new URL('http://10.16.60.67:9091/user/signin')
+      const url = new URL('http://10.16.60.67:9090/user/signin')
       url.searchParams.append('userName', credentials.username)
       url.searchParams.append('userPassword', credentials.password)
 
@@ -36,6 +36,41 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function register(userData) {
+    try {
+      // Build the URL with query parameters
+      const url = new URL('http://10.16.60.67:9090/user/new')
+
+      // Add required parameters
+      url.searchParams.append('userName', userData.username)
+      url.searchParams.append('userPassword', userData.password)
+      url.searchParams.append('userMail', userData.email)
+      url.searchParams.append('userNickname', userData.nickname || userData.username)
+
+      // Optional parameters
+      if (userData.userId) url.searchParams.append('userId', userData.userId)
+      if (userData.userImg) url.searchParams.append('userImg', userData.userImg)
+      url.searchParams.append('userValid', true) // Set as valid user by default
+
+      // Execute the GET request
+      const response = await fetch(url, { method: 'GET' })
+
+      // Parse response JSON
+      const result = await response.json()
+
+      // Check if the API returns a successful status code
+      if (result.code === 200) {
+        return result
+      } else {
+        // The API indicates an error
+        throw new Error(result.msg || 'Registration failed')
+      }
+    } catch (error) {
+      // Propagate the error
+      throw error
+    }
+  }
+
   function logout() {
     isAuthenticated.value = false
     token.value = null
@@ -47,5 +82,5 @@ export const useAuthStore = defineStore('auth', () => {
     return !!token.value
   }
 
-  return { isAuthenticated, token, login, logout, checkAuth }
+  return { isAuthenticated, token, login, logout, checkAuth, register }
 })
