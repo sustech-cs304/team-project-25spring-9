@@ -111,6 +111,10 @@ The backend includes services developed in **Python (FastAPI)** and **Java (Spri
 
 ## UI Design
 
+![ui-dashboard](design-09/ui-dashboard.png)
+
+![ui-photo](design-09/ui-photo.png)
+
 ### **Two-Panel Layout (Sidebar + Main View)**
 
 - The screen is split into a **left-side vertical menu (navigation)** and a **right-side content area (dynamic dashboard)**.
@@ -145,7 +149,7 @@ The backend includes services developed in **Python (FastAPI)** and **Java (Spri
 - **Hidden assumption**:
   - The team is using a component library or custom CSS system (e.g., Tailwind CSS or Bootstrap) to ensure consistency.
 
-### 🧩 **What the Diagram Doesn't Show (Hidden Assumptions)**
+### **What the Diagram Doesn't Show (Hidden Assumptions)**
 
 - **State management**:
   - Not shown, but the app likely uses a central state management solution (Pinia).
