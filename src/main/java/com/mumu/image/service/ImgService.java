@@ -20,5 +20,7 @@ public interface ImgService extends IService<Img> {
 
     List<ImgDTO> getImagesByTags(ImgDTO img, int offset, int limit, Date startDate, Date endDate);
 
+    List<ImgDTO> getImagesByAlbum(ImgDTO img, int offset, int limit, Date startDate, Date endDate, int albumId);
+
     // 通过建筑id获取建筑信息
 }

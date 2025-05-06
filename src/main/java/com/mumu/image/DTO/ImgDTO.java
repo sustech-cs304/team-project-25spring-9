@@ -1,8 +1,6 @@
 package com.mumu.image.DTO;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.mumu.image.entity.People;
-import com.mumu.image.entity.Tag;
 import lombok.Data;
 import lombok.Getter;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -19,9 +17,9 @@ public class ImgDTO {
     private String imgName;
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date imgDate;
-
+    private Integer albumId;
     private Boolean pub;
-
+    private String albumName;
     private String imgPos;
     private String imgDescribtion;
     private Integer userId;

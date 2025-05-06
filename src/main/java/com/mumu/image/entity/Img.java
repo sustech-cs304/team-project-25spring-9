@@ -37,6 +37,7 @@ public class Img implements Serializable {
     private String imgPos;
     private String imgDescribtion;
     private Integer userId;
+    private Integer albumId;
 
     public Img(ImgDTO img) {
         this.imgName=img.getImgName();

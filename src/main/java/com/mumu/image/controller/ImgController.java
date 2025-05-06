@@ -122,6 +122,17 @@ public class ImgController {
     , @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startDate, @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endDate) {
         return AjaxJson.getSuccessData(imgService.getImagesByTags(imgDTO, offset, limit,startDate,endDate));
     }
+    @ApiOperation(value = "获取某个相册全部图片信息", tags = "相册类")
+    @GetMapping("/album")
+    public AjaxJson getImgAlbum(ImgDTO imgDTO
+            , @RequestParam(required = false, defaultValue = "-1") int offset
+            , @RequestParam(required = false, defaultValue = "10") int limit
+                                ,@RequestParam(required = false) int albumId
+            , @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startDate
+            , @RequestParam(required = false)@DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endDate
+    ) {
+        return AjaxJson.getSuccessData(imgService.getImagesByAlbum(imgDTO, offset, limit,startDate,endDate,albumId));
+    }
     @ApiOperation(value = "删除图片", tags = "图片类")
     @GetMapping("/delete")
     public AjaxJson deleteImg(int imgId,int userId) {
@@ -134,12 +145,16 @@ public class ImgController {
 
     @ApiOperation(value = "修改图片信息", tags = "图片类")
     @GetMapping("/cname")
-    public AjaxJson changeName(int imgId,int userId,@RequestParam(required = false)String name, @RequestParam(required = false)boolean pub) {
+    public AjaxJson changeName(int imgId,int userId,
+                               @RequestParam(required = false)String name,
+                               @RequestParam(required = false)Boolean pub,
+                               @RequestParam(required = false)Integer albumId) {
         return AjaxJson.getSuccessData(imgService.update(new LambdaUpdateWrapper<Img>()
                 .eq(Img::getUserId, userId)  // 条件：userId == user1
                 .eq(Img::getImgId, imgId)    // 条件：imgId == img1
                 .set(name!=null,Img::getImgName, name)   // 更新 valid 字段为 false
-                .set(Img::getPub, pub)
+                .set(pub!=null,Img::getPub, pub)
+                .set(albumId!=null,Img::getAlbumId, albumId)
         ));
     }
 
