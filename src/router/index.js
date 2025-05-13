@@ -35,6 +35,15 @@ const routes = [
   },
   {
     meta: {
+      title: 'Albums',
+      requiresAuth: true,
+    },
+    path: '/albums',
+    name: 'albums',
+    component: () => import('@/views/AlbumsView.vue'),
+  },
+  {
+    meta: {
       title: 'Timeline',
       requiresAuth: true,
     },

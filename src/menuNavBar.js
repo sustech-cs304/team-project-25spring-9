@@ -21,22 +21,22 @@ export default [
         label: 'My Profile',
         to: '/profile',
       },
-      {
-        icon: mdiCogOutline,
-        label: 'Settings',
-      },
-      {
-        icon: mdiEmail,
-        label: 'Messages',
-      },
-      {
-        isDivider: true,
-      },
-      {
-        icon: mdiLogout,
-        label: 'Log Out',
-        isLogout: true,
-      },
+      // {
+      //   icon: mdiCogOutline,
+      //   label: 'Settings',
+      // },
+      // {
+      //   icon: mdiEmail,
+      //   label: 'Messages',
+      // },
+      // {
+      //   isDivider: true,
+      // },
+      // {
+      //   icon: mdiLogout,
+      //   label: 'Log Out',
+      //   isLogout: true,
+      // },
     ],
   },
   {
@@ -45,10 +45,10 @@ export default [
     isDesktopNoLabel: true,
     isToggleLightDark: true,
   },
-  {
-    icon: mdiLogout,
-    label: 'Log out',
-    isDesktopNoLabel: true,
-    isLogout: true,
-  },
+  // {
+  //   icon: mdiLogout,
+  //   label: 'Log out',
+  //   isDesktopNoLabel: true,
+  //   isLogout: true,
+  // },
 ]
