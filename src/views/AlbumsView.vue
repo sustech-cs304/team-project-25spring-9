@@ -69,7 +69,7 @@ const fetchAlbums = async () => {
   try {
     // Step 1: Fetch album metadata first
     const albumParams = new URLSearchParams({
-      userId: mainStore.userId.toString()
+      userId: mainStore.userId
     });
 
     const albumResponse = await fetch(`http://10.16.60.67:9090/album/list?${albumParams}`, {
@@ -125,7 +125,7 @@ const fetchAlbums = async () => {
       // Ensure the album exists in our map (just in case)
       if (!albumsMap.has(albumId) && albumId !== null) {
         // Try to find this album in the albumResult data first
-        const albumDetails = albumResult.data?.find(album => album.albumId.toString() === albumId.toString());
+        const albumDetails = albumResult.data?.find(album => album.albumId === albumId);
 
         albumsMap.set(albumId, {
           id: albumId,
@@ -214,7 +214,7 @@ const createAlbum = async () => {
 
   try {
     const params = new URLSearchParams({
-      userId: mainStore.userId.toString(),
+      userId: mainStore.userId,
       names: newAlbumName.value.trim(),
       albumDescription: newAlbumDescription.value.trim() // Default description
     });
@@ -249,12 +249,12 @@ const deleteAlbum = async (albumId) => {
 
   try {
     const params = new URLSearchParams({
-      userId: mainStore.userId.toString(),
-      albumId: albumId.toString()
+      userId: mainStore.userId,
+      albumId: albumId
     });
 
     const response = await fetch(`http://10.16.60.67:9090/album/delete?${params}`, {
-      method: 'GET'
+      method: 'POST'
     });
 
     const result = await response.json();
@@ -309,8 +309,8 @@ const movePhotosToAlbum = async () => {
       if (!photo) return Promise.resolve(); // Skip if photo not found
 
       const params = new URLSearchParams({
-        userId: mainStore.userId.toString(),
-        imgId: photoId.toString(),
+        userId: mainStore.userId,
+        imgId: photoId,
         albumId: targetAlbumId.value === "null" ? "" : targetAlbumId.value,
         name: photo.name || `Image ${photoId}`, // Use existing name or generate one
         pub: true // Default to public
@@ -367,7 +367,7 @@ const handleUpload = (file) => {
   const params = new URLSearchParams({
     imgDate: currentDate,
     imgName: file.name,
-    userId: mainStore.userId.toString(),
+    userId: mainStore.userId,
     pub: true,
     albumId: albumId
   });
@@ -420,8 +420,8 @@ const handleDelete = () => {
     if (!photo) return Promise.resolve();
 
     const params = new URLSearchParams({
-      userId: mainStore.userId.toString(),
-      imgId: photoId.toString()
+      userId: mainStore.userId,
+      imgId: photoId
     });
 
     return fetch(`http://10.16.60.67:9090/img/delete?${params}`, {
