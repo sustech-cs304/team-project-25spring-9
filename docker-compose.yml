@@ -1,0 +1,70 @@
+# Specify the Docker Compose file version
+version: '3.8'
+
+# Define the services (containers)
+services:
+  # Service name for your Spring Boot application
+  backend-app:
+    # Build the image using the Dockerfile in the current directory (.)
+    build: .
+    # Container name (optional, but helpful for identification)
+    container_name: my-backend-app-together
+    # Port mapping: Map port 8080 on the host to port 8080 in the container
+    # Adjust the container port (right side) if your application uses a different port (e.g., 8081:8081)
+    ports:
+      - "9090:9091"
+    # Environment variables needed by your application
+    # Add configuration for database, Redis, MinIO, Alipay, etc. here
+    # Example environment variables (replace with your actual values or use a .env file)
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker # Example: Activate a 'docker' Spring profile
+  mysql:
+    image: mysql:latest
+    container_name: software_eng_mysql_together
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: software_eng_pss
+      MYSQL_DATABASE: software_eng
+      MYSQL_USER: root_1
+      MYSQL_PASSWORD: software_eng_pss
+    ports:
+      - "3306:3306"
+    volumes:
+      - /var/lib/mysql/software_eng_data:/var/lib/mysql
+      - ./table.sql:/docker-entrypoint-initdb.d/table.sql # 自动执行 table.sql
+
+  minio:
+    image: minio/minio:latest
+    container_name: software_eng_minio_together
+    restart: always
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: software_eng_pss
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - /var/lib/minio/data:/data
+    command: server /data --console-address ":9001"
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc alias set local http://minio:9000 root software_eng_pss;
+      /usr/bin/mc mb local/softwareeng;
+      /usr/bin/mc policy set public local/softwareeng;
+      /usr/bin/mc mb local/softwareeng/user-img;
+      /usr/bin/mc mb local/softwareeng/builder-img;
+      /usr/bin/mc mb local/softwareeng/comment-img;
+      /usr/bin/mc mb local/softwareeng/restaurant-img;
+      /usr/bin/mc mb local/softwareeng/food-img;
+      /usr/bin/mc mb local/softwareeng/bus-json;
+      /usr/bin/mc mb local/softwareeng/commodity-img;
+      /usr/bin/mc mb local/softwareeng/upload-img;
+      exit 0;
+      "
+

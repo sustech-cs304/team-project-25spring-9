@@ -36,15 +36,15 @@ public class AlbumController {
     public AjaxJson update(@RequestParam int userId,
                            @RequestParam int albumId,
                            @RequestParam String names,
-    @RequestParam String albumDescribtion) {
-        return AjaxJson.getSuccessData(albumMapper.updateById(new Album(userId,albumId,names,albumDescribtion)));
+    @RequestParam String albumDescription) {
+        return AjaxJson.getSuccessData(albumMapper.updateById(new Album(userId,albumId,names,albumDescription)));
     }
     @ApiOperation(value = "新建相册 name", tags = "相册类")
     @PostMapping("/new")
     public AjaxJson insert(@RequestParam int userId,
                            @RequestParam String names,
-                           @RequestParam String albumDescribtion) {
-        return AjaxJson.getSuccessData(albumMapper.insert(new Album(userId,names,albumDescribtion)));
+                           @RequestParam String albumDescription) {
+        return AjaxJson.getSuccessData(albumMapper.insert(new Album(userId,names,albumDescription)));
     }
     @ApiOperation(value = "获取相册", tags = "相册类")
     @PostMapping("/list")
