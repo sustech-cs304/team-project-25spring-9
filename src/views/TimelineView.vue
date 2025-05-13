@@ -225,15 +225,15 @@ const playVideo = (video) => {
           <div class="relative overflow-x-auto">
             <!-- Timeline points with photos -->
             <div class="relative py-32 min-h-[400px]"
-              :style="{ minWidth: `${Math.max(100, timeline.photos.length * 200)}px` }">
+              :style="{ minWidth: `${Math.max(100, timeline.photos.length * 100)}px` }">
 
               <!-- Center line - moved inside to ensure it spans the full width -->
               <div class="absolute left-0 right-0 h-1 bg-gray-300 top-1/2 transform -translate-y-1/2"
                 :style="{ width: '100%' }"></div>
 
               <div v-for="(photo, index) in timeline.photos" :key="photo.id" class="absolute transform" :style="{
-                left: `${(index / (timeline.photos.length - 1) * (90) + 5)}%`,
-                transform: 'translateX(-50%)'
+                left: `${(index / (timeline.photos.length - 1) * (80) + 5)}%`,
+                transform: 'translateX(-30%)'
               }" :class="photo.position === 'above' ? 'bottom-1/2 mb-8' : 'top-1/2 mt-8'">
                 <!-- Photo container -->
                 <div :class="[
@@ -261,12 +261,12 @@ const playVideo = (video) => {
                   </div>
 
                   <!-- Connector line to timeline -->
-                  <div class="absolute h-8 w-0.5 bg-gray-400"
+                  <div class="absolute h-6 w-0.5 bg-gray-400"
                     :class="photo.position === 'above' ? 'bottom-0 -mb-8' : 'top-0 -mt-8'"></div>
 
                   <!-- Timeline dot -->
                   <div class="absolute w-3 h-3 bg-blue-500 rounded-full transform -translate-x-[0.5px]"
-                    :class="photo.position === 'above' ? 'bottom-0 -mb-3' : 'top-0 -mt-3'"></div>
+                    :class="photo.position === 'above' ? 'bottom-0 -mb-3.5' : 'top-0 -mt-3'"></div>
                 </div>
               </div>
             </div>
