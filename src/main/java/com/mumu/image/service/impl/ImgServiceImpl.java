@@ -130,6 +130,7 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 dto.setImgDescribtion(image.getImgDescribtion());
                 dto.setUserId(image.getUserId());
                 dto.setTags(new ArrayList<>());
+                dto.setAlbumId(image.getAlbumId());
                 dto.setPeoples(new ArrayList<>());
 //                String imgName = String.format("%d.jpeg", image.getImgId());
 //                dto.setImg(minioUtilS.download(imgName, ImgPath));
