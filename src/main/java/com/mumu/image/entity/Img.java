@@ -46,4 +46,6 @@ public class Img implements Serializable {
         this.imgPos=img.getImgPos();
         this.userId=img.getUserId();
     }
+    public Img() {
+    }
 }

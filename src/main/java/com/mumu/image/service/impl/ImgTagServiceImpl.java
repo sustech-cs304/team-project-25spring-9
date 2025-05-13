@@ -9,6 +9,7 @@ import com.mumu.image.mapper.ImgTagMapper;
 import com.mumu.image.mapper.TagMapper;
 import com.mumu.image.service.ImgTagService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.mumu.image.service.TagService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,8 @@ public class ImgTagServiceImpl extends ServiceImpl<ImgTagMapper, ImgTag> impleme
     ImgTagMapper imgTagMapper;
     @Autowired
     TagMapper tagMapper;
+    @Autowired
+    TagService tagService;
     /**
      * AI-generated-content
      * tool: ChatGPT
@@ -77,12 +80,16 @@ public class ImgTagServiceImpl extends ServiceImpl<ImgTagMapper, ImgTag> impleme
     @Transactional
     @Override
     public boolean addImgTag(int userId, int imgId, String tagName) {
+        List<String> al=new ArrayList<>();
+        al.add(tagName);
+        tagService.checkAndInsertTag(userId,al);
         return addImgTag(userId, imgId, new ArrayList<>(Collections.singletonList(
                 tagMapper.selectOne(new LambdaQueryWrapper<Tag>()
                                 .select(Tag::getTagId)
                                 .eq(Tag::getUserId, userId)
                                 .eq(Tag::getTagName, tagName))
                         .getTagId()
+
         )));
     }
     /**

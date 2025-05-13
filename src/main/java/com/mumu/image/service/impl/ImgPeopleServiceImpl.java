@@ -9,6 +9,8 @@ import com.mumu.image.mapper.ImgPeopleMapper;
 import com.mumu.image.mapper.PeopleMapper;
 import com.mumu.image.service.ImgPeopleService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.mumu.image.service.PeopleService;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,8 @@ public class ImgPeopleServiceImpl extends ServiceImpl<ImgPeopleMapper, ImgPeople
     ImgPeopleMapper mapper;
     @Autowired
     PeopleMapper peopleMapper;
+    @Autowired
+    PeopleService peopleService;
     /**
      * AI-generated-content
      * tool: ChatGPT
@@ -71,6 +75,9 @@ public class ImgPeopleServiceImpl extends ServiceImpl<ImgPeopleMapper, ImgPeople
     @Transactional
     @Override
     public boolean addImgPeople(int userId, int imgId, String peopleName) {
+        List<String> al=new ArrayList<>();
+        al.add(peopleName);
+        peopleService.checkAndInsertPeople(userId,al);
         return addImgPeople(userId, imgId, new ArrayList<>(Collections.singletonList(
                 peopleMapper.selectOne(new LambdaQueryWrapper<People>()
                                 .select(People::getPeopleId)
