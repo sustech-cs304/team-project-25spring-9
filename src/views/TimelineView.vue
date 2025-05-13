@@ -19,6 +19,7 @@ import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import { useMainStore } from '@/stores/main'
 import { ref } from 'vue'
+import html2canvas_pro from 'html2canvas-pro' // Add this import
 
 // Track if we're in select mode
 const isSelectMode = ref(false)
@@ -157,6 +158,55 @@ const generateTimelineView = async () => {
 const playVideo = (video) => {
   alert(`Playing video: ${video.title}`)
 }
+
+async function downloadTimeline(timeline) {
+  const original = document.getElementById(`timeline-${timeline.id}`);
+  if (!original) throw new Error('Timeline element not found');
+
+  // 1) Clone & size it to its full scrollable dimensions
+  const clone = original.cloneNode(true);
+  const fullW = original.scrollWidth;
+  const fullH = original.scrollHeight;
+
+  Object.assign(clone.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: `${fullW}px`,
+    height: `${fullH}px`,
+    backgroundColor: '#fff',
+    overflow: 'visible',
+  });
+  document.body.appendChild(clone);
+
+  try {
+    // 2) Pass width/height/windowWidth/windowHeight to html2canvas_pro
+    const canvas = await html2canvas_pro(clone, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      width: fullW,
+      height: fullH,
+      windowWidth: fullW,
+      windowHeight: fullH,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    // 3) Download it
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `Timeline_${timeline.title.replace(/\s+/g, '_')}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    console.error('Error downloading timeline:', err);
+    alert('Failed to download timeline: ' + err.message);
+  } finally {
+    clone.remove();
+  }
+}
 </script>
 
 <template>
@@ -203,17 +253,11 @@ const playVideo = (video) => {
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium">{{ timeline.title }}</h3>
             <div class="flex">
-              <button class="text-blue-600 text-sm flex items-center mr-3">
+              <button class="text-blue-600 text-sm flex items-center mr-3" @click="downloadTimeline(timeline)">
                 <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="mdiDownload" />
                 </svg>
                 Download
-              </button>
-              <button class="text-blue-600 text-sm flex items-center">
-                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiShare" />
-                </svg>
-                Share
               </button>
             </div>
           </div>
@@ -222,7 +266,7 @@ const playVideo = (video) => {
           <p class="text-gray-700 mb-4 text-sm">{{ timeline.description }}</p>
 
           <!-- Timeline Visualization -->
-          <div class="relative overflow-x-auto">
+          <div class="relative overflow-x-auto" :id="`timeline-${timeline.id}`">
             <!-- Timeline points with photos -->
             <div class="relative py-32 min-h-[400px]"
               :style="{ minWidth: `${Math.max(100, timeline.photos.length * 100)}px` }">
