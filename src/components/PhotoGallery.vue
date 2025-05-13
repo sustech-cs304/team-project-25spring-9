@@ -788,6 +788,67 @@ const handleDeleteTag = async (tag, photo) => {
   }
 };
 
+const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
+const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
+
+// 开始编辑
+const startRenaming = (photo) => {
+  RenamingPhotoId.value = photo.id;
+  RenamingPhotoName.value = photo.name;
+};
+
+// 保存名称
+const savePhotoName = async (photo) => {
+  if (RenamingPhotoName.value.trim() && RenamingPhotoName.value !== photo.name) {
+    // 调用 API 更新名称（API 暂时留空）
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      name: RenamingPhotoName.value.trim()
+    });
+
+    try{
+        const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
+            method: 'GET'
+        });
+
+        const result = await response.json();
+
+        if(result.msg === 'ok') {
+            photo.name = RenamingPhotoName.value.trim();
+            toast.success(`图片名称已更新为 "${photo.name}"`);
+        } else {
+            throw new Error(result.msg || '更新名称失败');
+        }
+    }catch(error){
+        console.error('更新名称失败:', error);
+        toast.error(`更新名称失败`);
+    };
+  }
+  cancelRenaming();
+};
+
+// 取消编辑
+const cancelRenaming = () => {
+  RenamingPhotoId.value = null;
+  RenamingPhotoName.value = '';
+};
+
+const handleClickOutside = (event) => {
+  const renamingInput = document.querySelector('input[renaming]');
+  if (renamingInput && !renamingInput.contains(event.target)) {
+    cancelRenaming();
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -989,7 +1050,20 @@ defineExpose({
             <!-- Name column with status -->
             <td class="px-3 py-2">
               <div class="flex flex-col">
-                <span class="truncate max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+                <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+                    class="truncate max-w-[200px] cursor-pointer"
+                    :title="photo.name"
+                    @dblclick="startRenaming(photo)">
+                    {{ photo.name }}
+                </span>
+                <!-- 编辑模式 -->
+                <input v-else
+                    v-model="RenamingPhotoName"
+                    class="border rounded px-2 py-1 text-sm w-full"
+                    renaming
+                    @blur="savePhotoName(photo)"
+                    @keyup.enter="savePhotoName(photo)"
+                    @keyup.esc="cancelRenaming" />
                 <span v-if="photo.isUploading" class="text-xs text-blue-500">Uploading...</span>
                 <span v-if="photo.uploadFailed" class="text-xs text-red-500">Upload failed</span>
               </div>
