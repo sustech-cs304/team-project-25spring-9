@@ -10,7 +10,11 @@ import {
   mdiCursorDefault,
   mdiRefresh,
   mdiArrowLeft,
-  mdiCardPlus
+  mdiCardPlus,
+  mdiImagePlus,
+  mdiImageRemove,
+  mdiImageEdit,
+  mdiDownload
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -18,6 +22,9 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
+import PhotoEditor from '@/components/PhotoEditor.vue'
+import PhotoUploader from '@/components/PhotoUploader.vue'
+import AlbumsGallery from '@/components/AlbumsGallery.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useMainStore } from '@/stores/main'
@@ -42,48 +49,88 @@ const photoGallery = ref(null)
 // New album dialog
 const showNewAlbumDialog = ref(false)
 const newAlbumName = ref("")
+const newAlbumDescription = ref("")
 
 // Move photos dialog
 const showMoveDialog = ref(false)
 const targetAlbumId = ref(null)
 
+// Editor and uploader states
+const showEditor = ref(false)
+const showUploader = ref(false)
+const editingPhoto = ref(null)
+
+// Initialize albums from API data
 // Initialize albums from API data
 const fetchAlbums = async () => {
   isLoading.value = true;
   error.value = null;
 
   try {
-    // Fetch all photos first
-    const params = new URLSearchParams({
+    // Step 1: Fetch album metadata first
+    const albumParams = new URLSearchParams({
       userId: mainStore.userId.toString()
     });
 
-    const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`);
-    const result = await response.json();
+    const albumResponse = await fetch(`http://10.16.60.67:9090/album/list?${albumParams}`, {
+      method: 'POST'
+    });
+    const albumResult = await albumResponse.json();
 
-    if (!result || !result.data) {
-      throw new Error('Failed to fetch photos data');
+    if (!albumResult || albumResult.msg !== 'ok') {
+      throw new Error('Failed to fetch albums');
     }
 
-    // Group photos by album_id
+    // Create initial album map with metadata
     const albumsMap = new Map();
 
     // Add "Unfiled" album
     albumsMap.set(null, {
       id: null,
       name: '__Unfiled__',
+      description: 'Photos not in any album',
       photos: [],
       coverImage: null
     });
 
-    // Process photos and group by album_id
-    result.data.forEach(photo => {
-      const albumId = photo.album_id || null;
+    // Add all albums from the API response
+    if (albumResult.data && albumResult.data.length > 0) {
+      albumResult.data.forEach(album => {
+        albumsMap.set(album.albumId, {
+          id: album.albumId,
+          name: album.albumName,
+          description: album.albumDescribtion || '',
+          photos: [],
+          coverImage: null
+        });
+      });
+    }
 
-      if (!albumsMap.has(albumId)) {
+    // Step 2: Fetch all photos
+    const photoParams = new URLSearchParams({
+      userId: mainStore.userId
+    });
+
+    const photoResponse = await fetch(`http://10.16.60.67:9090/img/all?${photoParams}`);
+    const photoResult = await photoResponse.json();
+
+    if (!photoResult || !photoResult.data) {
+      throw new Error('Failed to fetch photos data');
+    }
+
+    // Step 3: Group photos by album_id
+    photoResult.data.forEach(photo => {
+      const albumId = photo.albumId || null;
+
+      // Ensure the album exists in our map (just in case)
+      if (!albumsMap.has(albumId) && albumId !== null) {
+        // Try to find this album in the albumResult data first
+        const albumDetails = albumResult.data?.find(album => album.albumId.toString() === albumId.toString());
+
         albumsMap.set(albumId, {
           id: albumId,
-          name: `Album ${albumId}`,
+          name: albumDetails ? albumDetails.albumName : `Album ${albumId}`,
+          description: albumDetails ? albumDetails.albumDescribtion || '' : '',
           photos: [],
           coverImage: null
         });
@@ -96,7 +143,14 @@ const fetchAlbums = async () => {
         src: `http://10.16.60.67:9000/softwareeng/upload-img/${photo.imgId}.jpeg`,
         album_id: albumId,
         date: photo.imgDate,
-        tags: photo.tags || []
+        displayDate: formatDate(photo.imgDate),
+        tags: photo.tags || [],
+        size: 'Unknown',
+        type: photo.imgType || 'JPEG',
+        peoples: photo.peoples,
+        location: photo.imgPos,
+        desc: photo.imgDescribtion || "",
+        userId: photo.userId
       };
 
       album.photos.push(photoObj);
@@ -107,13 +161,16 @@ const fetchAlbums = async () => {
       }
     });
 
-    // Convert map to array and sort
-    albums.value = Array.from(albumsMap.values()).sort((a, b) => {
-      // Keep Unfiled at the end
-      if (a.id === null) return 1;
-      if (b.id === null) return -1;
-      return a.id - b.id;
-    });
+    // Step 4: Convert map to array and sort
+    albums.value = Array.from(albumsMap.values())
+      // .filter(album => album.id === null || album.photos.length > 0) // Only show albums with photos or the Unfiled album
+      .sort((a, b) => {
+        // Keep Unfiled at the end
+        if (a.id === null) return 1;
+        if (b.id === null) return -1;
+        // Sort alphabetically by name
+        return a.name.localeCompare(b.name);
+      });
 
   } catch (err) {
     error.value = `Failed to load albums: ${err.message}`;
@@ -123,6 +180,18 @@ const fetchAlbums = async () => {
     isLoading.value = false;
   }
 };
+
+// Format date function (copied from PhotoGallery)
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const options = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }
+  return date.toLocaleDateString('en-US', options)
+}
 
 // Open an album to view its photos
 const openAlbum = (album) => {
@@ -146,10 +215,11 @@ const createAlbum = async () => {
   try {
     const params = new URLSearchParams({
       userId: mainStore.userId.toString(),
-      albumName: newAlbumName.value.trim()
+      names: newAlbumName.value.trim(),
+      albumDescription: newAlbumDescription.value.trim() // Default description
     });
 
-    const response = await fetch(`http://10.16.60.67:9090/album/add?${params}`, {
+    const response = await fetch(`http://10.16.60.67:9090/album/new?${params}`, {
       method: 'POST'
     });
 
@@ -234,13 +304,19 @@ const movePhotosToAlbum = async () => {
 
   try {
     const movePromises = selectedPhotos.value.map(photoId => {
+      // Find the photo object to get additional properties
+      const photo = currentAlbum.value.photos.find(p => p.id === photoId);
+      if (!photo) return Promise.resolve(); // Skip if photo not found
+
       const params = new URLSearchParams({
         userId: mainStore.userId.toString(),
         imgId: photoId.toString(),
-        albumId: targetAlbumId.value === "null" ? "" : targetAlbumId.value
+        albumId: targetAlbumId.value === "null" ? "" : targetAlbumId.value,
+        name: photo.name || `Image ${photoId}`, // Use existing name or generate one
+        pub: true // Default to public
       });
 
-      return fetch(`http://10.16.60.67:9090/img/move?${params}`, {
+      return fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
         method: 'GET'
       })
         .then(response => response.json())
@@ -277,6 +353,187 @@ const openMoveDialog = () => {
   showMoveDialog.value = true;
 };
 
+// Upload photos handler
+const handleUpload = (file) => {
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Set album ID for the upload if we're in an album
+  const albumId = currentAlbum.value?.id === null ? "" : currentAlbum.value?.id;
+  const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const params = new URLSearchParams({
+    imgDate: currentDate,
+    imgName: file.name,
+    userId: mainStore.userId.toString(),
+    pub: true,
+    albumId: albumId
+  });
+
+  fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(result => {
+      if (!result.msg || result.msg !== 'ok') {
+        throw new Error(result.msg || 'Upload failed');
+      }
+      toast.success('Image uploaded successfully');
+      // Refresh the current view
+      fetchAlbums().then(() => {
+        if (currentAlbum.value) {
+          // If we're in an album view, update to show the refreshed album
+          const updatedAlbum = albums.value.find(a =>
+            (a.id === null && currentAlbum.value.id === null) ||
+            a.id === currentAlbum.value.id
+          );
+          if (updatedAlbum) {
+            currentAlbum.value = updatedAlbum;
+          }
+        }
+      });
+    })
+    .catch(error => {
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload image: ${error.message}`);
+    });
+
+  showUploader.value = false;
+};
+
+// Delete photos
+const handleDelete = () => {
+  if (selectedPhotos.value.length === 0) {
+    toast.error("Please select photos to delete");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to delete ${selectedPhotos.value.length} selected photo(s)?`)) {
+    return;
+  }
+
+  const deletePromises = selectedPhotos.value.map(photoId => {
+    const photo = currentAlbum.value.photos.find(p => p.id === photoId);
+    if (!photo) return Promise.resolve();
+
+    const params = new URLSearchParams({
+      userId: mainStore.userId.toString(),
+      imgId: photoId.toString()
+    });
+
+    return fetch(`http://10.16.60.67:9090/img/delete?${params}`, {
+      method: 'GET'
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result || result.msg !== 'ok') {
+          throw new Error(result?.msg || 'Failed to delete photo');
+        }
+        return result;
+      });
+  });
+
+  Promise.all(deletePromises)
+    .then(() => {
+      toast.success(`${selectedPhotos.value.length} photo(s) deleted`);
+      selectedPhotos.value = [];
+      fetchAlbums().then(() => {
+        if (currentAlbum.value) {
+          const updatedAlbum = albums.value.find(a =>
+            (a.id === null && currentAlbum.value.id === null) ||
+            a.id === currentAlbum.value.id
+          );
+          if (updatedAlbum) {
+            currentAlbum.value = updatedAlbum;
+          }
+        }
+      });
+    })
+    .catch(error => {
+      console.error('Delete error:', error);
+      toast.error(`Failed to delete photos: ${error.message}`);
+    });
+};
+
+// Download photos
+const handleDownload = () => {
+  if (selectedPhotos.value.length === 0) return;
+
+  const photosToDownload = selectedPhotos.value.map(id =>
+    currentAlbum.value.photos.find(p => p.id === id)
+  ).filter(Boolean);
+
+  photosToDownload.forEach(async (photo) => {
+    try {
+      const res = await fetch(photo.src, { mode: 'cors' });
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = photo.name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      console.error(`Download failed: ${photo.name}`, err);
+      toast.error(`Failed to download ${photo.name}`);
+    }
+  });
+
+  toast.success(`Successfully downloaded ${photosToDownload.length} photo(s)`);
+};
+
+// Open editor
+const openEditor = () => {
+  if (selectedPhotos.value.length === 1) {
+    openEditorWithPhoto(selectedPhotos.value[0]);
+  }
+};
+
+// Open editor with photo ID
+const openEditorWithPhoto = (photoId) => {
+  const photo = currentAlbum.value.photos.find(p => p.id === photoId);
+  if (!photo) {
+    toast.error("Photo not found");
+    return;
+  }
+
+  editingPhoto.value = photo;
+  showEditor.value = true;
+  isSelectMode.value = false;
+  selectedPhotos.value = [];
+};
+
+// Close editor
+const closeEditor = () => {
+  showEditor.value = false;
+  editingPhoto.value = null;
+};
+
+// Save edited photo
+const saveEditedPhoto = (updatedPhoto) => {
+  // API call to save the photo would go here
+  toast.success("Photo updated successfully");
+  closeEditor();
+  fetchAlbums().then(() => {
+    if (currentAlbum.value) {
+      const updatedAlbum = albums.value.find(a =>
+        (a.id === null && currentAlbum.value.id === null) ||
+        a.id === currentAlbum.value.id
+      );
+      if (updatedAlbum) {
+        currentAlbum.value = updatedAlbum;
+      }
+    }
+  });
+};
+
 // Initialize data on component mount
 onMounted(() => {
   fetchAlbums();
@@ -290,83 +547,55 @@ onMounted(() => {
       <SectionTitleLineWithButton :icon="currentAlbum ? mdiImageMultiple : mdiFolderMultiple"
         :title="currentAlbum ? currentAlbum.name : 'Albums'" main>
         <div class="flex">
+          <BaseButton v-if="currentAlbum" :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
+            :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
+            class="mr-2" @click="toggleSelectMode" />
           <BaseButton v-if="currentAlbum" :icon="mdiArrowLeft" label="Back to Albums" color="contrast" small
             @click="backToAlbums" />
           <template v-else>
-            <BaseButton :icon="mdiRefresh" label="Refresh" color="whiteDark" small class="mr-2" @click="fetchAlbums" />
+            <BaseButton :icon="mdiRefresh" label="Refresh" color="info" small class="mr-2" @click="fetchAlbums" />
             <BaseButton :icon="mdiFolderPlus" label="New Album" color="info" small @click="showNewAlbumDialog = true" />
           </template>
         </div>
       </SectionTitleLineWithButton>
 
-      <!-- Loading state -->
-      <div v-if="isLoading" class="flex justify-center items-center py-12">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-      </div>
-
-      <!-- Error state -->
-      <div v-else-if="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-        <p class="font-bold">Error</p>
-        <p>{{ error }}</p>
-        <BaseButton label="Retry" color="danger" small class="mt-2" @click="fetchAlbums" />
-      </div>
-
-      <!-- Album View -->
-      <div v-else-if="!currentAlbum" class="space-y-6">
-        <!-- Albums Grid -->
-        <CardBox class="mb-6">
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            <div v-for="album in albums" :key="album.id || 'unfiled'"
-              class="cursor-pointer hover:scale-105 transition-transform duration-200" @click="openAlbum(album)">
-              <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                <!-- Album Cover -->
-                <div class="h-40 bg-gray-200 relative">
-                  <img v-if="album.coverImage" :src="album.coverImage" class="w-full h-full object-cover"
-                    alt="Album cover" />
-                  <div v-else class="flex items-center justify-center h-full bg-gray-100">
-                    <svg class="w-16 h-16 text-gray-400" viewBox="0 0 24 24">
-                      <path fill="currentColor" :d="mdiImageMultiple" />
-                    </svg>
-                  </div>
-
-                  <!-- Photo count badge -->
-                  <div class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-sm">
-                    {{ album.photos.length }} photos
-                  </div>
-                </div>
-
-                <!-- Album info -->
-                <div class="p-4">
-                  <div class="flex justify-between items-center">
-                    <h3 class="font-medium text-gray-900 truncate">{{ album.name }}</h3>
-
-                    <!-- Actions (not applicable for Unfiled) -->
-                    <button v-if="album.id !== null" @click.stop="deleteAlbum(album.id)"
-                      class="text-gray-500 hover:text-red-500" title="Delete album">
-                      <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="currentColor" :d="mdiFolderRemove" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardBox>
-      </div>
+      <!-- Album View (using the new AlbumsGallery component) -->
+      <AlbumsGallery v-if="!currentAlbum" :albums="albums" :isLoading="isLoading" :error="error" @open-album="openAlbum"
+        @delete-album="deleteAlbum" @refresh-albums="fetchAlbums" />
 
       <!-- Album Contents View (when album is selected) -->
       <div v-else>
+        <!-- Show photos in current album -->
+        <CardBox class="mb-6">
+          <PhotoGallery ref="photoGallery" :photos="currentAlbum.photos" :initial-view-mode="viewMode"
+            :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
+            :selected-photo-ids="selectedPhotos" :show-actions="true" @select-photo="togglePhotoSelection"
+            @update:viewMode="mode => viewMode = mode" @photo-edit="openEditorWithPhoto" />
+        </CardBox>
+
         <!-- Action buttons for photo management within album -->
         <div class="mb-4 flex justify-between">
           <div class="flex gap-2">
-            <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-              :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
-              @click="toggleSelectMode" />
+            <!-- Upload button -->
+            <BaseButton :icon="mdiImagePlus" label="Upload" color="info" small @click="showUploader = true" />
 
-            <!-- Show move button in select mode when photos are selected -->
-            <BaseButton v-if="isSelectMode && selectedPhotos.length > 0" :icon="mdiImageMove" label="Move to Album"
-              color="success" small @click="openMoveDialog" />
+            <template v-if="isSelectMode">
+              <!-- Show move button in select mode when photos are selected -->
+              <BaseButton v-if="selectedPhotos.length > 0" :icon="mdiImageMove" label="Move to Album" color="success"
+                small @click="openMoveDialog" />
+
+              <!-- Delete button -->
+              <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" small
+                :disabled="selectedPhotos.length === 0" @click="handleDelete" />
+
+              <!-- Download button -->
+              <BaseButton :icon="mdiDownload" label="Download" color="success" small
+                :disabled="selectedPhotos.length === 0" @click="handleDownload" />
+
+              <!-- Edit button -->
+              <BaseButton :icon="mdiImageEdit" label="Edit" color="info" small :disabled="selectedPhotos.length !== 1"
+                @click="openEditor" />
+            </template>
           </div>
 
           <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
@@ -374,14 +603,6 @@ onMounted(() => {
             <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
           </div>
         </div>
-
-        <!-- Show photos in current album -->
-        <CardBox class="mb-6">
-          <PhotoGallery ref="photoGallery" :photos="currentAlbum.photos" :initial-view-mode="viewMode"
-            :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
-            :selected-photo-ids="selectedPhotos" show-actions="true" @select-photo="togglePhotoSelection"
-            @update:viewMode="mode => viewMode = mode" />
-        </CardBox>
       </div>
 
       <!-- New Album Dialog -->
@@ -392,8 +613,12 @@ onMounted(() => {
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-medium mb-2">Album Name</label>
             <input v-model="newAlbumName" type="text"
-              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              @keyup.enter="createAlbum" />
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"/>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-medium mb-2">Album Description</label>
+            <input v-model="newAlbumDescription" type="text"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"/>
           </div>
 
           <div class="flex justify-end gap-2">
@@ -426,6 +651,12 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Photo Uploader Modal -->
+      <PhotoUploader :show="showUploader" @close="showUploader = false" @upload="handleUpload" />
+
+      <!-- Photo Editor Modal -->
+      <PhotoEditor v-if="showEditor" :photo="editingPhoto" @save="saveEditedPhoto" @close="closeEditor" />
     </SectionMain>
   </LayoutAuthenticated>
 </template>
