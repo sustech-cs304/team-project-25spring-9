@@ -6,7 +6,8 @@ import {
   mdiAlertCircle,
   mdiSquareEditOutline,
   mdiImageMultiple,
-  mdiTimelineClock
+  mdiTimelineClock,
+  mdiTagMultiple
 } from '@mdi/js'
 
 export default [
@@ -40,6 +41,12 @@ export default [
     label: 'Profile',
     icon: mdiAccountCircle,
   },
+  {
+    to: '/tags',
+    label: 'Tags',
+    icon: mdiTagMultiple,
+  },
+
   // {
   //   to: '/login',
   //   label: 'Login',
