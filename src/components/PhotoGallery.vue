@@ -709,6 +709,39 @@ const handleTagClick = (tag) => {
   applyFilters()
 }
 
+const addNewTag = async (photo) => {
+  const newTag = prompt('请输入新标签:').trim();
+   if (!newTag) return;
+
+  if (photo.tags.includes(newTag)) {
+    toast.error(`标签 "${newTag}" 已存在`);
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({
+        userId: photo.userId.toString(),
+        imgId: photo.id.toString(),
+        tag: newTag
+    })
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/add?${params}`, {
+      method: 'POST'
+    });
+
+    const result = await response.json();
+
+    if (result.msg === 'ok') {
+      photo.tags.push(newTag);
+      toast.success(`标签 "${newTag}" 已成功添加`);
+    } else {
+      throw new Error(result.msg || '添加标签失败');
+    }
+  } catch (error) {
+    console.error('添加标签失败:', error);
+    toast.error(`添加标签失败: ${error.message}`);
+  }
+};
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -929,6 +962,10 @@ defineExpose({
                       @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
+                <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+                    @click.stop="addNewTag(photo)">
+                    +
+                </button>
               </div>
             </td>
 
