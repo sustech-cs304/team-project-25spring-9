@@ -195,9 +195,9 @@ async function getImageFileSizeFromUrl(url) {
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
-  const options = { 
-    year: 'numeric', 
-    month: 'short', 
+  const options = {
+    year: 'numeric',
+    month: 'short',
     day: 'numeric',
   }
   return date.toLocaleDateString('en-US', options)
@@ -480,7 +480,7 @@ const filteredPhotos = computed(() => {
 // Modify apply filters method
 const applyFilters = () => {
   clearUploadQueue()
-  
+
   advancedFilters.value = { ...tempFilters.value }
   appliedFilters.value = {
     query: searchQuery.value || '',
@@ -541,7 +541,7 @@ const openPhotoModal = (photo) => {
     toast.error('Cannot preview failed upload')
     return
   }
-  
+
   currentPhoto.value = photo
   isModalOpen.value = true
   emit('view-photo', photo)
@@ -558,7 +558,7 @@ const viewNextPhoto = () => {
 
   const currentIndex = getPhotoIndex(currentPhoto.value.id)
   const allPhotos = displayPhotos.value
-  
+
   if (currentIndex < allPhotos.length - 1) {
     currentPhoto.value = allPhotos[currentIndex + 1]
   } else {
@@ -571,7 +571,7 @@ const viewPreviousPhoto = () => {
 
   const currentIndex = getPhotoIndex(currentPhoto.value.id)
   const allPhotos = displayPhotos.value
-  
+
   if (currentIndex > 0) {
     currentPhoto.value = allPhotos[currentIndex - 1]
   } else {
@@ -621,19 +621,19 @@ const handleActionClick = (photo, event) => {
     toast.error('Cannot perform actions on failed uploads')
     return
   }
-  
+
   if (photo.isUploading) {
     toast.info('Photo is still uploading. Only preview is available.')
     return
   }
-  
+
   event?.stopPropagation()
   actionMenuPhoto.value = photo
   if (event) {
     const rect = event.target.getBoundingClientRect()
     const menuWidth = 150
     const spaceRight = window.innerWidth - rect.right
-    
+
     actionMenuPosition.value = {
       x: spaceRight > menuWidth ? rect.left : rect.right - menuWidth,
       y: rect.bottom + window.scrollY
@@ -808,11 +808,11 @@ defineExpose({
             </label>
             <div class="flex gap-2 items-center">
               <input v-model="tempFilters.dateRange.start" type="date"
-                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
                 placeholder="From date" />
               <span class="text-gray-500">to</span>
               <input v-model="tempFilters.dateRange.end" type="date"
-                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
                 placeholder="To date" />
             </div>
           </div>
@@ -826,7 +826,7 @@ defineExpose({
               <span>Location</span>
             </label>
             <input v-model="tempFilters.location" type="text"
-              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
               placeholder="Enter location name" />
           </div>
 
@@ -839,12 +839,12 @@ defineExpose({
               <span>Tags</span>
             </label>
             <div class="flex flex-wrap gap-2 px-3 py-2 border border-gray-700 rounded focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-blue-300">
-              <span v-for="(tag, index) in tempFilters.tags" 
+              <span v-for="(tag, index) in tempFilters.tags"
                     :key="index"
                     :class="getTagColor(index)"
                     class="px-2 py-1 rounded-full flex items-center gap-1 text-sm">
                 {{ tag }}
-                <button @click="removeTag(index)" 
+                <button @click="removeTag(index)"
                         class="hover:text-red-500 focus:outline-none"
                         type="button">
                   ×
@@ -864,10 +864,10 @@ defineExpose({
               <svg class="w-6 h-6 mr-1"><path fill="currentColor" :d="mdiAccount" /></svg>
               <span>Peoples</span>
             </label>
-            <input 
+            <input
               v-model="tempFilters.peoples"
-              type="text" 
-              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300" 
+              type="text"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
               placeholder="Search by people names"
             />
           </div>
@@ -908,12 +908,12 @@ defineExpose({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="photo in filteredPhotos" :key="photo.id" 
+          <tr v-for="photo in filteredPhotos" :key="photo.id"
               class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 group"
               :class="{ 'bg-blue-50': isSelectMode && isPhotoSelected(photo.id) }">
             <!-- Add select column -->
             <td v-if="isSelectMode" class="px-3 py-2 w-10">
-              <button @click.stop="togglePhotoSelection(photo.id)" 
+              <button @click.stop="togglePhotoSelection(photo.id)"
                       :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
                       class="text-gray-500 hover:text-blue-500"
                       :disabled="!canSelectPhoto(photo)">
@@ -927,11 +927,11 @@ defineExpose({
             <!-- Preview column with upload indicator -->
             <td class="px-3 py-2 w-20 relative">
               <div class="relative">
-                <img :src="photo.src" 
+                <img :src="photo.src"
                      class="h-12 w-16 object-cover rounded cursor-pointer"
                      @click="openPhotoModal(photo)" />
                 <!-- Add upload indicator inside preview cell -->
-                <div v-if="photo.isUploading" 
+                <div v-if="photo.isUploading"
                      class="absolute inset-0 flex items-center justify-center">
                   <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
                     <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
@@ -952,7 +952,7 @@ defineExpose({
             <!-- Regular columns -->
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.displayDate }}</td>
-            
+
             <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
@@ -971,13 +971,13 @@ defineExpose({
 
             <!-- Actions column -->
             <td v-if="showActions" class="px-3 py-2 text-right w-10">
-              <BaseButton 
+              <BaseButton
                 v-if="!photo.isUploading && !photo.uploadFailed"
-                :icon="mdiDotsVertical" 
-                small 
-                color="lightDark" 
+                :icon="mdiDotsVertical"
+                small
+                color="lightDark"
                 class="opacity-0 group-hover:opacity-100 transition-opacity"
-                @click="handleActionClick(photo, $event)" 
+                @click="handleActionClick(photo, $event)"
               />
             </td>
           </tr>
@@ -995,20 +995,20 @@ defineExpose({
         ]"
       >
         <!-- Modify upload indicator to be less intrusive -->
-        <div v-if="photo.isUploading" 
+        <div v-if="photo.isUploading"
              class="absolute inset-0 flex items-center justify-center z-10">
           <div class="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
             <div class="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
           </div>
         </div>
-        
+
         <!-- Add upload failed indicator -->
-        <div v-if="photo.uploadFailed" 
+        <div v-if="photo.uploadFailed"
              class="absolute top-2 right-2 text-red-500"
              title="Upload failed">
           ⚠️
         </div>
-        
+
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1035,20 +1035,20 @@ defineExpose({
         ]"
       >
         <!-- Modify upload indicator -->
-        <div v-if="photo.isUploading" 
+        <div v-if="photo.isUploading"
              class="absolute inset-0 flex items-center justify-center z-10">
           <div class="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
             <div class="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
           </div>
         </div>
-        
+
         <!-- Add upload failed indicator -->
-        <div v-if="photo.uploadFailed" 
+        <div v-if="photo.uploadFailed"
              class="absolute top-2 right-2 text-red-500"
              title="Upload failed">
           ⚠️
         </div>
-        
+
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1075,20 +1075,20 @@ defineExpose({
         ]"
       >
         <!-- Modify upload indicator -->
-        <div v-if="photo.isUploading" 
+        <div v-if="photo.isUploading"
              class="absolute inset-0 flex items-center justify-center z-10">
           <div class="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
             <div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
           </div>
         </div>
-        
+
         <!-- Add upload failed indicator -->
-        <div v-if="photo.uploadFailed" 
+        <div v-if="photo.uploadFailed"
              class="absolute top-2 right-2 text-red-500"
              title="Upload failed">
           ⚠️
         </div>
-        
+
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1110,7 +1110,7 @@ defineExpose({
 
     <!-- Photo Modal -->
     <div v-if="isModalOpen && currentPhoto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" 
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
       @click="closePhotoModal">
       <div class="max-w-5xl w-full mx-4 relative" @click.stop>
         <div class="bg-white rounded-lg overflow-hidden shadow-xl">
@@ -1138,7 +1138,7 @@ defineExpose({
                   { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
                   { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
                   { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading }
-                ]" :key="index" 
+                ]" :key="index"
                   class="p-1 rounded-full hover:bg-gray-200 flex items-center"
                   :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
                   @click="!action.disabled && handleMenuAction(action.value)"
@@ -1158,8 +1158,8 @@ defineExpose({
 
           <!-- Photo -->
           <div class="flex justify-center bg-black p-2">
-            <img :src="currentPhoto.src" 
-                 class="max-h-[70vh] max-w-full object-contain" 
+            <img :src="currentPhoto.src"
+                 class="max-h-[70vh] max-w-full object-contain"
                  :class="{ 'opacity-70': currentPhoto.isUploading }"
                  alt="Full size preview" />
           </div>
@@ -1197,7 +1197,7 @@ defineExpose({
     </div>
 
     <!-- Action Menu -->
-    <div v-if="showActionMenu" 
+    <div v-if="showActionMenu"
       class="absolute bg-white rounded-lg shadow-lg py-2 min-w-[150px]"
       :style="`left: ${actionMenuPosition.x}px; top: ${actionMenuPosition.y}px`"
       @click.stop>

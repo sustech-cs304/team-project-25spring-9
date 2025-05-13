@@ -21,6 +21,11 @@ export default [
     icon: mdiImageMultiple,
   },
   {
+    to: '/albums',
+    label: 'Albums',
+    icon: mdiImageMultiple,
+  },
+  {
     to: '/timeline',
     label: 'Timeline',
     icon: mdiTimelineClock,
