@@ -223,51 +223,50 @@ const playVideo = (video) => {
 
           <!-- Timeline Visualization -->
           <div class="relative overflow-x-auto">
-            <!-- Center line -->
-            <div class="absolute left-0 right-0 h-1 bg-gray-300 top-1/2 transform -translate-y-1/2"></div>
-
             <!-- Timeline points with photos -->
-            <div class="relative py-28 min-h-[300px]">
-              <div v-for="(photo, index) in timeline.photos" :key="photo.id" class="absolute transform" :class="[
-                index === 0 ? 'left-0' : index === timeline.photos.length - 1 ? 'right-0' : '',
-                { 'left-1/4': index === Math.floor(timeline.photos.length / 3) },
-                { 'left-1/2': index === Math.floor(timeline.photos.length / 2) },
-                { 'left-3/4': index === Math.floor(timeline.photos.length * 2 / 3) },
-                photo.position === 'above' ? 'bottom-1/2 mb-6' : 'top-1/2 mt-6'
-              ]" :style="{
-                left: index > 0 && index < timeline.photos.length - 1 &&
-                  index !== Math.floor(timeline.photos.length / 3) &&
-                  index !== Math.floor(timeline.photos.length / 2) &&
-                  index !== Math.floor(timeline.photos.length * 2 / 3) ?
-                  `${(index / (timeline.photos.length - 1)) * 100}%` : null
-              }">
+            <div class="relative py-32 min-h-[400px]"
+              :style="{ minWidth: `${Math.max(100, timeline.photos.length * 200)}px` }">
+
+              <!-- Center line - moved inside to ensure it spans the full width -->
+              <div class="absolute left-0 right-0 h-1 bg-gray-300 top-1/2 transform -translate-y-1/2"
+                :style="{ width: '100%' }"></div>
+
+              <div v-for="(photo, index) in timeline.photos" :key="photo.id" class="absolute transform" :style="{
+                left: `${(index / (timeline.photos.length - 1) * (90) + 5)}%`,
+                transform: 'translateX(-50%)'
+              }" :class="photo.position === 'above' ? 'bottom-1/2 mb-8' : 'top-1/2 mt-8'">
                 <!-- Photo container -->
                 <div :class="[
                   'flex flex-col items-center',
                   photo.position === 'above' ? 'origin-bottom' : 'origin-top'
                 ]">
+                  <!-- Date indicator for below-timeline photos (appears above photo) -->
+                  <div v-if="photo.position === 'below'" class="mb-2 text-xs text-gray-600 font-medium">
+                    {{ new Date(photo.date).toLocaleDateString() }}
+                  </div>
+
                   <!-- Photo -->
                   <div class="relative group">
                     <img :src="photo.src" :alt="photo.name || 'Timeline photo'"
-                      class="w-24 h-24 object-cover rounded border-2 border-white shadow-md"
+                      class="w-32 h-32 object-cover rounded border-2 border-white shadow-md"
                       @error="$event.target.src = 'https://via.placeholder.com/150?text=Photo'" />
                     <div
                       class="absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity rounded pointer-events-none">
                     </div>
                   </div>
 
-                  <!-- Date indicator -->
-                  <div class="mt-1 text-xs text-gray-600 font-medium">
+                  <!-- Date indicator for above-timeline photos (appears below photo) -->
+                  <div v-if="photo.position === 'above'" class="mt-2 text-xs text-gray-600 font-medium">
                     {{ new Date(photo.date).toLocaleDateString() }}
                   </div>
 
                   <!-- Connector line to timeline -->
-                  <div class="absolute h-6 w-0.5 bg-gray-400"
-                    :class="photo.position === 'above' ? 'bottom-0 -mb-6' : 'top-0 -mt-6'"></div>
+                  <div class="absolute h-8 w-0.5 bg-gray-400"
+                    :class="photo.position === 'above' ? 'bottom-0 -mb-8' : 'top-0 -mt-8'"></div>
 
                   <!-- Timeline dot -->
                   <div class="absolute w-3 h-3 bg-blue-500 rounded-full transform -translate-x-[0.5px]"
-                    :class="photo.position === 'above' ? 'bottom-0 -mb-1.5' : 'top-0 -mt-1.5'"></div>
+                    :class="photo.position === 'above' ? 'bottom-0 -mb-3' : 'top-0 -mt-3'"></div>
                 </div>
               </div>
             </div>
