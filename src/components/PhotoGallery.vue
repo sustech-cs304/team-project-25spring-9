@@ -742,6 +742,38 @@ const addNewTag = async (photo) => {
   }
 };
 
+const hoveredTag = ref(null);
+
+const handleDeleteTag = async (tag, photo) => {
+  try {
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      tag: tag
+    });
+
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/delete?${params}`, {
+      method: 'POST'
+    });
+
+    const result = await response.json();
+
+    if (result.msg === 'ok') {
+      // 从 photo.tags 中移除标签
+      const tagIndex = photo.tags.indexOf(tag);
+      if (tagIndex > -1) {
+        photo.tags.splice(tagIndex, 1);
+      }
+      toast.success(`标签 "${tag}" 已成功删除`);
+    } else {
+      throw new Error(result.msg || '删除标签失败');
+    }
+  } catch (error) {
+    console.error('删除标签失败:', error);
+    toast.error(`删除标签失败: ${error.message}`);
+  }
+};
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -1177,9 +1209,22 @@ defineExpose({
                   <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
                         class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
                         :class="getTagColor(index)"
-                        @click="handleTagClick(tag)">
+                        @click.stop="handleTagClick(tag)"
+                        @mouseenter="hoveredTag = tag"
+                        @mouseleave="hoveredTag = null">
                     {{ tag }}
+
+                    <button v-show="hoveredTag === tag"
+                        @click.stop="handleDeleteTag(tag, currentPhoto)"
+                        class="hover:text-red-500 focus:outline-none"
+                        type="button">
+                        ×
+                    </button>
                   </span>
+                  <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+                    @click.stop="addNewTag(currentPhoto)">
+                    +
+                  </button>
                 </div>
                 <div v-if="currentPhoto.desc" class="mt-2">
                   <span class="font-medium">Description:</span>
