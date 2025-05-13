@@ -15,6 +15,7 @@ import {
   mdiImageEdit,
   mdiDelete,
   mdiDownload,
+  mdiShareVariant,
   mdiChevronDown,
   mdiFilterVariant,
   mdiFilterVariantRemove,
@@ -642,6 +643,16 @@ const handleActionClick = (photo, event) => {
   showActionMenu.value = true
 }
 
+const handleSharePhoto = (photo) => {
+    const shareUrl = photo.src;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast.success('分享链接已复制到剪贴板！');
+    }).catch((error) => {
+      console.error('复制链接失败:', error);
+      toast.error('复制链接失败');
+    });
+}
+
 // Handle menu item click
 const handleMenuAction = (action) => {
   if (isModalOpen.value) {
@@ -660,6 +671,9 @@ const handleMenuAction = (action) => {
     case 'download':
       downloadPhotos({ value: [actionMenuPhoto.value.id] })
       break
+    case 'share':
+      handleSharePhoto(actionMenuPhoto.value);
+      break;  
   }
   showActionMenu.value = false
   actionMenuPhoto.value = null
@@ -770,7 +784,7 @@ const handleDeleteTag = async (tag, photo) => {
     }
   } catch (error) {
     console.error('删除标签失败:', error);
-    toast.error(`删除标签失败: ${error.message}`);
+    toast.error(`删除标签失败: 标签 ${tag} 不存在`);
   }
 };
 
@@ -1169,7 +1183,8 @@ defineExpose({
                 <button v-for="(action, index) in [
                   { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
                   { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
-                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading }
+                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading },
+                  { icon: mdiShareVariant, label: 'Share', value: 'share', disabled: currentPhoto.isUploading }
                 ]" :key="index"
                   class="p-1 rounded-full hover:bg-gray-200 flex items-center"
                   :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
@@ -1249,7 +1264,8 @@ defineExpose({
       <button v-for="(action, index) in [
         { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
         { icon: mdiDelete, label: 'Delete', value: 'delete' },
-        { icon: mdiDownload, label: 'Download', value: 'download' }
+        { icon: mdiDownload, label: 'Download', value: 'download' },
+        { icon: mdiShareVariant, label: 'Share', value: 'share' }
       ]" :key="index" class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
         @click="handleMenuAction(action.value)">
         <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
