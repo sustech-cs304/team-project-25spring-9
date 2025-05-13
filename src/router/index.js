@@ -57,7 +57,7 @@ const routes = [
       requiresAuth: true,
     },
     path: '/forms',
-    name: 'forms',
+      name: 'forms',
     component: () => import('@/views/FormsView.vue'),
   },
   {
@@ -100,6 +100,15 @@ const routes = [
     path: '/error',
     name: 'error',
     component: () => import('@/views/ErrorView.vue'),
+  },
+  {
+    meta: {
+      title: 'Tags',
+      requiresAuth: true
+    },
+    path: '/tags',
+    name: 'tags',
+    component: () => import('../views/TagsView.vue')
   },
 ]
 

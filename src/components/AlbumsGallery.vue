@@ -22,6 +22,14 @@ const props = defineProps({
   error: {
     type: String,
     default: null
+  },
+  hideDelete: {  // 新增属性
+    type: Boolean,
+    default: false
+  },
+  hideActions: {  // 新增属性
+    type: Boolean,
+    default: false
   }
 })
 
@@ -83,9 +91,11 @@ const handleAlbumDelete = (event, albumId) => {
             <div class="flex justify-between items-center">
               <h3 class="font-medium text-gray-900 truncate">{{ album.name }}</h3>
 
-              <!-- Actions (not applicable for Unfiled) -->
-              <button v-if="album.id !== null" @click.stop="handleAlbumDelete($event, album.id)"
-                class="text-gray-500 hover:text-red-500" title="Delete album">
+              <!-- Actions (not showing for Unfiled or when hideDelete/hideActions is true) -->
+              <button v-if="album.id !== null && !hideDelete && !hideActions"
+                @click.stop="handleAlbumDelete($event, album.id)"
+                class="text-gray-500 hover:text-red-500"
+                title="Delete album">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor" :d="mdiFolderRemove" />
                 </svg>
