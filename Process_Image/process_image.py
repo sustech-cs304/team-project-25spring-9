@@ -1,15 +1,12 @@
 import os
 import shutil
 import json
-from glob import glob
-from PIL import Image
 import face_recognition
 import numpy as np
 import piexif
 from datetime import datetime
 from geopy.geocoders import Nominatim
 from transformers import BlipProcessor, BlipForConditionalGeneration
-from PIL import Image
 import torch
 import spacy
 from spacy.cli import download
@@ -17,6 +14,19 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 import uuid
 import uvicorn
+
+from typing import List
+import gc
+import random
+import chardet
+from PIL import Image, ImageFilter
+from moviepy.editor import (
+    ImageSequenceClip, AudioFileClip, CompositeVideoClip,
+    concatenate_videoclips, VideoFileClip, vfx
+)
+from fastapi.responses import FileResponse
+
+
 
 
 PHOTO_DIR = "photos/"
@@ -313,6 +323,86 @@ def process_images(img_path):
 
     return photo_info
 
+def get_config():
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+    with open(config_file, 'rb') as f:
+        encoding_result = chardet.detect(raw_data := f.read())
+        encoding = encoding_result['encoding']
+    return json.loads(raw_data.decode(encoding))
+
+def transform_image(img, t, x_speed, y_speed, move_on_x, move_positive):
+    original_size = img.size
+    crop_width = img.width * 0.8
+    crop_height = img.height * 0.8
+    if move_on_x:
+        left = min(x_speed * t, img.width - crop_width) if move_positive else max(img.width - crop_width - x_speed * t, 0)
+        upper = (img.height - crop_height) / 2
+    else:
+        upper = min(y_speed * t, img.height - crop_height) if move_positive else max(img.height - crop_height - y_speed * t, 0)
+        left = (img.width - crop_width) / 2
+    cropped_img = img.crop((left, upper, left + crop_width, upper + crop_height))
+    return cropped_img.resize(original_size)
+
+def generate_video(image_paths: list[str]) -> str:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config = get_config()
+
+    temp_dir = os.path.join(current_dir, 'temp')
+    video_dir = os.path.join(current_dir, 'video')
+    voice_path = os.path.join(current_dir, 'bgm', 'bgm.mp3')
+
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(video_dir, exist_ok=True)
+
+    fps = config['fps']
+    enlarge_background = config['enlarge_background']
+    duration = config['duration']
+
+    bgm_audio = AudioFileClip(voice_path)
+    clips = []
+
+    for idx, img_path in enumerate(image_paths):
+        im = Image.open(img_path)
+        effect_type = random.choice([0, 1])
+        if effect_type == 0:
+            x_speed = (im.width - im.width * 0.8) / duration
+            y_speed = 0
+            move_on_x = True
+            move_positive = random.choice([True, False])
+        else:
+            x_speed = 0
+            y_speed = (im.height - im.height * 0.8) / duration
+            move_on_x = False
+            move_positive = random.choice([True, False])
+
+        n_frames = int(fps * duration)
+        frames_foreground = [np.array(transform_image(im, t / fps, x_speed, y_speed, move_on_x, move_positive)) for t in range(n_frames)]
+        img_foreground = ImageSequenceClip(frames_foreground, fps=fps)
+
+        img_blur = im.filter(ImageFilter.GaussianBlur(radius=30))
+        if enlarge_background:
+            img_blur = img_blur.resize((int(im.width * 1.1), int(im.height * 1.1)), Image.Resampling.LANCZOS)
+        frames_background = [np.array(img_blur)] * n_frames
+        img_background = ImageSequenceClip(frames_background, fps=fps)
+
+        final_clip = CompositeVideoClip(
+            [img_background.set_position("center"), img_foreground.set_position("center")],
+            size=img_blur.size
+        )
+
+        final_clip = final_clip.set_duration(duration)
+        temp_clip_path = os.path.join(temp_dir, f'temp_{idx}.mp4')
+        final_clip.write_videofile(temp_clip_path, logger=None)
+        clips.append(VideoFileClip(temp_clip_path))
+        gc.collect()
+
+    final_video = concatenate_videoclips(clips, method="compose")
+    final_video = final_video.set_audio(bgm_audio.subclip(0, final_video.duration))
+    output_path = os.path.join(video_dir, f'output_{datetime.now().strftime("%Y%m%d%H%M%S")}.mp4')
+    final_video.write_videofile(output_path, logger=None)
+    return output_path
+
+
 if __name__ == '__main__':
     # ==========================
     # 🌟 初始化已知人脸数据
@@ -345,6 +435,72 @@ if __name__ == '__main__':
 
         except Exception as e:
             return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "temp")
+    # UPLOAD_FOLDER = os.path.join(os.getcwd(), "image")
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+    @app.post("/extract_exif/")
+    async def extract_exif_api(file: UploadFile = File(...)):
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        metadata = extract_exif_data(file_path)
+        os.remove(file_path)
+        return JSONResponse(metadata)
+
+
+    @app.post("/generate_caption/")
+    async def caption_api(file: UploadFile = File(...)):
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        caption = generate_caption(file_path)
+        os.remove(file_path)
+        return {"caption": caption}
+
+
+    @app.post("/auto_tag/")
+    async def auto_tag_api(file: UploadFile = File(...)):
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        caption = generate_caption(file_path)
+        tags = extract_noun_tags(caption)
+        os.remove(file_path)
+        return {"tags": tags}
+
+
+    @app.post("/face_recognition/")
+    async def face_recognition_api(file: UploadFile = File(...)):
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        person_label = process_new_photo(file_path)
+        os.remove(file_path)
+        return {"person_label": person_label}
+
+
+    @app.post("/generate_video/")
+    async def generate_video_api(files: List[UploadFile] = File(...)):
+        saved_files = []
+
+        for file in files:
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            saved_files.append(file_path)
+
+        try:
+            output_video_path = generate_video(saved_files)
+            return FileResponse(output_video_path, media_type="video/mp4", filename=os.path.basename(output_video_path))
+        finally:
+            # 清理临时文件
+            for path in saved_files:
+                os.remove(path)
 
 
     uvicorn.run(app, host="0.0.0.0", port=8123)
