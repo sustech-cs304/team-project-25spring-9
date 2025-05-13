@@ -665,7 +665,7 @@ const handleSharePhoto = (photo) => {
     });
 }
 
-// Handle menu item click
+// Modify handleMenuAction function
 const handleMenuAction = (action) => {
   if (isModalOpen.value) {
     actionMenuPhoto.value = currentPhoto.value
@@ -684,18 +684,18 @@ const handleMenuAction = (action) => {
       downloadPhotos({ value: [actionMenuPhoto.value.id] })
       break
     case 'share':
-      handleSharePhoto(actionMenuPhoto.value);
-      break;
+      handleSharePhoto(actionMenuPhoto.value)
+      break
   }
   showActionMenu.value = false
   actionMenuPhoto.value = null
 
-  if (isModalOpen.value && action == 'delete') {
+  if (isModalOpen.value && action === 'delete') {
     closePhotoModal()
   }
 }
 
-// Handle photo action in modal
+// Modify handlePhotoAction function
 const handlePhotoAction = (action) => {
   if (isModalOpen.value) {
     actionMenuPhoto.value = currentPhoto.value
@@ -711,6 +711,9 @@ const handlePhotoAction = (action) => {
       break
     case 'download':
       downloadPhotos({ value: [currentPhoto.value.id] })
+      break
+    case 'share':
+      handleSharePhoto(currentPhoto.value)
       break
   }
 }

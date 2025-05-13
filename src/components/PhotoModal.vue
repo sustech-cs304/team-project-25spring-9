@@ -7,6 +7,7 @@ import {
   mdiImageEdit,
   mdiDelete,
   mdiDownload,
+  mdiShareVariant,
 } from '@mdi/js'
 import { ref } from 'vue'
 
@@ -62,7 +63,8 @@ const hoveredTag = ref(null)
               <button v-for="(action, index) in [
                 { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: photo?.isUploading },
                 { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: photo?.isUploading },
-                { icon: mdiDownload, label: 'Download', value: 'download', disabled: photo?.isUploading }
+                { icon: mdiDownload, label: 'Download', value: 'download', disabled: photo?.isUploading },
+                { icon: mdiShareVariant, label: 'Share', value: 'share', disabled: photo?.isUploading }
               ]" :key="index"
                 class="p-1 rounded-full hover:bg-gray-200 flex items-center"
                 :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
