@@ -1,3 +1,4 @@
+import time
 import os
 import shutil
 import json
@@ -20,7 +21,7 @@ import gc
 import random
 import chardet
 from PIL import Image, ImageFilter
-from moviepy.editor import (
+from moviepy import (
     ImageSequenceClip, AudioFileClip, CompositeVideoClip,
     concatenate_videoclips, VideoFileClip, vfx
 )
