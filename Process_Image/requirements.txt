@@ -9,5 +9,5 @@ geopy==2.4.1
 transformers==4.49.0
 torch
 chardet
-moviepy
+moviepy==1.0.3
 python-multipart

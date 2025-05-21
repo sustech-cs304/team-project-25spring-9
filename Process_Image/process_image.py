@@ -21,7 +21,7 @@ import gc
 import random
 import chardet
 from PIL import Image, ImageFilter
-from moviepy import (
+from moviepy.editor import (
     ImageSequenceClip, AudioFileClip, CompositeVideoClip,
     concatenate_videoclips, VideoFileClip, vfx
 )
