@@ -364,6 +364,8 @@ def generate_video(image_paths: list[str]) -> str:
 
     for idx, img_path in enumerate(image_paths):
         im = Image.open(img_path)
+        max_size = (1920, 1080)
+        im.thumbnail(max_size, Image.Resampling.LANCZOS)
         effect_type = random.choice([0, 1])
         if effect_type == 0:
             x_speed = (im.width - im.width * 0.8) / duration

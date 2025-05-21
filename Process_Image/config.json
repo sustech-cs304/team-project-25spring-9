@@ -53,9 +53,9 @@
   "prosody_volume": "+0%",
   "emphasis_level": "none",
   "style_degree": "1",
-  "fps": 20,
+  "fps": 15,
   "enlarge_background": true,
   "enable_effect": true,
   "effect_type": "fade",
-  "duration": 3
+  "duration": 2
 }
