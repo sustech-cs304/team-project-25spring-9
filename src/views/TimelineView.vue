@@ -293,7 +293,7 @@ async function downloadTimeline(timeline) {
                   <div class="relative group">
                     <img :src="photo.src" :alt="photo.name || 'Timeline photo'"
                       class="w-32 h-32 object-cover rounded border-2 border-white shadow-md"
-                      @error="$event.target.src = 'https://via.placeholder.com/150?text=Photo'" />
+                      @error="$event.target.src = 'https://placehold.co/150'" />
                     <div
                       class="absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity rounded pointer-events-none">
                     </div>
