@@ -1,0 +1,92 @@
+# Specify the Docker Compose file version
+version: '3.8'
+
+# Define the services (containers)
+services:
+  # Service for the Process_image application
+  process-image-app:
+    # Build the image using the Dockerfile in the ./Process_image directory
+    build: ./Process_image
+    ports:
+      - "8123:8123"
+    volumes:
+      # Mount the ./Process_image directory to /app in the container
+      - ./Process_image:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    container_name: my-process-image-app # Added a container name for clarity
+
+  # Service for your Spring Boot backend application
+  backend-app:
+    # Build the image using the Dockerfile in the ./backend directory
+    build: ./backend
+    container_name: my-backend-app-together
+    ports:
+      - "9090:9091"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker # Example: Activate a 'docker' Spring profile
+    # Make backend-app depend on mysql and minio to ensure they start first
+    depends_on:
+      - mysql
+      - minio
+
+  # MySQL database service
+  mysql:
+    image: mysql:latest
+    container_name: software_eng_mysql_together
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: software_eng_pss
+      MYSQL_DATABASE: software_eng
+      MYSQL_USER: root_1
+      MYSQL_PASSWORD: software_eng_pss
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persist MySQL data on the host machine
+      - /var/lib/mysql/software_eng_data:/var/lib/mysql
+      # Initialize database with table.sql from the ./backend directory
+      - ./backend/table.sql:/docker-entrypoint-initdb.d/table.sql
+
+  # MinIO object storage service
+  minio:
+    image: minio/minio:latest
+    container_name: software_eng_minio_together
+    restart: always
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: software_eng_pss
+    ports:
+      - "9000:9000"  # MinIO API port
+      - "9001:9001"  # MinIO Console port
+    volumes:
+      # Persist MinIO data on the host machine
+      - /var/lib/minio/data:/data
+    command: server /data --console-address ":9001"
+
+  # Service to create MinIO buckets after MinIO starts
+  createbuckets:
+    image: minio/mc
+    container_name: software_eng_minio_createbuckets # Added a container name
+    depends_on:
+      - minio # Ensures minio service is started before this one
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO to be ready...';
+      sleep 10;
+      echo 'Setting up MinIO alias...';
+      /usr/bin/mc alias set local http://minio:9000 root software_eng_pss;
+      echo 'Creating buckets...';
+      /usr/bin/mc mb local/softwareeng;
+      /usr/bin/mc policy set public local/softwareeng;
+      /usr/bin/mc mb local/softwareeng/user-img;
+      /usr/bin/mc mb local/softwareeng/builder-img;
+      /usr/bin/mc mb local/softwareeng/comment-img;
+      /usr/bin/mc mb local/softwareeng/restaurant-img;
+      /usr/bin/mc mb local/softwareeng/food-img;
+      /usr/bin/mc mb local/softwareeng/bus-json;
+      /usr/bin/mc mb local/softwareeng/commodity-img;
+      /usr/bin/mc mb local/softwareeng/upload-img;
+      echo 'Bucket creation script finished.';
+      exit 0;
+      "
