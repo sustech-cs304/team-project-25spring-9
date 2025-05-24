@@ -1,15 +1,11 @@
 package com.mumu.image.controller;
 
 
-import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mumu.image.DTO.ImageInfo;
 import com.mumu.image.DTO.ImgDTO;
 import com.mumu.image.entity.Img;
-import com.mumu.image.entity.ImgPeople;
-import com.mumu.image.mapper.ImgMapper;
-import com.mumu.image.mapper.ImgPeopleMapper;
 import com.mumu.image.service.*;
 import com.mumu.utils.AjaxJson;
 import com.mumu.utils.MinioUtils;
@@ -28,9 +24,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /**
  * <p>
@@ -59,8 +55,50 @@ public class ImgController {
     private String ImgPath;
     @Autowired
     private RestTemplate restTemplate;
-    @Value("${python-backend.endpoint}")
-    private String endpoint;
+    @Value("${python-backend.process_img_py}")
+    private String process_img_py;
+    @Value("${python-backend.process_img}")
+    private String process_img;
+    /**
+     * 将 RFC_1123 格式的日期时间字符串 (如 "Sat, 24 May 2025 16:34:15 GMT")
+     * 转换为一个 Date 对象，该对象精确到原始输入的小时和分钟，秒和毫秒被清零。
+     * 返回的 Date 对象内部将表示原始的 GMT 时间，但秒和毫秒为0。
+     *
+     * @param rfc1123DateTimeString 输入的日期时间字符串
+     * @return 一个 Date 对象，精确到分钟 (秒和毫秒为0)，
+     * 如果解析失败则返回 null。
+     */
+    public static Date convertToDateTimeMinutes(String rfc1123DateTimeString) {
+        if (rfc1123DateTimeString == null || rfc1123DateTimeString.isEmpty()) {
+            System.err.println("输入日期字符串为 null 或为空。");
+            return null;
+        }
+
+        // 1. 定义输入日期格式 (RFC_1123_DATE_TIME)
+        SimpleDateFormat inputParser = new SimpleDateFormat("E, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
+        inputParser.setTimeZone(TimeZone.getTimeZone("GMT")); // 明确指定输入为GMT
+
+        // 2. 定义一个精确到分钟的格式化器/解析器，用于“截断”秒和毫秒
+        //    同样设置为GMT，以确保截断操作在原始时区上下文中进行
+        SimpleDateFormat dateTimeMinutesFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
+        dateTimeMinutesFormatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+        try {
+            // 3. 解析输入字符串为包含完整时分秒的 Date 对象 (基于GMT)
+            Date parsedFullDateTime = inputParser.parse(rfc1123DateTimeString);
+
+            // 4. 将解析出的 Date 对象格式化为 "yyyy-MM-dd HH:mm" 字符串 (仍然是GMT时间)
+            String dateTimeMinutesString = dateTimeMinutesFormatter.format(parsedFullDateTime);
+
+            // 5. 将 "yyyy-MM-dd HH:mm" 字符串再次解析为 Date 对象 (基于GMT)
+            //    这样得到的 Date 对象，其秒和毫秒部分会在GMT时区下被设为0
+            return dateTimeMinutesFormatter.parse(dateTimeMinutesString);
+
+        } catch (ParseException e) {
+            System.err.println("日期时间转换错误对于输入: " + rfc1123DateTimeString + " - " + e.getMessage());
+            return null;
+        }
+    }
     @ApiOperation(value = "接收图片上传并且将上传图片转发到图片处理服务中", tags = "图片类")
     @PostMapping("/post")
     public ImageInfo handleImageUpload(@RequestParam("file") MultipartFile files) throws IOException {
@@ -85,35 +123,14 @@ public class ImgController {
         HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
         // 发送POST请求到图片处理服务
-        ResponseEntity<String> response = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+        ResponseEntity<String> response = restTemplate.exchange(process_img_py, HttpMethod.POST, entity, String.class);
 // 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
         ObjectMapper objectMapper = new ObjectMapper();
+        System.out.printf(response.getBody());
+        System.out.println(objectMapper.readValue(response.getBody(), ImageInfo.class));
         return objectMapper.readValue(response.getBody(), ImageInfo.class);
     }
-    //    @ApiOperation(value = "上传图片", tags = "图片类")
-//    @SaCheckRole("admin")
-//    @PostMapping("/uploadImg")
-//    public AjaxJson upload(@RequestParam int buildingId, MultipartFile files) {
-//        System.out.println(minioUtilS.getClass().getName());
-//        System.out.println(buildingImgService.getClass().getName());
-//        System.out.println(buildingService.getClass().getName());
-//        // check
-//        Building building = buildingService.oneBuildingById(buildingId);
-//        if (building == null)
-//            return AjaxJson.getError("Fail to find the building");
-//        // get information
-//        String largestIdByBuilding = buildingImgService.largestImgIdGroupByBuildingId(buildingId);
-//        int largestId = largestIdByBuilding != null ? Integer.parseInt(largestIdByBuilding.split("_")[1].split("\\.")[0]) : 0;
-//        String imgName = String.format("%d_%d.jpeg", buildingId, largestId + 1);
-//        // upload img
-//        minioUtilS.upload(files, buildingImgPath, imgName);
-//        // creat buildingImg
-//        BuildingImg buildingImg = new BuildingImg();
-//        buildingImg.setBuildingId(buildingId);
-//        buildingImg.setImgName(imgName);
-//        buildingImgService.saveOrUpdate(buildingImg);
-//        return AjaxJson.getSuccessData(new String[]{String.valueOf(building.getBuildingImg() + 1), imgName});
-//    }
+
     @ApiOperation(value = "获取全部图片信息", tags = "图片类")
     @GetMapping("/all")
     public AjaxJson getImg(ImgDTO imgDTO
@@ -160,9 +177,9 @@ public class ImgController {
 
 
 
-    @ApiOperation(value = "添加图片信息", tags = "图片类")
+    @ApiOperation(value = "添加图片带信息", tags = "图片类")
     @PostMapping("/add")
-    public AjaxJson uploadImg(ImgDTO imgDTO, MultipartFile files) throws IOException {
+    public AjaxJson uploadImg(ImgDTO imgDTO, MultipartFile files) throws IOException, ParseException {
         MultipartFile file = files;
         // 将接收到的MultipartFile转换为FileSystemResource
         String fileName = UUID.randomUUID().toString()+".jpg";
@@ -185,12 +202,24 @@ public class ImgController {
         HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
         // 发送POST请求到图片处理服务
-        ResponseEntity<String> response = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+        ResponseEntity<String> response = restTemplate.exchange(process_img_py, HttpMethod.POST, entity, String.class);
+
 // 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
         ObjectMapper objectMapper = new ObjectMapper();
         ImageInfo res= objectMapper.readValue(response.getBody(), ImageInfo.class);
         if(imgDTO.getImgDate()==null) {
-            imgDTO.setImgDate(res.getTimestamp());
+                imgDTO.setImgDate(res.getTimestamp());
+        }
+        if(imgDTO.getImgDate()==null) {
+            try {
+                imgDTO.setImgDate(convertToDateTimeMinutes(response.getHeaders().get("date").get(0)));
+            }catch (Exception e){}
+        }
+        if(imgDTO.getImgName()==null) {
+            imgDTO.setImgName(fileName);
+        }
+        if(imgDTO.getImgDate()==null) {
+            imgDTO.setImgDate(new SimpleDateFormat("yyyy-MM-dd").parse("2025-01-01"));
         }
         if(imgDTO.getImgPos() == null) {
             imgDTO.setImgPos(res.getAddress());
@@ -200,6 +229,81 @@ public class ImgController {
         }
         if(imgDTO.getTags()==null){
             imgDTO.setTags(res.getAutoTags());
+        }
+        if(imgDTO.getPeoples()==null){
+            imgDTO.setPeoples(res.getPersonLabel());
+        }
+        Img img=new Img(imgDTO);
+        imgService.save(img);
+        imgDTO.setImgId(img.getImgId());
+        String imgName = String.format("%d.jpeg", img.getImgId());
+        minioUtilS.upload(tempFile, ImgPath, imgName);
+        peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
+        tagService.checkAndInsertTag(imgDTO.getUserId(),imgDTO.getTags());
+        List<Integer> peopleId=peopleService.getPeopleIdsByNames(imgDTO.getPeoples(),imgDTO.getUserId());
+        List<Integer> tagId=tagService.getTagIdsByNames(imgDTO.getTags(),imgDTO.getUserId());
+        imgPeopleService.addImgPeople(imgDTO.getUserId(),img.getImgId(),peopleId);
+        imgTagService.addImgTag(imgDTO.getUserId(),img.getImgId(),tagId);
+        peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
+        tagService.checkAndInsertTag(imgDTO.getUserId(),imgDTO.getTags());
+        // upload img
+        return AjaxJson.getSuccessData(imgDTO);
+    }
+
+    @ApiOperation(value = "添加图片无添加图片信息", tags = "图片类")
+    @PostMapping("/addnoinfo")
+    public AjaxJson uploadImgNoInfo(ImgDTO imgDTO, MultipartFile files) throws IOException, ParseException {
+        String fileName = UUID.randomUUID().toString()+".jpg";
+        try {
+            fileName = files.getOriginalFilename();
+        }catch (Exception e){}
+        File tempFile = new File(System.getProperty("java.io.tmpdir"), fileName);
+        files.transferTo(tempFile);
+        FileSystemResource fileResource = new FileSystemResource(tempFile);
+
+        // 创建表单数据
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", fileResource);
+
+        // 创建请求头，确保设置 multipart/form-data 内容类型
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        // 创建HttpEntity，包含body和请求头
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        // 发送POST请求到图片处理服务
+        ResponseEntity<String> response = restTemplate.exchange(process_img, HttpMethod.POST, entity, String.class);
+        System.out.println(response);
+
+// 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        ImageInfo res= objectMapper.readValue(response.getBody(), ImageInfo.class);
+        if(imgDTO.getImgDate()==null) {
+            imgDTO.setImgDate(res.getTimestamp());
+        }
+        if(imgDTO.getImgDate()==null) {
+            try {
+                imgDTO.setImgDate(convertToDateTimeMinutes(response.getHeaders().get("date").get(0)));
+            }catch (Exception e){}
+        }
+        if(imgDTO.getImgName()==null) {
+            imgDTO.setImgName(fileName);
+        }
+        if(imgDTO.getImgDate()==null) {
+            imgDTO.setImgDate(new SimpleDateFormat("yyyy-MM-dd").parse("2025-01-01"));
+        }
+        if(imgDTO.getImgPos() == null) {
+            imgDTO.setImgPos(res.getAddress());
+        }
+        if(imgDTO.getImgDescribtion() == null) {
+            imgDTO.setImgDescribtion(res.getCaption());
+        }
+        if(imgDTO.getTags()==null){
+            imgDTO.setTags(res.getAutoTags());
+        }
+        if(imgDTO.getPeoples()==null){
+            imgDTO.setPeoples(res.getPersonLabel());
         }
         Img img=new Img(imgDTO);
         imgService.save(img);
