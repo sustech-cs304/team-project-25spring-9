@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: album:latest
+    ports:
+      - "0.0.0.0:5173:5173"
+    restart: unless-stopped
