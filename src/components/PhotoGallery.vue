@@ -27,6 +27,7 @@ import {
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
+import PhotoModal from '@/components/PhotoModal.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -73,6 +74,10 @@ const props = defineProps({
   userId: {
     type: Number,
     default: null
+  },
+  hideSearch: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -478,6 +483,13 @@ const filteredPhotos = computed(() => {
   return displayPhotos.value
 })
 
+// Watch for photos prop changes
+watch(() => props.photos, () => {
+  // Reset search and filter states when photos change
+  searchQuery.value = ''
+  filteredPhotos.value = props.photos
+}, { deep: true })
+
 // Modify apply filters method
 const applyFilters = () => {
   clearUploadQueue()
@@ -683,6 +695,26 @@ const handleMenuAction = (action) => {
   }
 }
 
+// Handle photo action in modal
+const handlePhotoAction = (action) => {
+  if (isModalOpen.value) {
+    actionMenuPhoto.value = currentPhoto.value
+  }
+  switch (action) {
+    case 'edit':
+      closePhotoModal()
+      emit('photo-edit', currentPhoto.value.id)
+      break
+    case 'delete':
+      deletePhotos({ value: [currentPhoto.value.id] })
+      closePhotoModal()
+      break
+    case 'download':
+      downloadPhotos({ value: [currentPhoto.value.id] })
+      break
+  }
+}
+
 // Close menu when clicking outside
 const closeActionMenu = () => {
   showActionMenu.value = false
@@ -861,7 +893,7 @@ defineExpose({
 <template>
   <div>
     <!-- Enhanced Search Bar -->
-    <div class="mb-6 space-y-4">
+    <div v-if="!hideSearch" class="mb-6 space-y-4">
       <div class="flex items-center gap-3">
         <!-- Search input with integrated button -->
         <div class="relative flex-grow max-w-xl flex shadow-sm">
@@ -1228,107 +1260,20 @@ defineExpose({
     <!-- Empty State -->
     <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
 
-    <!-- Photo Modal -->
-    <div v-if="isModalOpen && currentPhoto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
-      @click="closePhotoModal">
-      <div class="max-w-5xl w-full mx-4 relative" @click.stop>
-        <div class="bg-white rounded-lg overflow-hidden shadow-xl">
-          <!-- Navigation and Close Buttons -->
-          <div class="flex justify-between items-center p-4 bg-gray-100">
-            <div class="flex items-center">
-              <button class="p-1 rounded-full hover:bg-gray-200 mr-2" @click="viewPreviousPhoto">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiArrowLeft" />
-                </svg>
-              </button>
-              <button class="p-1 rounded-full hover:bg-gray-200" @click="viewNextPhoto">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiArrowRight" />
-                </svg>
-              </button>
-            </div>
-
-            <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
-
-            <!-- Modify action button display logic -->
-            <div class="flex items-center gap-2">
-              <template v-if="showActions && !currentPhoto.uploadFailed">
-                <button v-for="(action, index) in [
-                  { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
-                  { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
-                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading },
-                  { icon: mdiShareVariant, label: 'Share', value: 'share', disabled: currentPhoto.isUploading }
-                ]" :key="index"
-                  class="p-1 rounded-full hover:bg-gray-200 flex items-center"
-                  :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
-                  @click="!action.disabled && handleMenuAction(action.value)"
-                  :title="action.disabled ? 'Not available while uploading' : action.label">
-                  <svg class="w-6 h-6" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="action.icon" />
-                  </svg>
-                </button>
-              </template>
-              <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiClose" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Photo -->
-          <div class="flex justify-center bg-black p-2">
-            <img :src="currentPhoto.src"
-                 class="max-h-[70vh] max-w-full object-contain"
-                 :class="{ 'opacity-70': currentPhoto.isUploading }"
-                 alt="Full size preview" />
-          </div>
-
-          <!-- Enhanced Photo Details -->
-          <div class="p-4 bg-white">
-            <div class="flex items-start">
-              <svg class="w-5 h-5 text-gray-500 mr-2 mt-0.5" viewBox="0 0 24 24">
-                <path fill="currentColor" :d="mdiInformation" />
-              </svg>
-              <div class="flex-1">
-                <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.displayDate }}</div>
-                <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
-                  <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
-                        class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
-                        :class="getTagColor(index)"
-                        @click.stop="handleTagClick(tag)"
-                        @mouseenter="hoveredTag = tag"
-                        @mouseleave="hoveredTag = null">
-                    {{ tag }}
-
-                    <button v-show="hoveredTag === tag"
-                        @click.stop="handleDeleteTag(tag, currentPhoto)"
-                        class="hover:text-red-500 focus:outline-none"
-                        type="button">
-                        ×
-                    </button>
-                  </span>
-                  <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
-                    @click.stop="addNewTag(currentPhoto)">
-                    +
-                  </button>
-                </div>
-                <div v-if="currentPhoto.desc" class="mt-2">
-                  <span class="font-medium">Description:</span>
-                  <p class="mt-1 text-gray-600">{{ currentPhoto.desc }}</p>
-                </div>
-                <!-- Add upload status if applicable -->
-                <div v-if="currentPhoto.isUploading" class="mt-2 text-blue-500">
-                  Upload in progress...
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Replace old modal with new PhotoModal component -->
+    <PhotoModal
+      :is-open="isModalOpen"
+      :photo="currentPhoto"
+      :show-actions="showActions"
+      :tag-color-classes="tagColorClasses"
+      @close="closePhotoModal"
+      @previous="viewPreviousPhoto"
+      @next="viewNextPhoto"
+      @action="handlePhotoAction"
+      @tag-click="handleTagClick"
+      @add-tag="addNewTag(currentPhoto)"
+      @delete-tag="(tag) => handleDeleteTag(tag, currentPhoto)"
+    />
 
     <!-- Action Menu -->
     <div v-if="showActionMenu"
