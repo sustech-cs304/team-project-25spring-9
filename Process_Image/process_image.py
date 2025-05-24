@@ -270,6 +270,10 @@ def extract_exif_data(image_path):
     except Exception as e:
         print(f"读取GPS信息失败: {e}")
 
+    # datetime 转为字符串以支持 JSON 序列化
+    if isinstance(result['Timestamp'], datetime):
+        result['Timestamp'] = result['Timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+
     return result
 
 
