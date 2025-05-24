@@ -17,6 +17,7 @@ import {
   mdiDownload,
   mdiShareVariant,
   mdiChevronDown,
+	mdiChevronRight,
   mdiFilterVariant,
   mdiFilterVariantRemove,
   mdiCalendarMonth,
@@ -53,7 +54,7 @@ const props = defineProps({
   },
   availableViewModes: {
     type: Array,
-    default: () => ['details', 'grid', 'large', 'small']
+    default: () => ['details', 'grid', 'large', 'small', 'people']
   },
   isSelectMode: {
     type: Boolean,
@@ -820,6 +821,36 @@ const handleDeleteTag = async (tag, photo) => {
   }
 };
 
+const showPeoplePanel = ref(false)
+
+// 统计所有people及其对应图片
+const peopleMap = computed(() => {
+  return {
+    "张三": [
+      { id: 101, name: "张三的照片1", src: "https://picsum.photos/id/101/300/200" },
+      { id: 102, name: "张三的照片2", src: "https://picsum.photos/id/102/300/200" }
+    ],
+    "李四": [
+    ],
+    "王五": [
+      { id: 301, name: "王五的照片1", src: "https://picsum.photos/id/301/300/200" },
+      { id: 302, name: "王五的照片2", src: "https://picsum.photos/id/302/300/200" },
+      { id: 303, name: "王五的照片3", src: "https://picsum.photos/id/303/300/200" }
+    ]
+  }
+})
+
+// 控制展开
+const expandedPeople = ref([])
+
+const togglePerson = (person) => {
+  const idx = expandedPeople.value.indexOf(person)
+  if (idx === -1) expandedPeople.value.push(person)
+  else expandedPeople.value.splice(idx, 1)
+}
+
+const isPersonExpanded = (person) => expandedPeople.value.includes(person)
+
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
 const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
 
@@ -931,6 +962,10 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
             class="rounded-none border-r last:border-r-0" title="Small icons" />
+        
+          <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
+            :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
+            class="rounded-none border-r last:border-r-0" title="People icons" />
         </div>
       </div>
 
@@ -1218,7 +1253,7 @@ defineExpose({
     </div>
 
     <!-- Small Grid View -->
-    <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
+    <div v-else-if="viewMode == 'small'" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
         class="relative flex flex-col items-center"
         :class="[
@@ -1254,6 +1289,34 @@ defineExpose({
         <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
         <span class="text-center text-xs truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+      </div>
+    </div>
+
+		<div v-else class="my-6 p-6 bg-white border rounded-lg shadow-sm animate-fade-in">
+      <h3 class="text-lg font-semibold mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2"><path fill="currentColor" :d="mdiAccount" /></svg>
+        人物列表
+      </h3>
+      <div v-if="Object.keys(peopleMap).length === 0" class="text-gray-500">暂无人物信息</div>
+      <div v-else>
+        <div v-for="(photos, person) in peopleMap" :key="person" class="mb-4 border-b pb-4">
+          <div class="flex items-center cursor-pointer group" @click="togglePerson(person)">
+            <svg class="w-5 h-5 mr-2 transition-transform duration-200"
+              :class="isPersonExpanded(person) ? 'rotate-90' : ''"
+              viewBox="0 0 24 24">
+              <path fill="currentColor" :d="mdiChevronRight" />
+            </svg>
+            <span class="font-medium text-blue-700 group-hover:underline">{{ person }}</span>
+            <span class="ml-2 text-xs text-gray-500">({{ photos.length }} 张图片)</span>
+          </div>
+          <div v-if="isPersonExpanded(person)" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div v-for="photo in photos" :key="photo.id" class="flex flex-col items-center">
+              <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
+                @click="openPhotoModal(photo)" />
+              <span class="text-xs truncate w-full" :title="photo.name">{{ photo.name }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
