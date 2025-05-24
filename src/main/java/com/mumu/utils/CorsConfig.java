@@ -17,6 +17,7 @@ public class CorsConfig {
         config.addAllowedOrigin("http://localhost:8081");
         config.addAllowedOrigin("http://localhost:8080");
         config.addAllowedOrigin("http://localhost:5173");
+        config.addAllowedOrigin("http://10.16.60.67:5173");
         config.addAllowedOrigin("http://10.32.40.94:8080");
         config.addAllowedOrigin("http://10.32.8.214:8080");
         config.addAllowedOrigin("http://8.134.53.236:8080");
