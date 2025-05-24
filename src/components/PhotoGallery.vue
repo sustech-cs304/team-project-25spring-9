@@ -674,7 +674,6 @@ const handleMenuAction = (action) => {
 
   switch (action) {
     case 'edit':
-      closePhotoModal()
       emit('photo-edit', actionMenuPhoto.value.id)
       break
     case 'delete':
@@ -697,13 +696,12 @@ const handleMenuAction = (action) => {
 
 // Modify handlePhotoAction function
 const handlePhotoAction = (action) => {
-  if (isModalOpen.value) {
-    actionMenuPhoto.value = currentPhoto.value
-  }
+  if (!currentPhoto.value) return
+
   switch (action) {
     case 'edit':
-      closePhotoModal()
       emit('photo-edit', currentPhoto.value.id)
+      closePhotoModal()
       break
     case 'delete':
       deletePhotos({ value: [currentPhoto.value.id] })
@@ -833,32 +831,30 @@ const startRenaming = (photo) => {
 };
 
 // 保存名称
-const savePhotoName = async (photo) => {
-  if (RenamingPhotoName.value.trim() && RenamingPhotoName.value !== photo.name) {
-    // 调用 API 更新名称（API 暂时留空）
+const savePhotoName = async (photo, newName) => {
+  // 如果 newName 存在，则用它，否则用 RenamingPhotoName.value
+  const nameToSave = typeof newName === 'string' ? newName : RenamingPhotoName.value;
+  if (nameToSave.trim() && nameToSave !== photo.name) {
     const params = new URLSearchParams({
       userId: photo.userId.toString(),
       imgId: photo.id.toString(),
-      name: RenamingPhotoName.value.trim()
+      name: nameToSave.trim()
     });
-
-    try{
-        const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
-            method: 'GET'
-        });
-
-        const result = await response.json();
-
-        if(result.msg === 'ok') {
-            photo.name = RenamingPhotoName.value.trim();
-            toast.success(`图片名称已更新为 "${photo.name}"`);
-        } else {
-            throw new Error(result.msg || '更新名称失败');
-        }
-    }catch(error){
-        console.error('更新名称失败:', error);
-        toast.error(`更新名称失败`);
-    };
+    try {
+      const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
+        method: 'GET'
+      });
+      const result = await response.json();
+      if (result.msg === 'ok') {
+        photo.name = nameToSave.trim();
+        toast.success(`图片名称已更新为 "${photo.name}"`);
+      } else {
+        throw new Error(result.msg || '更新名称失败');
+      }
+    } catch (error) {
+      console.error('更新名称失败:', error);
+      toast.error(`更新名称失败`);
+    }
   }
   cancelRenaming();
 };
@@ -1176,7 +1172,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-40 object-cover rounded mb-2 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-sm w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1216,7 +1224,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-sm truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center text-sm truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-sm w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1256,7 +1276,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-xs truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center text-xs truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-xs w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1276,6 +1308,7 @@ defineExpose({
       @tag-click="handleTagClick"
       @add-tag="addNewTag(currentPhoto)"
       @delete-tag="(tag) => handleDeleteTag(tag, currentPhoto)"
+      @rename="(newName) => savePhotoName(currentPhoto, newName)"
     />
 
     <!-- Action Menu -->

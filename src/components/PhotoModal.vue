@@ -25,7 +25,8 @@ const emit = defineEmits([
   'action',
   'tag-click',
   'add-tag',
-  'delete-tag'
+  'delete-tag',
+  'rename'
 ])
 
 const getTagColor = (index) => {
@@ -33,6 +34,26 @@ const getTagColor = (index) => {
 }
 
 const hoveredTag = ref(null)
+const RenamingPhotoName = ref('')
+const isRenaming = ref(false)
+
+const startRenaming = () => {
+  RenamingPhotoName.value = props.photo?.name || ''
+  isRenaming.value = true
+}
+
+const savePhotoName = () => {
+  if (RenamingPhotoName.value.trim() && RenamingPhotoName.value !== props.photo?.name) {
+    emit('rename', RenamingPhotoName.value)
+  }
+  isRenaming.value = false
+  RenamingPhotoName.value = ''
+}
+
+const cancelRenaming = () => {
+  isRenaming.value = false
+  RenamingPhotoName.value = ''
+}
 </script>
 
 <template>
@@ -56,7 +77,19 @@ const hoveredTag = ref(null)
             </button>
           </div>
 
-          <div class="text-lg font-medium break-all">{{ photo?.name }}</div>
+          <div v-if="!isRenaming"
+               class="text-lg font-medium break-all cursor-pointer"
+               @dblclick="startRenaming">
+            {{ photo?.name }}
+          </div>
+          <input v-else
+                 v-model="RenamingPhotoName"
+                 class="text-lg font-medium px-2 py-1 border rounded w-full"
+                 @blur="savePhotoName"
+                 @keyup.enter="savePhotoName"
+                 @keyup.esc="cancelRenaming"
+                 ref="nameInput"
+                 autofocus />
 
           <div class="flex items-center gap-2">
             <template v-if="showActions && !photo?.uploadFailed">
