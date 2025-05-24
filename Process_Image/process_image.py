@@ -165,7 +165,7 @@ def process_new_photo(photo_path):
             os.makedirs(person_folder, exist_ok=True)
             shutil.copy(photo_path, person_folder)
 
-            person_labels.append(person_label)
+            person_labels.append(str(person_label))
 
         # 更新保存人脸编码
         save_encodings(known_face_dict)
