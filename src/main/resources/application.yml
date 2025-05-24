@@ -87,5 +87,5 @@ sa-token:
   # 是否输出操作日志
   is-log: true
 python-backend:
-  process_img_py: http://10.16.60.67:8123/process_image
-  process_img: http://10.16.60.67:8123/extract_exif
+  process_img_py: http://10.16.60.67:8123/process_image/
+  process_img: http://10.16.60.67:8123/extract_exif/

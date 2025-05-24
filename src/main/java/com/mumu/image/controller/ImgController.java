@@ -208,6 +208,9 @@ public class ImgController {
         ObjectMapper objectMapper = new ObjectMapper();
         ImageInfo res= objectMapper.readValue(response.getBody(), ImageInfo.class);
         if(imgDTO.getImgDate()==null) {
+                imgDTO.setImgDate(res.getTimestamp());
+        }
+        if(imgDTO.getImgDate()==null) {
             try {
                 imgDTO.setImgDate(convertToDateTimeMinutes(response.getHeaders().get("date").get(0)));
             }catch (Exception e){}
@@ -274,6 +277,11 @@ public class ImgController {
         System.out.println(response);
 
 // 使用 Jackson 的 ObjectMapper 来将 JSON 字符串转换为 Java 对象
+        ObjectMapper objectMapper = new ObjectMapper();
+        ImageInfo res= objectMapper.readValue(response.getBody(), ImageInfo.class);
+        if(imgDTO.getImgDate()==null) {
+            imgDTO.setImgDate(res.getTimestamp());
+        }
         if(imgDTO.getImgDate()==null) {
             try {
                 imgDTO.setImgDate(convertToDateTimeMinutes(response.getHeaders().get("date").get(0)));
@@ -284,6 +292,18 @@ public class ImgController {
         }
         if(imgDTO.getImgDate()==null) {
             imgDTO.setImgDate(new SimpleDateFormat("yyyy-MM-dd").parse("2025-01-01"));
+        }
+        if(imgDTO.getImgPos() == null) {
+            imgDTO.setImgPos(res.getAddress());
+        }
+        if(imgDTO.getImgDescribtion() == null) {
+            imgDTO.setImgDescribtion(res.getCaption());
+        }
+        if(imgDTO.getTags()==null){
+            imgDTO.setTags(res.getAutoTags());
+        }
+        if(imgDTO.getPeoples()==null){
+            imgDTO.setPeoples(res.getPersonLabel());
         }
         Img img=new Img(imgDTO);
         imgService.save(img);
