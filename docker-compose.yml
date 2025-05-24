@@ -88,7 +88,7 @@ services:
       /usr/bin/mc alias set local http://minio:9000 root software_eng_pss;
       echo 'Creating buckets...';
       /usr/bin/mc mb local/softwareeng;
-      /usr/bin/mc policy set public local/softwareeng;
+      /usr/bin/mc anonymous set public local/softwareeng/;
       /usr/bin/mc mb local/softwareeng/user-img;
       /usr/bin/mc mb local/softwareeng/builder-img;
       /usr/bin/mc mb local/softwareeng/comment-img;
