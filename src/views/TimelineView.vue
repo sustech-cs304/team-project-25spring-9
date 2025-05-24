@@ -36,6 +36,9 @@ const currentViewMode = ref('grid')
 // Currently generating video status
 const isGeneratingVideo = ref(false)
 
+// Currently generating timeline status
+const isGeneratingTimeline = ref(false)
+
 // API settings
 const useApiData = ref(true)
 // Replace with actual user ID or get from authentication
@@ -104,7 +107,7 @@ const handleViewModeChange = (mode) => {
 const generateTimelineView = async () => {
   if (selectedPhotos.value.length === 0) return
 
-  isGeneratingVideo.value = true // reusing the loading state variable
+  isGeneratingTimeline.value = true // changed from isGeneratingVideo to isGeneratingTimeline
 
   try {
     // Get selected photo data from either API photos or sample photos
@@ -150,13 +153,79 @@ const generateTimelineView = async () => {
     console.error('Error generating timeline:', error)
     alert('Failed to create timeline')
   } finally {
-    isGeneratingVideo.value = false
+    isGeneratingTimeline.value = false // changed from isGeneratingVideo to isGeneratingTimeline
   }
 }
 
-// Method to play a generated video
-const playVideo = (video) => {
-  alert(`Playing video: ${video.title}`)
+// Method to generate video from selected photos
+const generateVideo = async () => {
+  if (selectedPhotos.value.length === 0) return
+
+  isGeneratingVideo.value = true
+
+  try {
+    // Get selected photo data from either API photos or sample photos
+    const photosSource = useApiData.value ? apiPhotos.value : photos.value
+    const selectedPhotoData = selectedPhotos.value.map(id =>
+      photosSource.find(photo => photo.id === id)
+    ).filter(Boolean)
+
+    // Create FormData with selected photos
+    const formData = new FormData()
+
+    // Fetch each image and append to FormData
+    const fetchPromises = selectedPhotoData.map(async (photo) => {
+      try {
+        const response = await fetch(photo.src)
+        const blob = await response.blob()
+        // Use original filename if available, otherwise generate one
+        const filename = photo.name ? `${photo.name}.jpg` : `photo_${photo.id}.jpg`
+        formData.append('files', blob, filename)
+      } catch (error) {
+        console.error(`Error fetching photo ${photo.id}:`, error)
+      }
+    })
+
+    // Wait for all photos to be fetched and added to FormData
+    await Promise.all(fetchPromises)
+
+    // Send request to API
+    const response = await fetch('http://10.16.60.67:8123/generate_video/', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${await response.text()}`)
+    }
+
+    // Get video blob from response
+    const videoBlob = await response.blob()
+
+    // Create download link
+    const url = URL.createObjectURL(videoBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `video_${new Date().toISOString().slice(0, 10)}.mp4`
+    document.body.appendChild(link)
+    link.click()
+
+    // Clean up
+    URL.revokeObjectURL(url)
+    document.body.removeChild(link)
+
+    // Show success notification
+    alert('Video generated and downloaded successfully!')
+
+    // Clear selections and exit select mode
+    clearSelections()
+    isSelectMode.value = false
+  } catch (error) {
+    console.error('Error generating video:', error)
+    alert('Failed to generate video: ' + error.message)
+  } finally {
+    isGeneratingVideo.value = false
+  }
 }
 
 async function downloadTimeline(timeline) {
@@ -235,9 +304,14 @@ async function downloadTimeline(timeline) {
       <!-- Action Buttons -->
       <div class="flex justify-between mt-6">
         <div class="flex">
-          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiVideo"
-            :label="isGeneratingVideo ? 'Generating...' : 'Generate Timeline'" color="info" rounded-full small
-            :disabled="selectedPhotos.length === 0 || isGeneratingVideo" @click="generateTimelineView" />
+          <BaseButton v-if="isSelectMode" :icon="isGeneratingTimeline ? mdiLoading : mdiVideo"
+            :label="isGeneratingTimeline ? 'Generating...' : 'Generate Timeline'" color="info" rounded-full small
+            :disabled="selectedPhotos.length === 0 || isGeneratingTimeline || isGeneratingVideo"
+            @click="generateTimelineView" class="mr-2" />
+          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiMovieOutline"
+            :label="isGeneratingVideo ? 'Generating...' : 'Generate Video'" color="success" rounded-full small
+            :disabled="selectedPhotos.length === 0 || isGeneratingVideo || isGeneratingTimeline"
+            @click="generateVideo" />
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
