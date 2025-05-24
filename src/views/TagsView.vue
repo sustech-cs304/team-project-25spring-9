@@ -280,7 +280,7 @@ onMounted(fetchPhotos)
         </CardBox>
 
         <!-- Enhanced Tag Groups Gallery -->
-        <div v-if="!currentTagGroup" 
+        <div v-if="!currentTagGroup"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <CardBox
             v-for="album in tagAlbums"
