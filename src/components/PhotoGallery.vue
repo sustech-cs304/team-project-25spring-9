@@ -15,6 +15,7 @@ import {
   mdiImageEdit,
   mdiDelete,
   mdiDownload,
+  mdiShareVariant,
   mdiChevronDown,
   mdiFilterVariant,
   mdiFilterVariantRemove,
@@ -26,6 +27,7 @@ import {
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
+import PhotoModal from '@/components/PhotoModal.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -72,6 +74,10 @@ const props = defineProps({
   userId: {
     type: Number,
     default: null
+  },
+  hideSearch: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -477,6 +483,13 @@ const filteredPhotos = computed(() => {
   return displayPhotos.value
 })
 
+// Watch for photos prop changes
+watch(() => props.photos, () => {
+  // Reset search and filter states when photos change
+  searchQuery.value = ''
+  filteredPhotos.value = props.photos
+}, { deep: true })
+
 // Modify apply filters method
 const applyFilters = () => {
   clearUploadQueue()
@@ -642,7 +655,17 @@ const handleActionClick = (photo, event) => {
   showActionMenu.value = true
 }
 
-// Handle menu item click
+const handleSharePhoto = (photo) => {
+    const shareUrl = photo.src;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast.success('分享链接已复制到剪贴板！');
+    }).catch((error) => {
+      console.error('复制链接失败:', error);
+      toast.error('复制链接失败');
+    });
+}
+
+// Modify handleMenuAction function
 const handleMenuAction = (action) => {
   if (isModalOpen.value) {
     actionMenuPhoto.value = currentPhoto.value
@@ -660,12 +683,38 @@ const handleMenuAction = (action) => {
     case 'download':
       downloadPhotos({ value: [actionMenuPhoto.value.id] })
       break
+    case 'share':
+      handleSharePhoto(actionMenuPhoto.value)
+      break
   }
   showActionMenu.value = false
   actionMenuPhoto.value = null
 
-  if (isModalOpen.value && action == 'delete') {
+  if (isModalOpen.value && action === 'delete') {
     closePhotoModal()
+  }
+}
+
+// Modify handlePhotoAction function
+const handlePhotoAction = (action) => {
+  if (isModalOpen.value) {
+    actionMenuPhoto.value = currentPhoto.value
+  }
+  switch (action) {
+    case 'edit':
+      closePhotoModal()
+      emit('photo-edit', currentPhoto.value.id)
+      break
+    case 'delete':
+      deletePhotos({ value: [currentPhoto.value.id] })
+      closePhotoModal()
+      break
+    case 'download':
+      downloadPhotos({ value: [currentPhoto.value.id] })
+      break
+    case 'share':
+      handleSharePhoto(currentPhoto.value)
+      break
   }
 }
 
@@ -709,6 +758,132 @@ const handleTagClick = (tag) => {
   applyFilters()
 }
 
+const addNewTag = async (photo) => {
+  const newTag = prompt('请输入新标签:').trim();
+   if (!newTag) return;
+
+  if (photo.tags.includes(newTag)) {
+    toast.error(`标签 "${newTag}" 已存在`);
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({
+        userId: photo.userId.toString(),
+        imgId: photo.id.toString(),
+        tag: newTag
+    })
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/add?${params}`, {
+      method: 'POST'
+    });
+
+    const result = await response.json();
+
+    if (result.msg === 'ok') {
+      photo.tags.push(newTag);
+      toast.success(`标签 "${newTag}" 已成功添加`);
+    } else {
+      throw new Error(result.msg || '添加标签失败');
+    }
+  } catch (error) {
+    console.error('添加标签失败:', error);
+    toast.error(`添加标签失败: ${error.message}`);
+  }
+};
+
+const hoveredTag = ref(null);
+
+const handleDeleteTag = async (tag, photo) => {
+  try {
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      tag: tag
+    });
+
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/delete?${params}`, {
+      method: 'POST'
+    });
+
+    const result = await response.json();
+
+    if (result.msg === 'ok') {
+      // 从 photo.tags 中移除标签
+      const tagIndex = photo.tags.indexOf(tag);
+      if (tagIndex > -1) {
+        photo.tags.splice(tagIndex, 1);
+      }
+      toast.success(`标签 "${tag}" 已成功删除`);
+    } else {
+      throw new Error(result.msg || '删除标签失败');
+    }
+  } catch (error) {
+    console.error('删除标签失败:', error);
+    toast.error(`删除标签失败: 标签 ${tag} 不存在`);
+  }
+};
+
+const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
+const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
+
+// 开始编辑
+const startRenaming = (photo) => {
+  RenamingPhotoId.value = photo.id;
+  RenamingPhotoName.value = photo.name;
+};
+
+// 保存名称
+const savePhotoName = async (photo) => {
+  if (RenamingPhotoName.value.trim() && RenamingPhotoName.value !== photo.name) {
+    // 调用 API 更新名称（API 暂时留空）
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      name: RenamingPhotoName.value.trim()
+    });
+
+    try{
+        const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
+            method: 'GET'
+        });
+
+        const result = await response.json();
+
+        if(result.msg === 'ok') {
+            photo.name = RenamingPhotoName.value.trim();
+            toast.success(`图片名称已更新为 "${photo.name}"`);
+        } else {
+            throw new Error(result.msg || '更新名称失败');
+        }
+    }catch(error){
+        console.error('更新名称失败:', error);
+        toast.error(`更新名称失败`);
+    };
+  }
+  cancelRenaming();
+};
+
+// 取消编辑
+const cancelRenaming = () => {
+  RenamingPhotoId.value = null;
+  RenamingPhotoName.value = '';
+};
+
+const handleClickOutside = (event) => {
+  const renamingInput = document.querySelector('input[renaming]');
+  if (renamingInput && !renamingInput.contains(event.target)) {
+    cancelRenaming();
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
@@ -721,7 +896,7 @@ defineExpose({
 <template>
   <div>
     <!-- Enhanced Search Bar -->
-    <div class="mb-6 space-y-4">
+    <div v-if="!hideSearch" class="mb-6 space-y-4">
       <div class="flex items-center gap-3">
         <!-- Search input with integrated button -->
         <div class="relative flex-grow max-w-xl flex shadow-sm">
@@ -910,7 +1085,20 @@ defineExpose({
             <!-- Name column with status -->
             <td class="px-3 py-2">
               <div class="flex flex-col">
-                <span class="truncate max-w-[200px]" :title="photo.name">{{ photo.name }}</span>
+                <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+                    class="truncate max-w-[200px] cursor-pointer"
+                    :title="photo.name"
+                    @dblclick="startRenaming(photo)">
+                    {{ photo.name }}
+                </span>
+                <!-- 编辑模式 -->
+                <input v-else
+                    v-model="RenamingPhotoName"
+                    class="border rounded px-2 py-1 text-sm w-full"
+                    renaming
+                    @blur="savePhotoName(photo)"
+                    @keyup.enter="savePhotoName(photo)"
+                    @keyup.esc="cancelRenaming" />
                 <span v-if="photo.isUploading" class="text-xs text-blue-500">Uploading...</span>
                 <span v-if="photo.uploadFailed" class="text-xs text-red-500">Upload failed</span>
               </div>
@@ -929,6 +1117,10 @@ defineExpose({
                       @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
+                <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+                    @click.stop="addNewTag(photo)">
+                    +
+                </button>
               </div>
             </td>
 
@@ -1071,93 +1263,20 @@ defineExpose({
     <!-- Empty State -->
     <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
 
-    <!-- Photo Modal -->
-    <div v-if="isModalOpen && currentPhoto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
-      @click="closePhotoModal">
-      <div class="max-w-5xl w-full mx-4 relative" @click.stop>
-        <div class="bg-white rounded-lg overflow-hidden shadow-xl">
-          <!-- Navigation and Close Buttons -->
-          <div class="flex justify-between items-center p-4 bg-gray-100">
-            <div class="flex items-center">
-              <button class="p-1 rounded-full hover:bg-gray-200 mr-2" @click="viewPreviousPhoto">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiArrowLeft" />
-                </svg>
-              </button>
-              <button class="p-1 rounded-full hover:bg-gray-200" @click="viewNextPhoto">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiArrowRight" />
-                </svg>
-              </button>
-            </div>
-
-            <div class="text-lg font-medium break-all">{{ currentPhoto.name }}</div>
-
-            <!-- Modify action button display logic -->
-            <div class="flex items-center gap-2">
-              <template v-if="showActions && !currentPhoto.uploadFailed">
-                <button v-for="(action, index) in [
-                  { icon: mdiImageEdit, label: 'Edit', value: 'edit', disabled: currentPhoto.isUploading },
-                  { icon: mdiDelete, label: 'Delete', value: 'delete', disabled: currentPhoto.isUploading },
-                  { icon: mdiDownload, label: 'Download', value: 'download', disabled: currentPhoto.isUploading }
-                ]" :key="index"
-                  class="p-1 rounded-full hover:bg-gray-200 flex items-center"
-                  :class="{ 'opacity-50 cursor-not-allowed': action.disabled }"
-                  @click="!action.disabled && handleMenuAction(action.value)"
-                  :title="action.disabled ? 'Not available while uploading' : action.label">
-                  <svg class="w-6 h-6" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="action.icon" />
-                  </svg>
-                </button>
-              </template>
-              <button class="p-1 rounded-full hover:bg-gray-200" @click="closePhotoModal">
-                <svg class="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiClose" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Photo -->
-          <div class="flex justify-center bg-black p-2">
-            <img :src="currentPhoto.src"
-                 class="max-h-[70vh] max-w-full object-contain"
-                 :class="{ 'opacity-70': currentPhoto.isUploading }"
-                 alt="Full size preview" />
-          </div>
-
-          <!-- Enhanced Photo Details -->
-          <div class="p-4 bg-white">
-            <div class="flex items-start">
-              <svg class="w-5 h-5 text-gray-500 mr-2 mt-0.5" viewBox="0 0 24 24">
-                <path fill="currentColor" :d="mdiInformation" />
-              </svg>
-              <div class="flex-1">
-                <div class="mb-1"><span class="font-medium">Size:</span> {{ currentPhoto.size }}</div>
-                <div class="mb-1"><span class="font-medium">Date:</span> {{ currentPhoto.displayDate }}</div>
-                <div v-if="currentPhoto.tags?.length" class="flex flex-wrap gap-2">
-                  <span v-for="(tag, index) in currentPhoto.tags" :key="tag"
-                        class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
-                        :class="getTagColor(index)"
-                        @click="handleTagClick(tag)">
-                    {{ tag }}
-                  </span>
-                </div>
-                <div v-if="currentPhoto.desc" class="mt-2">
-                  <span class="font-medium">Description:</span>
-                  <p class="mt-1 text-gray-600">{{ currentPhoto.desc }}</p>
-                </div>
-                <!-- Add upload status if applicable -->
-                <div v-if="currentPhoto.isUploading" class="mt-2 text-blue-500">
-                  Upload in progress...
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Replace old modal with new PhotoModal component -->
+    <PhotoModal
+      :is-open="isModalOpen"
+      :photo="currentPhoto"
+      :show-actions="showActions"
+      :tag-color-classes="tagColorClasses"
+      @close="closePhotoModal"
+      @previous="viewPreviousPhoto"
+      @next="viewNextPhoto"
+      @action="handlePhotoAction"
+      @tag-click="handleTagClick"
+      @add-tag="addNewTag(currentPhoto)"
+      @delete-tag="(tag) => handleDeleteTag(tag, currentPhoto)"
+    />
 
     <!-- Action Menu -->
     <div v-if="showActionMenu"
@@ -1167,7 +1286,8 @@ defineExpose({
       <button v-for="(action, index) in [
         { icon: mdiImageEdit, label: 'Edit', value: 'edit' },
         { icon: mdiDelete, label: 'Delete', value: 'delete' },
-        { icon: mdiDownload, label: 'Download', value: 'download' }
+        { icon: mdiDownload, label: 'Download', value: 'download' },
+        { icon: mdiShareVariant, label: 'Share', value: 'share' }
       ]" :key="index" class="w-full px-4 py-2 flex items-center hover:bg-gray-100 text-left"
         @click="handleMenuAction(action.value)">
         <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">

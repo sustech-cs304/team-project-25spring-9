@@ -10,6 +10,7 @@ import {
   mdiThemeLightDark,
   mdiGithub,
   mdiReact,
+  mdiTagMultiple,
 } from '@mdi/js'
 
 export default [
@@ -44,6 +45,11 @@ export default [
     label: 'Light/Dark',
     isDesktopNoLabel: true,
     isToggleLightDark: true,
+  },
+  {
+    icon: mdiTagMultiple,
+    label: 'Tags',
+    to: { name: 'tags' },
   },
   // {
   //   icon: mdiLogout,
