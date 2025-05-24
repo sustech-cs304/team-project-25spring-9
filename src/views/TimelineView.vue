@@ -18,11 +18,11 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import { useMainStore } from '@/stores/main'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import html2canvas_pro from 'html2canvas-pro' // Add this import
 
 // Track if we're in select mode
-const isSelectMode = ref(false)
+const isSelectMode = ref(true)
 
 // Track selected photos
 const selectedPhotos = ref([])
@@ -108,6 +108,7 @@ const generateTimelineView = async () => {
   if (selectedPhotos.value.length === 0) return
 
   isGeneratingTimeline.value = true // changed from isGeneratingVideo to isGeneratingTimeline
+  await nextTick()
 
   try {
     // Get selected photo data from either API photos or sample photos
@@ -162,6 +163,7 @@ const generateVideo = async () => {
   if (selectedPhotos.value.length === 0) return
 
   isGeneratingVideo.value = true
+  await nextTick()
 
   try {
     // Get selected photo data from either API photos or sample photos
@@ -173,31 +175,48 @@ const generateVideo = async () => {
     // Create FormData with selected photos
     const formData = new FormData()
 
-    // Fetch each image and append to FormData
-    const fetchPromises = selectedPhotoData.map(async (photo) => {
-      try {
-        const response = await fetch(photo.src)
-        const blob = await response.blob()
-        // Use original filename if available, otherwise generate one
-        const filename = photo.name ? `${photo.name}.jpg` : `photo_${photo.id}.jpg`
-        formData.append('files', blob, filename)
-      } catch (error) {
-        console.error(`Error fetching photo ${photo.id}:`, error)
+    // Show progress to user
+    console.log('Preparing photos for video generation...')
+
+    // Fetch each image with proper async handling to avoid blocking
+    for (let i = 0; i < selectedPhotoData.length; i++) {
+      const photo = selectedPhotoData[i]
+
+      // 每处理 4 张图就把时间还给浏览器一帧，保证动画继续转
+      if (i % 4 === 0) {
+        await new Promise(requestAnimationFrame)
       }
-    })
 
-    // Wait for all photos to be fetched and added to FormData
-    await Promise.all(fetchPromises)
+      try {
+        const resp = await fetch(photo.src)
+        if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+        const blob = await resp.blob()
+        formData.append('files', blob, `${photo.name || 'photo_' + photo.id}.jpg`)
+      } catch (e) {
+        console.error('fetch error', e)
+      }
+    }
 
-    // Send request to API
+    console.log('Sending request to video generation API...')
+
+    // Send request to API with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
+
     const response = await fetch('http://10.16.60.67:8123/generate_video/', {
+    // const response = await fetch('http://10.24.120.158:8123/generate_video/', {
       method: 'POST',
       body: formData,
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${await response.text()}`)
     }
+
+    console.log('Receiving video from server...')
 
     // Get video blob from response
     const videoBlob = await response.blob()
@@ -211,8 +230,10 @@ const generateVideo = async () => {
     link.click()
 
     // Clean up
-    URL.revokeObjectURL(url)
-    document.body.removeChild(link)
+    setTimeout(() => {
+      URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+    }, 100)
 
     // Show success notification
     alert('Video generated and downloaded successfully!')
@@ -222,7 +243,12 @@ const generateVideo = async () => {
     isSelectMode.value = false
   } catch (error) {
     console.error('Error generating video:', error)
-    alert('Failed to generate video: ' + error.message)
+
+    if (error.name === 'AbortError') {
+      alert('Video generation timed out. Please try again with fewer photos.')
+    } else {
+      alert('Failed to generate video: ' + error.message)
+    }
   } finally {
     isGeneratingVideo.value = false
   }
@@ -281,7 +307,7 @@ async function downloadTimeline(timeline) {
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline Generator" main>
+      <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline & Video" main>
         <div class="flex">
           <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos"
             :color="isSelectMode ? 'info' : 'contrast'" small class="mr-2" label="Refresh"
@@ -305,13 +331,15 @@ async function downloadTimeline(timeline) {
       <div class="flex justify-between mt-6">
         <div class="flex">
           <BaseButton v-if="isSelectMode" :icon="isGeneratingTimeline ? mdiLoading : mdiVideo"
-            :label="isGeneratingTimeline ? 'Generating...' : 'Generate Timeline'" color="info" rounded-full small
+            :icon-class="isGeneratingTimeline ? 'animate-spin' : ''"
+            :label="isGeneratingTimeline ? 'Generating Timeline...' : 'Generate Timeline'" color="info" rounded-full small
             :disabled="selectedPhotos.length === 0 || isGeneratingTimeline || isGeneratingVideo"
             @click="generateTimelineView" class="mr-2" />
           <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiMovieOutline"
-            :label="isGeneratingVideo ? 'Generating...' : 'Generate Video'" color="success" rounded-full small
+            :icon-class="isGeneratingTimeline ? 'animate-spin' : ''"
+            :label="isGeneratingVideo ? 'Generating Video...' : 'Generate Video'" color="success" rounded-full small
             :disabled="selectedPhotos.length === 0 || isGeneratingVideo || isGeneratingTimeline"
-            @click="generateVideo" />
+            :class="{ 'animate-pulse': isGeneratingVideo }" @click="generateVideo" />
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
