@@ -27,6 +27,6 @@ public class ImageInfo {
     private String caption;
     @JsonProperty("AutoTags")
     private List<String> autoTags;
-    @JsonProperty("personLabel")
-    private String personLabel;
+    @JsonProperty("PersonLabel")
+    private List<String> personLabel;
 }
