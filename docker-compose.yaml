@@ -1,11 +1,10 @@
 version: '3.8'
 services:
-  dev:
-    image: node:23-alpine
-    working_dir: /app
+  frontend:
+    build:
+      context: .
     volumes:
       - .:/app
       - /app/node_modules
     ports:
       - "5173:5173"
-    command: npm install && npm run dev -- --host 0.0.0.0

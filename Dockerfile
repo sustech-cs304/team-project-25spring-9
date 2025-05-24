@@ -1,17 +1,16 @@
-# 1. Builder stage: install deps & build the app
-FROM node:23-alpine AS builder
+FROM node:23-alpine
 
 WORKDIR /app
+
+# 1) Install deps ahead of time
 COPY package*.json ./
 RUN npm ci
+
+# 2) Copy your code
 COPY . .
-RUN npm run build
 
-# 2. Production stage: serve via nginx
-FROM nginx:stable-alpine AS production
-
-# Copy built static files
-COPY --from=builder /app/dist/ /usr/share/nginx/html/
-
+# 3) Expose the Vite port
 EXPOSE 5173
-CMD ["nginx", "-g", "daemon off;"]
+
+# 4) Start Vite in the foreground
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
