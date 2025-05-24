@@ -3,7 +3,28 @@ version: '3.8'
 
 # Define the services (containers)
 services:
+  # Service for your Spring Boot backend application
+  backend-app:
+    # Build the image using the Dockerfile in the ./backend directory
+    build: ./backend
+    container_name: my-backend-app-together-1
+    ports:
+      - "9090:9091"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker # Example: Activate a 'docker' Spring profile
+    # Make backend-app depend on mysql and minio to ensure they start first
+    restart: unless-stopped
   # Service for the Process_image application
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    image: album:latest
+    ports:
+      - "0.0.0.0:5173:5173"
+    restart: unless-stopped
+    container_name: my-frontend-app-1
   process-image-app:
     # Build the image using the Dockerfile in the ./Process_image directory
     build: ./Process_image
@@ -14,26 +35,15 @@ services:
       - ./Process_image:/app
     environment:
       - PYTHONUNBUFFERED=1
-    container_name: my-process-image-app # Added a container name for clarity
+    container_name: my-process-image-app-1 # Added a container name for clarity
+    restart: unless-stopped
 
-  # Service for your Spring Boot backend application
-  backend-app:
-    # Build the image using the Dockerfile in the ./backend directory
-    build: ./backend
-    container_name: my-backend-app-together
-    ports:
-      - "9090:9091"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker # Example: Activate a 'docker' Spring profile
-    # Make backend-app depend on mysql and minio to ensure they start first
-    depends_on:
-      - mysql
-      - minio
+
 
   # MySQL database service
   mysql:
     image: mysql:latest
-    container_name: software_eng_mysql_together
+    container_name: software_eng_mysql_together-1
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: software_eng_pss
@@ -51,7 +61,7 @@ services:
   # MinIO object storage service
   minio:
     image: minio/minio:latest
-    container_name: software_eng_minio_together
+    container_name: software_eng_minio_together-1
     restart: always
     environment:
       MINIO_ROOT_USER: root
@@ -67,7 +77,7 @@ services:
   # Service to create MinIO buckets after MinIO starts
   createbuckets:
     image: minio/mc
-    container_name: software_eng_minio_createbuckets # Added a container name
+    container_name: software_eng_minio_createbuckets-1 # Added a container name
     depends_on:
       - minio # Ensures minio service is started before this one
     entrypoint: >
