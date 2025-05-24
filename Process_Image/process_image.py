@@ -26,6 +26,7 @@ from moviepy.editor import (
     concatenate_videoclips, VideoFileClip, vfx
 )
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 
 
@@ -113,8 +114,10 @@ def init_blip_and_spacy():
 # ==========================
 def process_new_photo(photo_path):
     global next_label_id
+    person_labels = []
+
     try:
-        # 1. 打开并转换图片
+        # 1. 打开并转换图片为 RGB
         with Image.open(photo_path) as img:
             img = img.convert("RGB")
             image_array = np.array(img)
@@ -123,52 +126,55 @@ def process_new_photo(photo_path):
         encodings = face_recognition.face_encodings(image_array)
 
         if not encodings:
-            print(f"⚠️ 图片 {photo_path} 不包含人脸，跳过处理。")
-            return
+            print(f"⚠️ 图片 {photo_path} 中未检测到人脸，已跳过。")
+            return []
 
-        print(f"✅ 识别到 {len(encodings)} 张人脸，开始分类...")
+        print(f"✅ 在图片中检测到 {len(encodings)} 张人脸，开始分类...")
 
-        for encoding in encodings:
-            if len(known_face_encodings) == 0:
-                # 没有人脸数据，直接新建人物
+        for i, encoding in enumerate(encodings):
+            if not known_face_encodings:
+                # 若是第一张人脸，直接新建人物
                 person_label = next_label_id
                 next_label_id += 1
 
                 known_face_dict[person_label] = encoding
                 known_face_encodings.append(encoding)
                 known_face_labels.append(person_label)
-                print(f"🆕 未检测到已有人物，新建人物 {person_label}")
+                print(f"🆕 第 {i+1} 张人脸：新建人物 {person_label}")
 
             else:
-                # 比较与已知人脸的相似度
+                # 计算与所有已知人脸的距离
                 distances = face_recognition.face_distance(known_face_encodings, encoding)
                 min_distance = np.min(distances)
                 best_match_index = np.argmin(distances)
 
-                if min_distance < 0.4:  # 阈值可以调整
+                if min_distance < 0.4:  # 阈值可调
                     person_label = known_face_labels[best_match_index]
-                    # print(f"👌 匹配到人物 {person_label}，距离为 {min_distance:.2f}")
+                    print(f"👌 第 {i+1} 张人脸：匹配人物 {person_label}（距离 {min_distance:.2f}）")
                 else:
-                    # 新人物
                     person_label = next_label_id
                     next_label_id += 1
 
                     known_face_dict[person_label] = encoding
                     known_face_encodings.append(encoding)
                     known_face_labels.append(person_label)
-                    # print(f"🆕 新建人物 {person_label}，距离为 {min_distance:.2f}")
+                    print(f"🆕 第 {i+1} 张人脸：未匹配成功，新建人物 {person_label}")
 
-            # 保存照片到分类目录
+            # 保存图片到对应人物文件夹
             person_folder = os.path.join(SORTED_DIR, f"人物{person_label}")
             os.makedirs(person_folder, exist_ok=True)
             shutil.copy(photo_path, person_folder)
 
-        # 处理完图片，保存最新的 encodings
+            person_labels.append(person_label)
+
+        # 更新保存人脸编码
         save_encodings(known_face_dict)
-        return person_label
+
+        return list(set(person_labels))
 
     except Exception as e:
-        print(f"❌ 处理 {photo_path} 时出错: {e}")
+        print(f"❌ 处理 {photo_path} 时发生错误: {e}")
+        return []
 
 
 def get_decimal_from_dms(dms, ref):
@@ -197,59 +203,75 @@ def reverse_geocode(lat, lon):
         return f"Error retrieving address: {e}"
 
 
+
 def extract_exif_data(image_path):
-    # 打开图片文件
-    img = Image.open(image_path)
-
-    # 获取 EXIF 信息
-    exif_data = img._getexif()
-
-    # 提取拍摄时间
-    timestamp = None
-    if exif_data and 36867 in exif_data:
-        timestamp = exif_data[36867]  # DateTimeOriginal
-        timestamp = datetime.strptime(timestamp, '%Y:%m:%d %H:%M:%S')
-
-    # 使用 piexif 加载更详细的 EXIF 数据
-    exif_dict = piexif.load(img.info['exif']) if 'exif' in img.info else None
-
-    # 提取相机/设备信息
-    camera_model = None
-    if exif_dict:
-        model = exif_dict['0th'].get(piexif.ImageIFD.Model, None)
-        make = exif_dict['0th'].get(piexif.ImageIFD.Make, None)
-
-        camera_model = ""
-        if make:
-            camera_model += make.decode('utf-8') + " "
-        if model:
-            camera_model += model.decode('utf-8')
-
-    # 提取 GPS 信息
-    gps_info = exif_dict.get('GPS', None) if exif_dict else None
-    latitude = longitude = None
-    address = None
-    if gps_info:
-        gps_latitude = gps_info.get(piexif.GPSIFD.GPSLatitude)
-        gps_latitude_ref = gps_info.get(piexif.GPSIFD.GPSLatitudeRef).decode('utf-8')
-        gps_longitude = gps_info.get(piexif.GPSIFD.GPSLongitude)
-        gps_longitude_ref = gps_info.get(piexif.GPSIFD.GPSLongitudeRef).decode('utf-8')
-
-        if gps_latitude and gps_latitude_ref and gps_longitude and gps_longitude_ref:
-            latitude = get_decimal_from_dms(gps_latitude, gps_latitude_ref)
-            longitude = get_decimal_from_dms(gps_longitude, gps_longitude_ref)
-
-            # 反向地理编码获取地址
-            address = reverse_geocode(latitude, longitude)
-
-    # 返回提取的信息
-    return {
-        'Timestamp': timestamp,
-        'Latitude': latitude,
-        'Longitude': longitude,
-        'Address': address,
-        'Camera/Device': camera_model
+    result = {
+        'Timestamp': None,
+        'Latitude': None,
+        'Longitude': None,
+        'Address': None,
+        'Camera/Device': None
     }
+
+    try:
+        img = Image.open(image_path)
+    except Exception as e:
+        print(f"无法打开图片: {e}")
+        return result
+
+    # 1. 提取拍摄时间
+    try:
+        exif_data = img._getexif()
+        if exif_data and 36867 in exif_data:
+            timestamp_str = exif_data[36867]  # DateTimeOriginal
+            result['Timestamp'] = datetime.strptime(timestamp_str, '%Y:%m:%d %H:%M:%S')
+    except Exception as e:
+        print(f"读取拍摄时间失败: {e}")
+
+    # 2. 提取设备信息
+    try:
+        exif_bytes = img.info.get('exif', None)
+        exif_dict = piexif.load(exif_bytes) if exif_bytes else None
+
+        if exif_dict:
+            make = exif_dict['0th'].get(piexif.ImageIFD.Make)
+            model = exif_dict['0th'].get(piexif.ImageIFD.Model)
+
+            camera_model = ""
+            if make:
+                camera_model += make.decode('utf-8') + " "
+            if model:
+                camera_model += model.decode('utf-8')
+
+            result['Camera/Device'] = camera_model.strip()
+    except Exception as e:
+        print(f"读取设备信息失败: {e}")
+
+    # 3. GPS信息
+    try:
+        gps_info = exif_dict.get('GPS') if exif_dict else None
+        if gps_info:
+            gps_latitude = gps_info.get(piexif.GPSIFD.GPSLatitude)
+            gps_latitude_ref = gps_info.get(piexif.GPSIFD.GPSLatitudeRef)
+            gps_longitude = gps_info.get(piexif.GPSIFD.GPSLongitude)
+            gps_longitude_ref = gps_info.get(piexif.GPSIFD.GPSLongitudeRef)
+
+            if gps_latitude and gps_latitude_ref and gps_longitude and gps_longitude_ref:
+                lat_ref = gps_latitude_ref.decode('utf-8')
+                lon_ref = gps_longitude_ref.decode('utf-8')
+
+                result['Latitude'] = get_decimal_from_dms(gps_latitude, lat_ref)
+                result['Longitude'] = get_decimal_from_dms(gps_longitude, lon_ref)
+
+                try:
+                    result['Address'] = reverse_geocode(result['Latitude'], result['Longitude'])
+                except Exception as e:
+                    print(f"反向地理编码失败: {e}")
+    except Exception as e:
+        print(f"读取GPS信息失败: {e}")
+
+    return result
+
 
 
 # 生成图片描述
@@ -417,6 +439,14 @@ if __name__ == '__main__':
     init_blip_and_spacy()
     app = FastAPI()
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # 可以替换为特定前端地址如 ["http://localhost:3000"]
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.post("/process_image")
     async def process_image(file: UploadFile = File(...)):
         try:
@@ -491,7 +521,11 @@ if __name__ == '__main__':
         saved_files = []
 
         for file in files:
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            # 使用 UUID 生成唯一文件名
+            ext = os.path.splitext(file.filename)[1]
+            unique_filename = f"{uuid.uuid4().hex}{ext}"
+            file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+
             with open(file_path, "wb") as f:
                 content = await file.read()
                 f.write(content)
