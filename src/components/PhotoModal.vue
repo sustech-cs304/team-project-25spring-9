@@ -8,8 +8,13 @@ import {
   mdiDelete,
   mdiDownload,
   mdiShareVariant,
+  mdiEyeOutline,   // 添加 public 图标
+  mdiEyeOffOutline // 添加 private 图标
 } from '@mdi/js'
 import { ref } from 'vue'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 const props = defineProps({
   isOpen: Boolean,
@@ -163,6 +168,34 @@ const handleShare = () => {
     console.error('Failed to copy share link:', error);
   });
 }
+
+// Add visibility toggle function
+const toggleVisibility = async () => {
+  if (!props.photo) return;
+  try {
+    const params = new URLSearchParams({
+      userId: props.photo.userId.toString(),
+      imgId: props.photo.id.toString(),
+      name: props.photo.name,
+      pub: !props.photo.pub
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
+      method: 'GET'
+    })
+    
+    const result = await response.json()
+    if (result.msg === 'ok') {
+      props.photo.pub = !props.photo.pub
+      toast.success(`Image is now ${props.photo.pub ? 'public' : 'private'}`)
+    } else {
+      throw new Error(result.msg || 'Failed to update visibility')
+    }
+  } catch (error) {
+    console.error('Failed to update visibility:', error)
+    toast.error('Failed to update visibility')
+  }
+}
 </script>
 
 <template>
@@ -240,6 +273,24 @@ const handleShare = () => {
               <path fill="currentColor" :d="mdiInformation" />
             </svg>
             <div class="flex-1">
+              <!-- 可见性标签可点击切换，hover时显示编辑图标 -->
+              <div class="mb-3 flex items-center gap-3">
+                <span
+                  class="px-3 py-1.5 rounded-full text-sm font-medium select-none cursor-pointer flex items-center gap-1.5 transition-all duration-200"
+                  :class="photo?.pub ? 
+                    'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200' : 
+                    'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'"
+                  @click="toggleVisibility"
+                  title="Click to toggle visibility"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="photo?.pub ? mdiEyeOutline : mdiEyeOffOutline" />
+                  </svg>
+                  <span>{{ photo?.pub ? 'Public' : 'Private' }}</span>
+                </span>
+              </div>
+              
+              <!-- Existing details -->
               <div class="mb-1"><span class="font-medium">Size:</span> {{ photo?.size }}</div>
               <div class="mb-1"><span class="font-medium">Date:</span> {{ photo?.displayDate }}</div>
               <!-- 移除 v-if 条件，初始化 tags 数组 -->

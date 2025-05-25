@@ -200,7 +200,8 @@ const handleShareAlbum = (event, album) => {
                     <path fill="currentColor" :d="mdiShareVariant" />
                   </svg>
                 </button>
-                <button v-if="album.id !== null && !props.hideDelete && !props.hideActions"
+                <!-- 删除按钮，只有对普通相册显示，不允许删除未分类相册 -->
+                <button v-if="album.id !== -1 && album.id !== null && !props.hideDelete && !props.hideActions"
                   @click.stop="handleAlbumDelete($event, album.id)"
                   class="text-gray-500 hover:text-red-500"
                   title="Delete album">

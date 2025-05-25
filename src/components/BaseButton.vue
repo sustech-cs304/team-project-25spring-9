@@ -46,6 +46,11 @@ const props = defineProps({
   active: Boolean,
   disabled: Boolean,
   roundedFull: Boolean,
+
+  iconClass: {
+    type: String,
+    default: '',
+  },
 })
 
 const is = computed(() => {
@@ -107,16 +112,9 @@ const componentClass = computed(() => {
 </script>
 
 <template>
-  <component
-    :is="is"
-    :class="componentClass"
-    :href="href"
-    :type="computedType"
-    :to="to"
-    :target="target"
-    :disabled="disabled"
-  >
-    <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
+  <component :is="is" :class="componentClass" :href="href" :type="computedType" :to="to" :target="target"
+    :disabled="disabled">
+    <BaseIcon v-if="icon" :path="icon" :size="iconSize" :class="iconClass" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </component>
 </template>

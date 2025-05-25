@@ -18,10 +18,14 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import { useMainStore } from '@/stores/main'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
+import html2canvas_pro from 'html2canvas-pro'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 // Track if we're in select mode
-const isSelectMode = ref(false)
+const isSelectMode = ref(true)
 
 // Track selected photos
 const selectedPhotos = ref([])
@@ -34,6 +38,9 @@ const currentViewMode = ref('grid')
 
 // Currently generating video status
 const isGeneratingVideo = ref(false)
+
+// Currently generating timeline status
+const isGeneratingTimeline = ref(false)
 
 // API settings
 const useApiData = ref(true)
@@ -100,10 +107,11 @@ const handleViewModeChange = (mode) => {
 }
 
 // Method to generate timeline video from selected photos
-const generateTimelineVideo = async () => {
+const generateTimelineView = async () => {
   if (selectedPhotos.value.length === 0) return
 
-  isGeneratingVideo.value = true
+  isGeneratingTimeline.value = true // changed from isGeneratingVideo to isGeneratingTimeline
+  await nextTick()
 
   try {
     // Get selected photo data from either API photos or sample photos
@@ -112,53 +120,201 @@ const generateTimelineVideo = async () => {
       photosSource.find(photo => photo.id === id)
     ).filter(Boolean)
 
-    console.log('Sending selected photos to server:', selectedPhotoData)
+    // Sort photos by date
+    const sortedPhotos = [...selectedPhotoData].sort((a, b) =>
+      new Date(a.date) - new Date(b.date)
+    )
 
-    // Simulate API request to server
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Assign positions (above/below) alternating for visual appeal
+    const photosWithPosition = sortedPhotos.map((photo, index) => ({
+      ...photo,
+      position: index % 2 === 0 ? 'above' : 'below'
+    }))
 
-    // Create a new timeline/memory video
-    const newVideo = {
-      id: timelineVideos.value.length + 1,
+    console.log('Creating timeline with photos:', photosWithPosition)
+
+    // Create a new timeline
+    const newTimeline = {
+      id: timelineVideos.value.length + 1, // reusing the same array
       title: `Timeline from ${new Date().toLocaleDateString()}`,
       date: new Date().toISOString().split('T')[0],
-      description: `Generated from ${selectedPhotoData.length} photos`,
-      coverImage: selectedPhotoData[0]?.src || '',
-      photos: selectedPhotoData,
-      videoGenerated: true,
-      videoUrl: '#'
+      description: `Timeline with ${photosWithPosition.length} photos`,
+      coverImage: photosWithPosition[0]?.src || '',
+      photos: photosWithPosition,
+      isTimeline: true
     }
 
-    // Add to timeline videos
-    timelineVideos.value.push(newVideo)
+    // Add to timelines array
+    timelineVideos.value.push(newTimeline)
 
     // Show success notification
-    alert('Timeline video generated successfully!')
+    toast.success('Timeline created successfully!')
 
     // Clear selections and exit select mode
     clearSelections()
     isSelectMode.value = false
   } catch (error) {
-    console.error('Error generating timeline video:', error)
-    alert('Failed to generate timeline video')
+    console.error('Error generating timeline:', error)
+    toast.error('Failed to create timeline')
+  } finally {
+    isGeneratingTimeline.value = false // changed from isGeneratingVideo to isGeneratingTimeline
+  }
+}
+
+// Method to generate video from selected photos
+const generateVideo = async () => {
+  if (selectedPhotos.value.length === 0) return
+
+  isGeneratingVideo.value = true
+  await nextTick()
+
+  try {
+    // Get selected photo data from either API photos or sample photos
+    const photosSource = useApiData.value ? apiPhotos.value : photos.value
+    const selectedPhotoData = selectedPhotos.value.map(id =>
+      photosSource.find(photo => photo.id === id)
+    ).filter(Boolean)
+
+    // Create FormData with selected photos
+    const formData = new FormData()
+
+    // Show progress to user
+    console.log('Preparing photos for video generation...')
+
+    // Fetch each image with proper async handling to avoid blocking
+    for (let i = 0; i < selectedPhotoData.length; i++) {
+      const photo = selectedPhotoData[i]
+
+      // 每处理 4 张图就把时间还给浏览器一帧，保证动画继续转
+      if (i % 4 === 0) {
+        await new Promise(requestAnimationFrame)
+      }
+
+      try {
+        const resp = await fetch(photo.src)
+        if (!resp.ok) throw new Error(`fetch ${resp.status}`)
+        const blob = await resp.blob()
+        formData.append('files', blob, `${photo.name || 'photo_' + photo.id}.jpg`)
+      } catch (e) {
+        console.error('fetch error', e)
+      }
+    }
+
+    console.log('Sending request to video generation API...')
+
+    // Send request to API with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minute timeout
+
+    const response = await fetch('http://10.16.60.67:8123/generate_video/', {
+    // const response = await fetch('http://10.24.120.158:8123/generate_video/', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${await response.text()}`)
+    }
+
+    console.log('Receiving video from server...')
+
+    // Get video blob from response
+    const videoBlob = await response.blob()
+
+    // Create download link
+    const url = URL.createObjectURL(videoBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `video_${new Date().toISOString().slice(0, 10)}.mp4`
+    document.body.appendChild(link)
+    link.click()
+
+    // Clean up
+    setTimeout(() => {
+      URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+    }, 100)
+
+    // Show success notification
+    toast.success('Video generated and downloaded successfully!')
+
+    // Clear selections and exit select mode
+    clearSelections()
+    isSelectMode.value = false
+  } catch (error) {
+    console.error('Error generating video:', error)
+
+    if (error.name === 'AbortError') {
+      toast.info('Video generation timed out. Please try again with fewer photos.')
+    } else {
+      toast.info('Failed to generate video: ' + error.message)
+    }
   } finally {
     isGeneratingVideo.value = false
   }
 }
 
-// Method to play a generated video
-const playVideo = (video) => {
-  alert(`Playing video: ${video.title}`)
+async function downloadTimeline(timeline) {
+  const original = document.getElementById(`timeline-${timeline.id}`);
+  if (!original) throw new Error('Timeline element not found');
+
+  // 1) Clone & size it to its full scrollable dimensions
+  const clone = original.cloneNode(true);
+  const fullW = original.scrollWidth;
+  const fullH = original.scrollHeight;
+
+  Object.assign(clone.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: `${fullW}px`,
+    height: `${fullH}px`,
+    backgroundColor: '#fff',
+    overflow: 'visible',
+  });
+  document.body.appendChild(clone);
+
+  try {
+    // 2) Pass width/height/windowWidth/windowHeight to html2canvas_pro
+    const canvas = await html2canvas_pro(clone, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      width: fullW,
+      height: fullH,
+      windowWidth: fullW,
+      windowHeight: fullH,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    // 3) Download it
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `Timeline_${timeline.title.replace(/\s+/g, '_')}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    console.error('Error downloading timeline:', err);
+    toast.error('Failed to download timeline: ' + err.message);
+  } finally {
+    clone.remove();
+  }
 }
 </script>
 
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline Generator" main>
+      <SectionTitleLineWithButton :icon="mdiCalendarMonth" title="Timeline & Video" main>
         <div class="flex">
-          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos" :color="isSelectMode ? 'info' : 'contrast'"
-            small class="mr-2" label="Refresh" @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos"
+            :color="isSelectMode ? 'info' : 'contrast'" small class="mr-2" label="Refresh"
+            @click="$refs.photoGallery.refreshPhotos()" />
           <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
             :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
             @click="toggleSelectMode" />
@@ -177,9 +333,16 @@ const playVideo = (video) => {
       <!-- Action Buttons -->
       <div class="flex justify-between mt-6">
         <div class="flex">
-          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiVideo"
-            :label="isGeneratingVideo ? 'Generating...' : 'Generate Timeline Video'" color="info" rounded-full small
-            :disabled="selectedPhotos.length === 0 || isGeneratingVideo" @click="generateTimelineVideo" />
+          <BaseButton v-if="isSelectMode" :icon="isGeneratingTimeline ? mdiLoading : mdiVideo"
+            :icon-class="isGeneratingTimeline ? 'animate-spin' : ''"
+            :label="isGeneratingTimeline ? 'Generating Timeline...' : 'Generate Timeline'" color="info" rounded-full small
+            :disabled="selectedPhotos.length === 0 || isGeneratingTimeline || isGeneratingVideo"
+            @click="generateTimelineView" class="mr-2" />
+          <BaseButton v-if="isSelectMode" :icon="isGeneratingVideo ? mdiLoading : mdiMovieOutline"
+            :icon-class="isGeneratingTimeline ? 'animate-spin' : ''"
+            :label="isGeneratingVideo ? 'Generating Video...' : 'Generate Video'" color="success" rounded-full small
+            :disabled="selectedPhotos.length === 0 || isGeneratingVideo || isGeneratingTimeline"
+            :class="{ 'animate-pulse': isGeneratingVideo }" @click="generateVideo" />
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} photos selected</span>
@@ -187,55 +350,78 @@ const playVideo = (video) => {
         </div>
       </div>
 
-      <!-- Generated Timeline Videos Section -->
+      <!-- Generated Timelines Section -->
       <div v-if="timelineVideos.length > 0" class="mt-8">
-        <h3 class="text-lg font-medium mb-4">Generated Timeline Videos</h3>
+        <h3 class="text-lg font-medium mb-4">Generated Timelines</h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="video in timelineVideos" :key="video.id"
-            class="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-            <div class="relative">
-              <img :src="video.coverImage" class="w-full h-48 object-cover" />
-              <button @click="playVideo(video)"
-                class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity">
-                <svg class="w-12 h-12 text-white" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiPlayCircle" />
+        <div v-for="timeline in timelineVideos" :key="timeline.id" class="mb-10 border rounded-lg p-6 bg-white">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium">{{ timeline.title }}</h3>
+            <div class="flex">
+              <button class="text-blue-600 text-sm flex items-center mr-3" @click="downloadTimeline(timeline)">
+                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
+                  <path fill="currentColor" :d="mdiDownload" />
                 </svg>
+                Download
               </button>
             </div>
-            <div class="p-4">
-              <div class="flex justify-between items-center">
-                <h3 class="text-lg font-medium">{{ video.title }}</h3>
-                <div class="text-green-600">
-                  <svg class="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="mdiMovieOutline" />
-                  </svg>
-                </div>
-              </div>
-              <p class="text-sm text-gray-500 mb-2">{{ video.date }}</p>
-              <p class="text-gray-700 mb-3 text-sm">{{ video.description }}</p>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-500">{{ video.photos.length }} photos</span>
-                <div class="flex">
-                  <button class="text-blue-600 text-sm flex items-center mr-3">
-                    <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-                      <path fill="currentColor" :d="mdiDownload" />
-                    </svg>
-                    Download
-                  </button>
-                  <button class="text-blue-600 text-sm flex items-center">
-                    <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-                      <path fill="currentColor" :d="mdiShare" />
-                    </svg>
-                    Share
-                  </button>
+          </div>
+
+          <p class="text-sm text-gray-500 mb-1">{{ timeline.date }}</p>
+          <p class="text-gray-700 mb-4 text-sm">{{ timeline.description }}</p>
+
+          <!-- Timeline Visualization -->
+          <div class="relative overflow-x-auto" :id="`timeline-${timeline.id}`">
+            <!-- Timeline points with photos -->
+            <div class="relative py-32 min-h-[400px]"
+              :style="{ minWidth: `${Math.max(100, timeline.photos.length * 100)}px` }">
+
+              <!-- Center line - moved inside to ensure it spans the full width -->
+              <div class="absolute left-0 right-0 h-1 bg-gray-300 top-1/2 transform -translate-y-1/2"
+                :style="{ width: '100%' }"></div>
+
+              <div v-for="(photo, index) in timeline.photos" :key="photo.id" class="absolute transform" :style="{
+                left: `${(index / (timeline.photos.length - 1) * (80) + 5)}%`,
+                transform: 'translateX(-30%)'
+              }" :class="photo.position === 'above' ? 'bottom-1/2 mb-8' : 'top-1/2 mt-8'">
+                <!-- Photo container -->
+                <div :class="[
+                  'flex flex-col items-center',
+                  photo.position === 'above' ? 'origin-bottom' : 'origin-top'
+                ]">
+                  <!-- Date indicator for below-timeline photos (appears above photo) -->
+                  <div v-if="photo.position === 'below'" class="mb-2 text-xs text-gray-600 font-medium">
+                    {{ new Date(photo.date).toLocaleDateString() }}
+                  </div>
+
+                  <!-- Photo -->
+                  <div class="relative group">
+                    <img :src="photo.src" :alt="photo.name || 'Timeline photo'"
+                      class="w-32 h-32 object-cover rounded border-2 border-white shadow-md"
+                      @error="$event.target.src = 'https://placehold.co/150'" />
+                    <div
+                      class="absolute inset-0 bg-black opacity-0 hover:opacity-20 transition-opacity rounded pointer-events-none">
+                    </div>
+                  </div>
+
+                  <!-- Date indicator for above-timeline photos (appears below photo) -->
+                  <div v-if="photo.position === 'above'" class="mt-2 text-xs text-gray-600 font-medium">
+                    {{ new Date(photo.date).toLocaleDateString() }}
+                  </div>
+
+                  <!-- Connector line to timeline -->
+                  <div class="absolute h-6 w-0.5 bg-gray-400"
+                    :class="photo.position === 'above' ? 'bottom-0 -mb-8' : 'top-0 -mt-8'"></div>
+
+                  <!-- Timeline dot -->
+                  <div class="absolute w-3 h-3 bg-blue-500 rounded-full transform -translate-x-[0.5px]"
+                    :class="photo.position === 'above' ? 'bottom-0 -mb-3.5' : 'top-0 -mt-3'"></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </SectionMain>
   </LayoutAuthenticated>
 </template>

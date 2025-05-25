@@ -31,20 +31,20 @@ export default [
     label: 'Timeline',
     icon: mdiTimelineClock,
   },
-  // {
-  //   to: '/forms',
-  //   label: 'Forms',
-  //   icon: mdiSquareEditOutline,
-  // },
   {
-    to: '/profile',
-    label: 'Profile',
-    icon: mdiAccountCircle,
+    to: '/style',
+    label: 'Style',
+    icon: mdiSquareEditOutline,
   },
   {
     to: '/tags',
     label: 'Tags',
     icon: mdiTagMultiple,
+  },
+  {
+    to: '/profile',
+    label: 'Profile',
+    icon: mdiAccountCircle,
   },
 
   // {
