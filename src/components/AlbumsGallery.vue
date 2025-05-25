@@ -3,6 +3,7 @@ import {
   mdiFolderMultiple,
   mdiFolderRemove,
   mdiImageMultiple,
+  mdiShareVariant,  // 添加分享图标
   mdiRefresh
 } from '@mdi/js'
 import CardBox from '@/components/CardBox.vue'
@@ -131,6 +132,18 @@ const handleAlbumDelete = (event, albumId) => {
   event.stopPropagation()
   emit('delete-album', albumId)
 }
+
+// 添加分享处理函数
+const handleShareAlbum = (event, album) => {
+  event.stopPropagation()
+  const shareUrl = `${window.location.origin}/#/share/album/${mainStore.userId}/${album.id}`
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    toast.success('Share link copied to clipboard!')
+  }).catch((error) => {
+    console.error('Failed to copy link:', error)
+    toast.error('Failed to copy link')
+  })
+}
 </script>
 
 <template>
@@ -177,14 +190,25 @@ const handleAlbumDelete = (event, albumId) => {
           <div class="p-4">
             <div class="flex justify-between items-center">
               <h3 class="font-medium text-gray-900 truncate">{{ album.name }}</h3>
-              <button v-if="album.id !== null && !props.hideDelete && !props.hideActions"
-                @click.stop="handleAlbumDelete($event, album.id)"
-                class="text-gray-500 hover:text-red-500"
-                title="Delete album">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiFolderRemove" />
-                </svg>
-              </button>
+              <div class="flex items-center gap-2">
+                <!-- 添加分享按钮 -->
+                <button v-if="album.id !== null && album.id !== -1 && !props.hideActions"
+                  @click.stop="handleShareAlbum($event, album)"
+                  class="text-gray-500 hover:text-blue-500"
+                  title="Share album">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="mdiShareVariant" />
+                  </svg>
+                </button>
+                <button v-if="album.id !== null && !props.hideDelete && !props.hideActions"
+                  @click.stop="handleAlbumDelete($event, album.id)"
+                  class="text-gray-500 hover:text-red-500"
+                  title="Delete album">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="mdiFolderRemove" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <p v-if="album.description" class="text-sm text-gray-600 mt-1 truncate">{{ album.description }}</p>
           </div>

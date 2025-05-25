@@ -32,6 +32,7 @@ import {
   mdiMagnify,
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
+import PeopleInputModal from '@/components/PeopleInputModal.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoModal from '@/components/PhotoModal.vue'
 import PhotoUploader from '@/components/PhotoUploader.vue'
@@ -225,15 +226,15 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({ 
-      userId: props.userId?.toString() || '' 
+    const params = new URLSearchParams({
+      userId: props.userId?.toString() || ''
     })
 
     // Add tags filtering
     if (props.filterTags.length > 0) {
       params.append('tags', props.filterTags.join(','))
     }
-    
+
     // Add no-tags filtering
     if (props.noTags) {
       params.append('noTags', 'true')
@@ -699,13 +700,14 @@ const handleActionClick = (photo, event) => {
 }
 
 const handleSharePhoto = (photo) => {
-    const shareUrl = photo.src;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      toast.success('Link copied to clipboard!');
-    }).catch((error) => {
-      console.error('Failed to copy link:', error);
-      toast.error('Failed to copy link');
-    });
+  if (!photo || !photo.id) return;
+  const shareUrl = `${window.location.origin}/#/share/photo/${props.userId}/${photo.id}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    toast.success('Share link copied to clipboard!');
+  }).catch((error) => {
+    console.error('Failed to copy link:', error);
+    toast.error('Failed to copy link');
+  });
 }
 
 // Modify handleMenuAction function
@@ -915,7 +917,6 @@ onMounted(() => {
 const peopleMap = computed(() => {
   const map = {}
 
-  if (!peopleList.value || peopleList.value.length === 0) return map
   peopleList.value.forEach(person => {
     map[person.peopleId] = []
   })
@@ -949,7 +950,7 @@ const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 const peopleTagRename = async (personId) => {
   const person = getNicknameById(personId)
 	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
-  
+
   // Validate input
   if (!newName || newName.trim() === '' || newName === person) return
 
@@ -981,10 +982,10 @@ const peopleTagRename = async (personId) => {
 }
 
 const peopleTagDelete = async (personId) => {
-  const person = getPeopleById(personId).name
+  const person = getPeopleById(personId)
 	console.log('Deleting person:', person)
   try {
-    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person}"? This will remove it from all photos.`)
+    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person.nickname}"? This will remove it from all photos.`)
     if (!confirmDelete) return
 
     const params = new URLSearchParams({
@@ -996,13 +997,13 @@ const peopleTagDelete = async (personId) => {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify([person])
+      body: JSON.stringify([person.name])
     })
 
     const result = await response.json()
 
     if (result.msg === 'ok') {
-      toast.success(`Person tag "${person}" deleted successfully`)
+      toast.success(`Person tag "${person.nickname}" deleted successfully`)
       // Refresh the people list and photos
       fetchPeopleList()
       fetchPhotos()
@@ -1080,77 +1081,6 @@ const deletePeopleTagApi = async (personPhotoIds) => {
 
   const results = await Promise.all(promises)
   return results
-}
-
-const addPeopleTag = async () => {
-  const personNameInput = prompt('Enter the new people tag:')
-  if (!personNameInput || !personNameInput.trim()) return
-  const existingPerson = getPeopleByNickname(personNameInput.trim())
-  const personName = existingPerson ? existingPerson.name : personNameInput.trim()
-
-  try {
-
-    const photoIds = selectedPeoplePhotos.value.map(item => item.photoId)
-    const results = await addPeopleTagApi(personName, photoIds)
-    const successCount = results.filter(result => result?.msg === 'ok').length
-
-    if (successCount > 0) {
-      toast.success(`成功为 ${successCount} 张图片添加人物标签 "${personName}"`)
-      fetchPhotos()
-      fetchPeopleList()
-      clearSelection()
-    } else {
-      throw new Error('添加人物标签失败')
-    }
-  } catch (error) {
-    console.error('添加人物标签失败:', error)
-    toast.error(`添加人物标签失败: ${error.message}`)
-  }
-}
-
-const movePeopleTag = async () => {
-  if (!selectedPeoplePhotos.value.length) {
-    toast.error('No tagged photos selected for moving.')
-    return
-  }
-
-  const newTagInput = prompt('Enter the new people tag:')
-  if (!newTagInput || !newTagInput.trim()) {
-    toast.error('New tag is empty or invalid.')
-    return
-  }
-
-  const existingPerson = getPeopleByNickname(newTagInput.trim())
-  const newTag = existingPerson ? existingPerson.name : newTagInput.trim()
-  console.log(newTag)
-
-  // Step 1: filter out invalid old tags
-  const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
-    return getPeopleById(person) !== undefined
-  })
-
-
-  try {
-    // Step 2: delete old tags
-    if(validPersonPhotoIds.length !== 0){
-      const deleteResults = await deletePeopleTagApi(validPersonPhotoIds)
-    }
-
-    // Step 3: add new tag to the same photoIds
-    const photoIdsToAdd = selectedPeoplePhotos.value.map(item => item.photoId)
-    const addResults = await addPeopleTagApi(newTag.trim(), photoIdsToAdd)
-    const addSuccessCount = addResults.filter(r => r?.msg === 'ok').length
-
-    let message = `Moved people tag to "${newTag.trim()}" on ${addSuccessCount} photo(s).`
-
-    toast.success(message)
-    fetchPhotos()
-    fetchPeopleList()
-    clearSelection()
-  } catch (error) {
-    console.error('Failed to move people tag:', error)
-    toast.error(`Failed to move people tag: ${error.message}`)
-  }
 }
 
 const deletePeopleTag = async () => {
@@ -1276,6 +1206,80 @@ console.log("people detect", selectedPeoplePhotos)
   fetchPhotos()
   fetchPeopleList()
   clearSelection()
+}
+
+const showPeopleInputModal = ref(false)
+const peopleInputModalTitle = ref('Add People Tag')
+const peopleInputModalPlaceholder = ref('Enter people name')
+const currentPeopleAction = ref(null)
+
+const addPeopleTag = () => {
+  if (selectedPeoplePhotos.value.length === 0) {
+    toast.error('Please select at least one photo')
+    return
+  }
+  
+  peopleInputModalTitle.value = 'Add People Tag'
+  peopleInputModalPlaceholder.value = 'Enter new people name'
+  currentPeopleAction.value = 'add'
+  showPeopleInputModal.value = true
+}
+
+// 修改 movePeopleTag 方法
+const movePeopleTag = () => {
+  if (selectedPeoplePhotos.value.length === 0) {
+    toast.error('No tagged photos selected for moving.')
+    return
+  }
+  
+  peopleInputModalTitle.value = 'Move People Tag'
+  peopleInputModalPlaceholder.value = 'Enter new people name'
+  currentPeopleAction.value = 'move'
+  showPeopleInputModal.value = true
+}
+
+
+const handlePeopleInputConfirm = async (inputValue) => {
+  if (!inputValue) return
+  
+  try {
+    if (currentPeopleAction.value === 'add') {
+      const existingPerson = getPeopleByNickname(inputValue)
+      const personName = existingPerson ? existingPerson.name : inputValue
+      const photoIds = selectedPeoplePhotos.value.map(item => item.photoId)
+      const results = await addPeopleTagApi(personName, photoIds)
+      const successCount = results.filter(result => result?.msg === 'ok').length
+
+      if (successCount > 0) {
+        toast.success(`成功为 ${successCount} 张图片添加人物标签 "${inputValue}"`)
+      }
+    } else if (currentPeopleAction.value === 'move') {
+      const existingPerson = getPeopleByNickname(inputValue)
+      const newTag = existingPerson ? existingPerson.name : inputValue
+      const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
+        return getPeopleById(person) !== undefined
+      })
+
+      // Step 2: delete old tags
+      if (validPersonPhotoIds.length !== 0) {
+        await deletePeopleTagApi(validPersonPhotoIds)
+      }
+
+      // Step 3: add new tag to the same photoIds
+      const photoIdsToAdd = selectedPeoplePhotos.value.map(item => item.photoId)
+      const addResults = await addPeopleTagApi(newTag.trim(), photoIdsToAdd)
+      const addSuccessCount = addResults.filter(r => r?.msg === 'ok').length
+
+      toast.success(`Moved people tag to "${newTag.trim()}" on ${addSuccessCount} photo(s).`)
+    }
+    fetchPhotos()
+    fetchPeopleList()
+    clearSelection()
+  } catch (error) {
+    console.error('Failed to perform people action:', error)
+    toast.error(`Failed: ${error.message}`)
+  }
+  
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
@@ -1429,7 +1433,7 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
             class="rounded-none border-r last:border-r-0" title="Small icons" />
-        
+
           <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
             :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
             class="rounded-none border-r last:border-r-0" title="People icons" />
@@ -1441,7 +1445,7 @@ defineExpose({
 
           <BaseButton :icon="mdiAccountRemove" :color="'whiteDark'" @click="deletePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
-            class="rounded-none border-r last:border-r-0" title="Delete people tag"/>
+            class="rounded-none border-r last-border-r-0" title="Delete people tag"/>
 
           <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
@@ -1880,6 +1884,16 @@ defineExpose({
 
     <!-- Empty State -->
     <CardBoxComponentEmpty v-if="filteredPhotos.length === 0" />
+
+    <PeopleInputModal
+      v-if="showPeopleInputModal"
+      :show="showPeopleInputModal"
+      :title="peopleInputModalTitle"
+      :placeholder="peopleInputModalPlaceholder"
+      :peoples="peopleList"
+      @close="showPeopleInputModal = false"
+      @confirm="handlePeopleInputConfirm"
+    />
 
     <!-- Replace old modal with new PhotoModal component -->
     <PhotoModal

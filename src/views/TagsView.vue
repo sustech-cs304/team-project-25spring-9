@@ -44,28 +44,28 @@ const tagGroups = ref([])
 const initializeData = async () => {
   isLoading.value = true
   error.value = null
-  
+
   try {
     const params = new URLSearchParams({ userId: mainStore.userId })
     const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`)
     const result = await response.json()
-    
+
     if (!result?.data) throw new Error('Failed to fetch photos')
-    
+
     // 直接更新照片数据
     allPhotos.value = result.data.map(img => ({
       id: img.imgId,
       src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
       tags: img.tags || []
     }))
-    
+
     // 生成标签组
     const tagMap = new Map()
     allPhotos.value.forEach(photo => {
       if (Array.isArray(photo.tags)) {
         photo.tags.forEach(tag => {
           if (!tagMap.has(tag)) {
-            tagMap.set(tag, { 
+            tagMap.set(tag, {
               id: tag,
               name: tag,
               count: 0,
@@ -78,11 +78,11 @@ const initializeData = async () => {
         })
       }
     })
-    
+
     // 更新标签组数据
     tagGroups.value = Array.from(tagMap.values())
       .sort((a, b) => b.count - a.count)
-      
+
   } catch (err) {
     error.value = err.message
     toast.error(`Failed to load data: ${err.message}`)
@@ -270,7 +270,7 @@ const handleBackToTags = () => {
               :color="currentTag === group.id ? 'info' : 'whiteDark'"
               :class="[
                 'whitespace-nowrap font-medium shadow transition-all duration-200',
-                currentTag === group.id 
+                currentTag === group.id
                   ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white'
                   : 'bg-white hover:bg-gray-50'
               ]"
