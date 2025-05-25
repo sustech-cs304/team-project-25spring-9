@@ -78,7 +78,7 @@ function stylizePhoto() {
     formData.append('file', imageFile)
     formData.append('style_index', styleIndex)
 
-    const response = await fetch('http://10.24.120.158:8123/style_transfer/', {
+    const response = await fetch('http://10.16.60.67:8123/style_transfer/', {
       method: 'POST',
       body: formData
     })
