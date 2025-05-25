@@ -60,10 +60,10 @@ function stylizePhoto () {
   const photo = photoGallery.value.getPhotoById(selectedPhotos.value[0])
 
   async function getFileFromPhoto () {
-    if (photo.file instanceof File) return photo.file
-    if (photo.rawFile instanceof File) return photo.rawFile
 
-    const res = await fetch(photo.url, { mode: 'cors' })
+
+    const photoUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${photo.id}.jpeg`;
+    const res = await fetch(photoUrl, { mode: 'cors' })
     const blob = await res.blob()
     const fileName = `${photo.name || 'photo'}.jpeg`
     return new File([blob], fileName, { type: blob.type || 'image/jpeg' })
@@ -74,7 +74,7 @@ function stylizePhoto () {
     const formData = new FormData()
     const styleIndex = 3
     formData.append('file', imageFile)
-    formData.append('style_index', styleIndex.toString())
+    formData.append('style_index', styleIndex)
 
     const response = await fetch('http://10.24.120.158:8123/style_transfer/', {
       method: 'POST',
@@ -86,18 +86,23 @@ function stylizePhoto () {
     const stylizedUrl = data.result_url
     if (!stylizedUrl) throw new Error('No result_url returned by API')
 
-    photoGallery.value.uploadPhotos([
-      { id: getNewId.value, url: stylizedUrl, name: `${photo.name}-stylized` }
-    ])
+    const link = document.createElement('a')
+    link.href = stylizedUrl
+    link.download = `${photo.name}-stylized.jpeg`
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
     clearSelections()
-    return 'Stylized image added to gallery!'
+    return 'Stylized image downloaded successfully!'
   })()
 
   toast.promise(
     stylizePromise,
     {
       pending: 'Stylizing…',
-      success: msg => msg,
+      success: 'Stylize successful! Downloading...',
       error: err => `Stylize failed: ${err.message}`
     },
     { position: toast.POSITION.TOP_RIGHT }
