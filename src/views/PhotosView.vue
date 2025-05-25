@@ -16,7 +16,6 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import PhotoEditor from '@/components/PhotoEditor.vue'
-import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -48,11 +47,6 @@ const showUploader = ref(false)
 
 // Method to generate a new unique ID
 const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
-
-// Modify handleUpload to handle both single and multiple files
-const handleUpload = (file) => {
-  photoGallery.value.uploadPhotos(file)
-}
 
 // Add delete method
 const handleDelete = () => {
@@ -94,7 +88,7 @@ const clearSelections = () => {
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
-    openEditorWithPhoto(selectedPhotos.value[0]) 
+    openEditorWithPhoto(selectedPhotos.value[0])
   }
 }
 
@@ -113,7 +107,7 @@ const closeEditor = () => {
   editingPhoto.value = null
 }
 
-// Save edited photo 
+// Save edited photo
 const saveEditedPhoto = (updatedPhoto) => {
   //TODO: save edited photo
   photoGallery.value.uploadPhotos(updatedPhoto)
@@ -154,7 +148,7 @@ const saveEditedPhoto = (updatedPhoto) => {
             color="info"
             rounded-full
             small
-            @click="showUploader = true"
+            @click="$refs.photoGallery.initiateUpload()"
           />
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
@@ -171,19 +165,12 @@ const saveEditedPhoto = (updatedPhoto) => {
         </div>
       </div>
 
-      <!-- Add PhotoUploader component -->
-      <PhotoUploader
-        :show="showUploader"
-        @close="showUploader = false"
-        @upload="handleUpload"
-      />
-
       <!-- Photo Editor Modal -->
-      <PhotoEditor 
-        v-if="showEditor" 
-        :photo="editingPhoto" 
-        @save="saveEditedPhoto" 
-        @close="showEditor = false" 
+      <PhotoEditor
+        v-if="showEditor"
+        :photo="editingPhoto"
+        @save="saveEditedPhoto"
+        @close="showEditor = false"
       />
     </SectionMain>
   </LayoutAuthenticated>
