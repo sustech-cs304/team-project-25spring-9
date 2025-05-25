@@ -998,17 +998,12 @@ const clearSelection = () => {
 }
 
 const addPeopleTagApi = async (person, photoIds) => {
-  console.log(photoIds)
-  const promises = photoIds.map(async ({ photoId }) => {
-      const photo = displayPhotos.value.find(p => p.id === photoId)
-      
-      if (!photo) return
-
-      console.log('Adding people tag:', person, photo)
+  const promises = photoIds.map(async photoId => {
+      console.log('Adding people tag:', person, photoId)
 
       const params = new URLSearchParams({
-        userId: photo.userId.toString(),
-        imgId: photo.id.toString(),
+        userId: props.userId.toString(),
+        imgId: photoId.toString(),
         people: person.trim()
       })
 
@@ -1023,20 +1018,21 @@ const addPeopleTagApi = async (person, photoIds) => {
     return results
 }
 
-const deletePeopleTagApi = async (person, photoId) => {
-  const promises = selectedPeoplePhotos.value.map(async ({ photoId }) => {
+const deletePeopleTagApi = async (personPhotoIds) => {
+  const promises = personPhotoIds.map(async ({ person, photoId }) => {
     const photo = displayPhotos.value.find(p => p.id === photoId)
     if (!photo) return
 
     const params = new URLSearchParams({
       userId: photo.userId.toString(),
       imgId: photo.id.toString(),
-      people: personName.trim()
+      people: getPeopleById(person).name
     })
 
     const response = await fetch(`http://10.16.60.67:9090/imgpeople/delete?${params}`, {
-        method: 'POST'
-      })
+      method: 'POST'
+    })
+
     return response.json()
   })
 
@@ -1068,11 +1064,79 @@ const addPeopleTag = async () => {
 }
 
 const movePeopleTag = async () => {
-  console.log('Moving people tag')
+  if (!selectedPeoplePhotos.value.length) {
+    toast.error('No tagged photos selected for moving.')
+    return
+  }
+
+  const newTag = prompt('Enter the new people tag:')
+  if (!newTag || !newTag.trim()) {
+    toast.error('New tag is empty or invalid.')
+    return
+  }
+
+  // Step 1: filter out invalid old tags
+  const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
+    return getPeopleById(person) !== undefined
+  })
+
+  if (!validPersonPhotoIds.length) {
+    toast.error('No valid people tags found to move.')
+    return
+  }
+
+  try {
+    // Step 2: delete old tags
+    const deleteResults = await deletePeopleTagApi(validPersonPhotoIds)
+
+    // Step 3: add new tag to the same photoIds
+    const photoIdsToAdd = selectedPeoplePhotos.value.map(item => item.photoId)
+    const addResults = await addPeopleTagApi(newTag.trim(), photoIdsToAdd)
+    const addSuccessCount = addResults.filter(r => r?.msg === 'ok').length
+
+    let message = `Moved people tag to "${newTag.trim()}" on ${addSuccessCount} photo(s).`
+
+    toast.success(message)
+    fetchPhotos()
+    fetchPeopleList()
+    clearSelection()
+  } catch (error) {
+    console.error('Failed to move people tag:', error)
+    toast.error(`Failed to move people tag: ${error.message}`)
+  }
 }
 
 const deletePeopleTag = async () => {
-  
+  const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
+    const personEntry = getPeopleById(person)
+    return personEntry !== undefined
+  })
+
+  if (!validPersonPhotoIds.length) {
+    toast.error('No tagged photos selected for deletion.')
+    return
+  }
+
+  if (!confirm('Are you sure you want to delete the selected people tags from these photos?')) {
+    return
+  }
+
+  try {
+    const results = await deletePeopleTagApi(validPersonPhotoIds)
+    const successCount = results.filter(result => result?.msg === 'ok').length
+
+    if (successCount > 0) {
+      toast.success(`Successfully removed people tags from ${successCount} photo(s).`)
+      fetchPhotos()
+      fetchPeopleList()
+      clearSelection()
+    } else {
+      throw new Error('No tags were successfully deleted.')
+    }
+  } catch (error) {
+    console.error('Failed to delete people tags:', error)
+    toast.error(`Failed to delete people tags: ${error.message}`)
+  }
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
