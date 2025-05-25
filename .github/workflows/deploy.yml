@@ -1,0 +1,30 @@
+name: Auto Deploy via Docker Compose
+
+on:
+  push:
+    branches:
+      - main  # 或你实际使用的分支
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # 使用你自己的 Runner（部署在服务器上）
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Stop old containers
+      run: |
+        docker compose down || true
+
+    - name: Build containers
+      run: |
+        docker compose build
+
+    - name: Start containers
+      run: |
+        docker compose up -d
+
+    - name: Check status
+      run: |
+        docker compose ps
