@@ -10,6 +10,7 @@ import {
   mdiArrowLeft,
   mdiArrowRight,
   mdiInformation,
+  mdiFaceRecognition,
   mdiImageSearch,
   mdiViewList,
   mdiViewGrid,
@@ -1165,6 +1166,98 @@ const deletePeopleTag = async () => {
   }
 }
 
+const detectSinglePhotoPeople = async (photo) =>{
+  let file = photo?.file
+  if (!file && photo?.src) {
+    // 如果没有 file，但有 src，则尝试 fetch blob
+    const res = await fetch(photo.src)
+    file = new File([await res.blob()], photo.name || 'image.jpg')
+  }
+  if (!file) throw new Error('No file to recognize')
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch('http://10.16.60.67:8123/face_recognition/', {
+    method: 'POST',
+    body: formData
+  })
+
+  const result = await response.json()
+  return result.person_label
+}
+
+const detectPeopleTag = async () => {
+console.log("people detect", selectedPeoplePhotos)
+
+  if (!selectedPeoplePhotos.value.length) {
+    toast.error('Please select at least one photo.')
+    return
+  }
+
+  const labelMap = {} // { label (number): photo[] }
+
+  let toastId = toast.info(`Processing photo 1 of ${selectedPeoplePhotos.value.length}...`, {
+    timeout: false, // 不自动消失
+    closeOnClick: false,
+    draggable: false,
+    hideProgressBar: false
+  })
+
+  for (let i = 0; i < selectedPeoplePhotos.value.length; i++) {
+    const { photoId } = selectedPeoplePhotos.value[i]
+    const photo = displayPhotos.value.find(p => p.id === photoId)
+    if (!photo) continue
+
+    try {
+      const labels = await detectSinglePhotoPeople(photo)
+      console.log(`Detected labels for photo ${photoId}:`, labels)
+
+      if (Array.isArray(labels) && labels.length > 0) {
+        labels.forEach(label => {
+          if (!labelMap[label.toString()]) {
+            labelMap[label.toString()] = []
+          }
+          labelMap[label.toString()].push(photo.id)
+        })
+      }
+    } catch (err) {
+      console.error(`Failed to detect people in photo ${photoId}:`, err)
+      toast.warning(`Photo ${photoId} recognition failed.`)
+    }
+
+    toast.update(toastId, {
+      content: `Processing photo ${i + 1} of ${selectedPeoplePhotos.value.length}...`,
+      timeout: false,
+      hideProgressBar: false,
+      type: 'info'
+    })
+  }
+  toast.dismiss(toastId)
+
+  // 执行添加人物标签
+  let totalTagsAdded = 0
+  for (const [label, photoIds] of Object.entries(labelMap)) {
+    const personTag = label
+    try {
+      const results = await addPeopleTagApi(personTag, photoIds)
+      const successCount = results.filter(r => r?.msg === 'ok').length
+      totalTagsAdded += successCount
+      if (successCount > 0) {
+        console.log(`Added tag '${personTag}' to ${successCount} photo(s).`)
+      }
+    } catch (err) {
+      console.error(`Failed to add tag '${personTag}':`, err)
+      toast.error(`Failed to tag photos as '${personTag}'`)
+    }
+  }
+
+  toast.success(`Detected ${Object.keys(labelMap).length} unique people and tagged ${totalTagsAdded} photo(s).`)
+  fetchPhotos()
+  fetchPeopleList()
+  clearSelection()
+}
+
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
 const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
 
@@ -1333,6 +1426,10 @@ defineExpose({
           <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
             class="rounded-none border-r last:border-r-0" title="Move people tag" />
+
+          <BaseButton :icon="mdiFaceRecognition" :color="'whiteDark'" @click="detectPeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Recognize people" />
         </div>
       </div>
 
