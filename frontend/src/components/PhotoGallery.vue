@@ -30,6 +30,7 @@ import {
   mdiMapMarker,
   mdiAccount,
   mdiMagnify,
+  mdiEyeOffOutline // 添加私密图标
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import PeopleInputModal from '@/components/PeopleInputModal.vue'
@@ -127,7 +128,6 @@ const error = ref(null)
 const showAdvancedSearch = ref(false)
 const advancedFilters = ref({
   dateRange: { start: '', end: '' },
-  location: '',
   tags: [],
   peoples: ''
 })
@@ -136,7 +136,6 @@ const advancedFilters = ref({
 const appliedFilters = ref({
   query: '',
   dateRange: { start: '', end: '' },
-  location: '',
   tags: [],
   peoples: ''
 })
@@ -144,7 +143,6 @@ const appliedFilters = ref({
 // Add temporary filter state to store unapplied changes
 const tempFilters = ref({
   dateRange: { start: '', end: '' },
-  location: '',
   tags: [],
   peoples: ''
 })
@@ -174,7 +172,7 @@ const removeTag = (index) => {
 // Change placeholder text when advanced search is active
 const searchPlaceholder = computed(() => {
   return showAdvancedSearch.value
-    ? 'Search by name, type, or any field...'
+    ? 'Quick search photos...'
     : 'Quick search photos...'
 })
 
@@ -255,11 +253,8 @@ const fetchPhotos = async () => {
     if (appliedFilters.value.dateRange.end) {
       params.append('endDate', appliedFilters.value.dateRange.end)
     }
-    if (appliedFilters.value.location) {
-      params.append('imgPos', appliedFilters.value.location)
-    }
     if (appliedFilters.value.peoples) {
-      params.append('peoples', appliedFilters.value.peoples)
+      params.append('peoples_nickname', appliedFilters.value.peoples)
     }
     if (appliedFilters.value.tags?.length > 0) {
       params.append('tags', appliedFilters.value.tags.join(','))
@@ -323,20 +318,17 @@ const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
-    location: '',
     tags: [],
     peoples: ''
   }
   appliedFilters.value = {
     query: '',
     dateRange: { start: '', end: '' },
-    location: '',
     tags: [],
     peoples: ''
   }
   advancedFilters.value = {
     dateRange: { start: '', end: '' },
-    location: '',
     tags: [],
     peoples: ''
   }
@@ -375,7 +367,7 @@ const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
     formData.append('files', file)
 
     const params = new URLSearchParams({
-      imgDate: currentDate,
+      // imgDate: currentDate,
       imgName: file.name,
       userId: props.userId.toString(),
       pub: true
@@ -545,7 +537,6 @@ const applyFilters = () => {
       start: tempFilters.value.dateRange.start || '',
       end: tempFilters.value.dateRange.end || ''
     },
-    location: tempFilters.value.location || '',
     tags: tempFilters.value.tags?.length ? tempFilters.value.tags : [],
     peoples: tempFilters.value.peoples || ''
   }
@@ -557,7 +548,6 @@ const clearAdvancedFilters = () => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
-    location: '',
     tags: [],
     peoples: ''
   }
@@ -947,38 +937,16 @@ const togglePerson = (person) => {
 
 const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 
+const personRenaming = ref(null)
+
 const peopleTagRename = async (personId) => {
-  const person = getNicknameById(personId)
-	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
+	personRenaming.value = personId
 
-  // Validate input
-  if (!newName || newName.trim() === '' || newName === person) return
-
-  try {
-    const params = new URLSearchParams({
-      userId: props.userId.toString(),
-      name: getPeopleById(personId).name,
-      nickname: newName.trim()
-    })
-
-    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
-      method: 'POST'
-    })
-
-    const result = await response.json()
-
-    if (result.msg === 'ok') {
-      toast.success(`Person "${person}" renamed to "${newName}"`)
-      // Refresh data
-      fetchPeopleList()
-      fetchPhotos() // Optional chaining in case fetchPhotos isn't defined
-    } else {
-      throw new Error(result.msg || 'Rename failed')
-    }
-  } catch (error) {
-    console.error('Rename failed:', error)
-    toast.error(`Rename failed: ${error.message}`)
-  }
+  peopleInputModalTitle.value = 'Rename People'
+  peopleInputModalPlaceholder.value = 'Enter new people name'
+  currentPeopleAction.value = 'rename'
+  showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = false
 }
 
 const peopleTagDelete = async (personId) => {
@@ -1023,10 +991,20 @@ const togglePeoplePhotoSelection = (person, photoId) => {
     item => item.person === person && item.photoId === photoId
   )
 
+  const containsPhotoCnt = selectedPeoplePhotos.value.filter(
+    item => item.photoId === photoId
+  ).length
+
   if (index === -1) {
     selectedPeoplePhotos.value.push({ person, photoId })
+    if (containsPhotoCnt === 0) {
+      emit('select-photo', photoId)
+    }
   } else {
     selectedPeoplePhotos.value.splice(index, 1)
+    if (containsPhotoCnt === 1) {
+      emit('select-photo', photoId)
+    }
   }
 }
 
@@ -1057,7 +1035,6 @@ const addPeopleTagApi = async (person, photoIds) => {
     })
 
     const results = await Promise.all(promises)
-    console.log('Add people tag results:', results)
     return results
 }
 
@@ -1212,17 +1189,19 @@ const showPeopleInputModal = ref(false)
 const peopleInputModalTitle = ref('Add People Tag')
 const peopleInputModalPlaceholder = ref('Enter people name')
 const currentPeopleAction = ref(null)
+const inputBoxUseSuggestion = ref(true)
 
 const addPeopleTag = () => {
   if (selectedPeoplePhotos.value.length === 0) {
     toast.error('Please select at least one photo')
     return
   }
-  
+
   peopleInputModalTitle.value = 'Add People Tag'
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'add'
   showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = true
 }
 
 // 修改 movePeopleTag 方法
@@ -1231,17 +1210,18 @@ const movePeopleTag = () => {
     toast.error('No tagged photos selected for moving.')
     return
   }
-  
+
   peopleInputModalTitle.value = 'Move People Tag'
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'move'
   showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = true
 }
 
 
 const handlePeopleInputConfirm = async (inputValue) => {
   if (!inputValue) return
-  
+
   try {
     if (currentPeopleAction.value === 'add') {
       const existingPerson = getPeopleByNickname(inputValue)
@@ -1279,7 +1259,39 @@ const handlePeopleInputConfirm = async (inputValue) => {
     console.error('Failed to perform people action:', error)
     toast.error(`Failed: ${error.message}`)
   }
-  
+
+}
+
+const handlePeopleTagRename = async (inputValue) => {
+  const newName = inputValue.trim()
+  const personId = personRenaming.value
+  const person = getPeopleById(personId)
+
+  try {
+    const params = new URLSearchParams({
+      userId: props.userId.toString(),
+      name: person.name,
+      nickname: newName
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+
+    if (result.msg === 'ok') {
+      toast.success(`Person "${getNicknameById(personId)}" renamed to "${newName}"`)
+      // Refresh data
+      fetchPeopleList()
+      fetchPhotos() // Optional chaining in case fetchPhotos isn't defined
+    } else {
+      throw new Error(result.msg || 'Rename failed')
+    }
+  } catch (error) {
+    console.error('Rename failed:', error)
+    toast.error(`Rename failed: ${error.message}`)
+  }
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
@@ -1479,19 +1491,6 @@ defineExpose({
             </div>
           </div>
 
-          <!-- Location -->
-          <div class="space-y-2">
-            <label class="text-sm font-medium flex items-center text-gray-700">
-              <svg class="w-6 h-6 mr-1">
-                <path fill="currentColor" :d="mdiMapMarker" />
-              </svg>
-              <span>Location</span>
-            </label>
-            <input v-model="tempFilters.location" type="text"
-              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
-              placeholder="Enter location name" />
-          </div>
-
           <!-- Tags -->
           <div class="space-y-2">
             <label class="text-sm font-medium flex items-center text-gray-700">
@@ -1565,6 +1564,7 @@ defineExpose({
             <th class="px-3 py-2 text-left">Name</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
+            <th class="px-3 py-2 text-left">Visibility</th> <!-- 添加此列 -->
             <th class="px-3 py-2 text-left">Tags</th>
             <th v-if="showActions" class="px-3 py-2 text-right">Actions</th>
           </tr>
@@ -1628,6 +1628,13 @@ defineExpose({
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.displayDate }}</td>
 
+            <!-- Visibility column -->
+            <td class="px-3 py-2">
+              <span :class="photo.pub ? 'text-green-600' : 'text-gray-600'">
+                {{ photo.pub ? 'Public' : 'Private' }}
+              </span>
+            </td>
+
             <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
@@ -1685,6 +1692,14 @@ defineExpose({
           ⚠️
         </div>
 
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-3 right-3 z-10 bg-white/90 rounded-full p-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
+        </div>
+
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1737,6 +1752,14 @@ defineExpose({
           ⚠️
         </div>
 
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-2 right-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
+          <svg class="w-3.5 h-3.5 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
+        </div>
+
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1787,6 +1810,14 @@ defineExpose({
              class="absolute top-2 right-2 text-red-500"
              title="Upload failed">
           ⚠️
+        </div>
+
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-1 right-1 z-10 bg-white/90 rounded-full p-0.5 shadow-sm">
+          <svg class="w-3 h-3 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
         </div>
 
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
@@ -1891,8 +1922,12 @@ defineExpose({
       :title="peopleInputModalTitle"
       :placeholder="peopleInputModalPlaceholder"
       :peoples="peopleList"
+      :operation="currentPeopleAction"
+      :use-suggestion="inputBoxUseSuggestion"
+
       @close="showPeopleInputModal = false"
       @confirm="handlePeopleInputConfirm"
+      @rename="handlePeopleTagRename"
     />
 
     <!-- Replace old modal with new PhotoModal component -->
