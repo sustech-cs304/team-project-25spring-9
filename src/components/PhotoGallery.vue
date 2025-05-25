@@ -906,13 +906,44 @@ const handleUploadComplete = (file, tags = []) => {
   uploadPhotos(file, tags, tempAlbumId.value)  // 使用 .value 来获取 ref 值
 }
 
+// 为 photoGallery 添加 addTagToPhoto 方法
+const addTagToPhoto = async (photo, tag) => {
+  if (!photo || !tag) return;
+  // 如果已有该标签则不重复添加
+  if (photo.tags && photo.tags.includes(tag)) {
+    toast.error(`标签 "${tag}" 已存在`);
+    return;
+  }
+  try {
+    const params = new URLSearchParams({
+      userId: photo.userId?.toString() || '',
+      imgId: photo.id?.toString() || '',
+      tag: tag
+    });
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/add?${params}`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+    if (result.msg === 'ok') {
+      if (!photo.tags) photo.tags = [];
+      photo.tags.push(tag);
+      toast.success(`标签 "${tag}" 已成功添加`);
+    } else {
+      throw new Error(result.msg || '添加标签失败');
+    }
+  } catch (error) {
+    toast.error(`添加标签失败: ${error.message}`);
+  }
+};
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
   deletePhotos,
   downloadPhotos,
   getPhotoById,
-  initiateUpload
+  initiateUpload,
+  addTagToPhoto // 暴露方法
 })
 </script>
 
@@ -1336,6 +1367,7 @@ defineExpose({
       @add-tag="addNewTag(currentPhoto)"
       @delete-tag="(tag) => handleDeleteTag(tag, currentPhoto)"
       @rename="(newName) => savePhotoName(currentPhoto, newName)"
+      :addTagToPhoto="addTagToPhoto"
     />
 
     <!-- Action Menu -->
