@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     ninja-build \
     git \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 # 设置工作目录
 WORKDIR /app
