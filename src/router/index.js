@@ -69,14 +69,14 @@ const routes = [
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),
   },
-  {
-    meta: {
-      title: 'Style',
-    },
-    path: '/style',
-    name: 'style',
-    component: () => import('@/views/StyleView.vue'),
-  },
+  // {
+  //   meta: {
+  //     title: 'Ui',
+  //   },
+  //   path: '/ui',
+  //   name: 'ui',
+  //   component: () => import('@/views/UiView.vue'),
+  // },
   {
     meta: {
       title: 'Login',
