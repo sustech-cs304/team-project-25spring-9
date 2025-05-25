@@ -12,6 +12,9 @@ const emit = defineEmits(['close', 'upload'])
 const isDragging = ref(false)
 const uploadQueue = ref([])
 
+// 新增：每张图片的 tags 输入
+const tagInputs = ref([])
+
 const handleDrop = (e) => {
   e.preventDefault()
   isDragging.value = false
@@ -26,26 +29,33 @@ const handleFileSelect = (e) => {
 
 const addToQueue = (files) => {
   for (const file of files) {
-    // Add preview URL
     uploadQueue.value.push({
       file,
       preview: URL.createObjectURL(file),
       name: file.name,
-      size: formatFileSize(file.size)
+      size: formatFileSize(file.size),
+      tags: [] // Initialize tags array for each file
     })
+    tagInputs.value.push('') // Initialize tag input string
   }
 }
 
 const removeFromQueue = (index) => {
   URL.revokeObjectURL(uploadQueue.value[index].preview)
   uploadQueue.value.splice(index, 1)
+  tagInputs.value.splice(index, 1)
 }
 
 const uploadAll = () => {
-  uploadQueue.value.forEach(item => {
-    emit('upload', item.file)
+  uploadQueue.value.forEach((item, idx) => {
+    const tags = tagInputs.value[idx]
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+    emit('upload', item.file, tags)
   })
   uploadQueue.value = []
+  tagInputs.value = []
   emit('close')
 }
 
@@ -91,11 +101,18 @@ const formatFileSize = (bytes) => {
       <div v-if="uploadQueue.length > 0" class="mb-4">
         <div class="max-h-60 overflow-y-auto">
           <div v-for="(item, index) in uploadQueue" :key="index"
-               class="flex items-center p-2 hover:bg-gray-50 rounded">
-            <img :src="item.preview" class="w-16 h-16 object-cover rounded mr-4">
+               class="flex items-center p-2 hover:bg-gray-50 rounded gap-4">
+            <img :src="item.preview" class="w-16 h-16 object-cover rounded mr-2">
             <div class="flex-1">
               <div class="text-sm font-medium text-gray-900">{{ item.name }}</div>
               <div class="text-sm text-gray-500">{{ item.size }}</div>
+              <!-- 新增：Tag 输入 -->
+              <input
+                v-model="tagInputs[index]"
+                type="text"
+                class="mt-1 w-full px-2 py-1 border rounded text-xs"
+                placeholder="Tags (comma separated, e.g. cat, summer, travel)"
+              />
             </div>
             <BaseButton :icon="mdiClose" color="danger" small @click="removeFromQueue(index)" />
           </div>

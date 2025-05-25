@@ -285,7 +285,7 @@ const generateNewId = (() => {
 const uploadingPhotos = ref([])
 
 // Modify upload method
-const uploadPhotos = (file) => {
+const uploadPhotos = (file, tags = []) => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
@@ -324,7 +324,8 @@ const uploadPhotos = (file) => {
       date: currentDate.split(' ')[0],
       type: file.type.split('/')[1].toUpperCase(),
       isUploading: true,
-      tempUrl: localUrl
+      tempUrl: localUrl,
+      tags: tags || [] // Add tags to tempPhoto
     }
 
     if (!props.useApiData) {
@@ -346,7 +347,11 @@ const uploadPhotos = (file) => {
       pub: true
     })
 
-    fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+    if (tags && tags.length > 0) {
+      params.append('tags', tags.join(','))
+    }
+
+    fetch(`http://10.16.60.67:9090/img/addnoinfo?${params}`, {
       method: 'POST',
       body: formData
     })

@@ -50,8 +50,31 @@ const showUploader = ref(false)
 const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
 
 // Modify handleUpload to handle both single and multiple files
-const handleUpload = (file) => {
-  photoGallery.value.uploadPhotos(file)
+const handleUpload = (file, tags) => {
+  if (!file) return;
+  if (photoGallery.value) {
+    // 将 file 和 tags 都传递给 PhotoGallery 组件的 uploadPhotos 方法
+    photoGallery.value.uploadPhotos(file, tags);
+    return;
+  }
+  // 如果没有 PhotoGallery 引用，使用默认上传逻辑
+  const formData = new FormData();
+  formData.append('files', file);
+
+  const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const params = new URLSearchParams({
+    imgDate: currentDate,
+    imgName: file.name,
+    userId: mainStore.userId,
+    pub: true
+  });
+
+  // 添加 tags 参数
+  if (Array.isArray(tags) && tags.length > 0) {
+    params.append('tags', tags.join(','));
+  }
+
+  // ...rest of upload logic...
 }
 
 // Add delete method
@@ -93,7 +116,7 @@ const clearSelections = () => {
 // Open the editor
 const openEditor = () => {
   if (selectedPhotos.value.length === 1) {
-    openEditorWithPhoto(selectedPhotos.value[0]) 
+    openEditorWithPhoto(selectedPhotos.value[0])
   }
 }
 
@@ -112,7 +135,7 @@ const closeEditor = () => {
   editingPhoto.value = null
 }
 
-// Save edited photo 
+// Save edited photo
 const saveEditedPhoto = (updatedPhoto) => {
   //TODO: save edited photo
   photoGallery.value.uploadPhotos(updatedPhoto)
@@ -178,11 +201,11 @@ const saveEditedPhoto = (updatedPhoto) => {
       />
 
       <!-- Photo Editor Modal -->
-      <PhotoEditor 
-        v-if="showEditor" 
-        :photo="editingPhoto" 
-        @save="saveEditedPhoto" 
-        @close="showEditor = false" 
+      <PhotoEditor
+        v-if="showEditor"
+        :photo="editingPhoto"
+        @save="saveEditedPhoto"
+        @close="showEditor = false"
       />
     </SectionMain>
   </LayoutAuthenticated>

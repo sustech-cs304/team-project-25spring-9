@@ -47,6 +47,7 @@ const viewMode = ref('grid')
 const isSelectMode = ref(false)
 const selectedPhotos = ref([])
 const currentTagGroup = ref(null)
+const photoGallery = ref(null)
 
 // Computed: Group photos by tag
 const photosByTag = computed(() => {
@@ -149,58 +150,33 @@ const filteredPhotos = computed(() => {
     : photos.value.filter(p => p.tags?.includes(selectedTag.value))
 })
 
-// Selection logic
-const toggleSelectMode = () => {
-  isSelectMode.value = !isSelectMode.value
-  if (!isSelectMode.value) selectedPhotos.value = []
+// Selection logic (mimic PhotosView)
+const togglePhotoSelection = (photoId) => {
+  if (selectedPhotos.value.includes(photoId)) {
+    selectedPhotos.value = selectedPhotos.value.filter(id => id !== photoId)
+  } else {
+    selectedPhotos.value.push(photoId)
+  }
 }
 
-const handlePhotoSelection = (photoId) => {
-  selectedPhotos.value = selectedPhotos.value.includes(photoId)
-    ? selectedPhotos.value.filter(id => id !== photoId)
-    : [...selectedPhotos.value, photoId]
+const toggleSelectMode = () => {
+  isSelectMode.value = !isSelectMode.value
+  if (!isSelectMode.value) {
+    clearSelections()
+  }
 }
 
 const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Actions
-const handleDelete = async () => {
-  if (!selectedPhotos.value.length || !confirm(`Delete ${selectedPhotos.value.length} selected photo(s)?`)) return
-  try {
-    await Promise.all(selectedPhotos.value.map(photoId => {
-      const params = new URLSearchParams({ userId: mainStore.userId, imgId: photoId })
-      return fetch(`http://10.16.60.67:9090/img/delete?${params}`)
-        .then(r => r.json())
-        .then(res => { if (res?.msg !== 'ok') throw new Error(res?.msg || 'Delete failed') })
-    }))
-    toast.success(`${selectedPhotos.value.length} photo(s) deleted`)
-    selectedPhotos.value = []
-    fetchPhotos()
-  } catch (err) {
-    toast.error(`Failed to delete: ${err.message}`)
-  }
+// Actions (delegate to PhotoGallery)
+const handleDelete = () => {
+  photoGallery.value?.deletePhotos(selectedPhotos)
+  selectedPhotos.value = []
 }
-
-const handleDownload = async () => {
-  const downloads = selectedPhotos.value.map(id => filteredPhotos.value.find(p => p.id === id)).filter(Boolean)
-  for (const photo of downloads) {
-    try {
-      const blob = await (await fetch(photo.src)).blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = photo.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      toast.error(`Failed to download ${photo.name}`)
-    }
-  }
-  toast.success(`Downloaded ${downloads.length} photo(s)`)
+const handleDownload = () => {
+  photoGallery.value?.downloadPhotos(selectedPhotos)
 }
 
 onMounted(fetchPhotos)
@@ -209,7 +185,6 @@ onMounted(fetchPhotos)
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <!-- Title section with enhanced styling -->
       <SectionTitleLineWithButton
         :icon="currentTagGroup ? mdiImageMultiple : mdiTagMultiple"
         :title="currentTagGroup ? currentTagGroup.name : 'Tags'"
@@ -222,7 +197,6 @@ onMounted(fetchPhotos)
             :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
             :label="isSelectMode ? 'View Mode' : 'Select Mode'"
             :color="isSelectMode ? 'info' : 'contrast'"
-            :class="{'shadow-lg transform hover:-translate-y-0.5': !isSelectMode}"
             small
             class="transition-all duration-200"
             @click="toggleSelectMode"
@@ -236,21 +210,20 @@ onMounted(fetchPhotos)
             small
             @click="backToTags"
           />
-          <template v-else>
-            <BaseButton
-              :icon="mdiRefresh"
-              label="Refresh"
-              color="info"
-              class="shadow hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
-              small
-              @click="fetchPhotos"
-            />
-          </template>
+          <BaseButton
+            v-else
+            :icon="mdiRefresh"
+            label="Refresh"
+            color="info"
+            class="shadow hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+            small
+            @click="fetchPhotos"
+          />
         </div>
       </SectionTitleLineWithButton>
 
       <div v-if="!isLoading && !error" class="space-y-6">
-        <!-- Enhanced Tags Summary -->
+        <!-- Tag summary -->
         <CardBox class="overflow-hidden bg-white shadow-lg">
           <div class="flex flex-wrap gap-2 p-4 max-h-36 overflow-y-auto custom-scrollbar">
             <BaseButton
@@ -279,7 +252,7 @@ onMounted(fetchPhotos)
           </div>
         </CardBox>
 
-        <!-- Enhanced Tag Groups Gallery -->
+        <!-- Tag group gallery -->
         <div v-if="!currentTagGroup"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <CardBox
@@ -318,10 +291,11 @@ onMounted(fetchPhotos)
           </CardBox>
         </div>
 
-        <!-- Enhanced Photo Gallery View -->
-        <div v-else class="space-y-6">
-          <CardBox class="bg-white shadow-lg">
+        <!-- PhotoGallery layout (no upload/edit, mimic PhotosView) -->
+        <div v-else>
+          <CardBox class="mb-4">
             <PhotoGallery
+              ref="photoGallery"
               :key="selectedTag"
               :photos="filteredPhotos"
               :initial-view-mode="viewMode"
@@ -329,58 +303,48 @@ onMounted(fetchPhotos)
               :is-select-mode="isSelectMode"
               :selected-photo-ids="selectedPhotos"
               :show-actions="true"
-              class="p-2"
-              @select-photo="handlePhotoSelection"
+              class="p-2 shadow-none"
+              @select-photo="togglePhotoSelection"
               @update:viewMode="mode => viewMode = mode"
             />
           </CardBox>
-
-          <!-- Enhanced Actions Bar -->
-          <div v-if="isSelectMode && selectedPhotos.length > 0">
-            <CardBox class="bg-white shadow-lg">
-              <div class="flex justify-between items-center p-3">
-                <div class="flex gap-3">
-                  <BaseButton
-                    :icon="mdiDeleteOutline"
-                    label="Delete"
-                    color="danger"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="handleDelete"
-                  />
-                  <BaseButton
-                    :icon="mdiExport"
-                    label="Download"
-                    color="success"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="handleDownload"
-                  />
-                </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-sm font-medium text-gray-700">
-                    {{ selectedPhotos.length }} selected
-                  </span>
-                  <BaseButton
-                    label="Clear selection"
-                    color="whiteDark"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="clearSelections"
-                  />
-                </div>
-              </div>
-            </CardBox>
+          <div class="flex justify-between mb-6">
+            <div class="flex gap-2">
+              <BaseButton
+                v-if="isSelectMode"
+                :icon="mdiDeleteOutline"
+                label="Remove"
+                color="danger"
+                rounded-full
+                small
+                :disabled="selectedPhotos.length === 0"
+                @click="handleDelete"
+              />
+              <BaseButton
+                v-if="isSelectMode"
+                :icon="mdiDownload"
+                label="Download"
+                color="success"
+                rounded-full
+                small
+                :disabled="selectedPhotos.length === 0"
+                @click="handleDownload"
+              />
+            </div>
+            <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
+              <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} selected</span>
+              <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Enhanced Loading State -->
+      <!-- Loading State -->
       <div v-if="isLoading" class="flex justify-center items-center py-16">
         <div class="animate-spin rounded-full h-14 w-14 border-4 border-blue-500 border-t-transparent shadow-lg"/>
       </div>
 
-      <!-- Enhanced Error State -->
+      <!-- Error State -->
       <div v-if="error" class="bg-red-50 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-lg">
         <div class="flex items-center mb-2">
           <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
