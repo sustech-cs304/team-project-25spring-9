@@ -82,6 +82,7 @@ const toggleSelectMode = () => {
 // Method to clear all selections
 const clearSelections = () => {
   selectedPhotos.value = []
+  photoGallery.value.clearSelections()
 }
 
 // Open the editor
@@ -132,7 +133,7 @@ const saveEditedPhoto = (updatedPhoto) => {
       <!-- Photo Display Component with integrated search and view controls -->
       <CardBox class="mb-6">
         <PhotoGallery ref="photoGallery" :initial-view-mode="currentViewMode"
-          :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
+          :available-view-modes="['details', 'grid', 'large', 'small', 'people']" :is-select-mode="isSelectMode"
           :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
           :userId="mainStore.userId" @select-photo="togglePhotoSelection" @photo-edit="openEditorWithPhoto"
         />

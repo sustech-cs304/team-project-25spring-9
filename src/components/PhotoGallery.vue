@@ -4,9 +4,13 @@ import {
   mdiCheckboxBlankOutline,
   mdiDotsVertical,
   mdiClose,
+  mdiAccountPlus,
+  mdiAccountRemove,
+  mdiAccountSwitch,
   mdiArrowLeft,
   mdiArrowRight,
   mdiInformation,
+  mdiFaceRecognition,
   mdiImageSearch,
   mdiViewList,
   mdiViewGrid,
@@ -16,7 +20,9 @@ import {
   mdiDelete,
   mdiDownload,
   mdiShareVariant,
+  mdiRenameBox,
   mdiChevronDown,
+	mdiChevronRight,
   mdiFilterVariant,
   mdiFilterVariantRemove,
   mdiCalendarMonth,
@@ -43,7 +49,7 @@ const props = defineProps({
   },
   availableViewModes: {
     type: Array,
-    default: () => ['details', 'grid', 'large', 'small']
+    default: () => ['details', 'grid', 'large', 'small', 'people']
   },
   isSelectMode: {
     type: Boolean,
@@ -72,6 +78,14 @@ const props = defineProps({
   albumId: {
     type: [Number, String],
     default: null
+  },
+  filterTags: {
+    type: Array,
+    default: () => []
+  },
+  noTags: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -211,7 +225,19 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({ userId: props.userId?.toString() || '' })
+    const params = new URLSearchParams({ 
+      userId: props.userId?.toString() || '' 
+    })
+
+    // Add tags filtering
+    if (props.filterTags.length > 0) {
+      params.append('tags', props.filterTags.join(','))
+    }
+    
+    // Add no-tags filtering
+    if (props.noTags) {
+      params.append('noTags', 'true')
+    }
 
     // 修改这部分来正确处理 null albumId
     if (props.albumId !== undefined) {
@@ -344,7 +370,7 @@ const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
 
     uploadingPhotos.value.push(tempPhoto)
 
-    const formData = new FormData()
+	const formData = new FormData()
     formData.append('files', file)
 
     const params = new URLSearchParams({
@@ -675,10 +701,10 @@ const handleActionClick = (photo, event) => {
 const handleSharePhoto = (photo) => {
     const shareUrl = photo.src;
     navigator.clipboard.writeText(shareUrl).then(() => {
-      toast.success('分享链接已复制到剪贴板！');
+      toast.success('Link copied to clipboard!');
     }).catch((error) => {
-      console.error('复制链接失败:', error);
-      toast.error('复制链接失败');
+      console.error('Failed to copy link:', error);
+      toast.error('Failed to copy link');
     });
 }
 
@@ -711,7 +737,7 @@ const handleMenuAction = (action) => {
   }
 }
 
-// Modify handlePhotoAction function
+// Modify photo modal action handler
 const handlePhotoAction = (action) => {
   if (!currentPhoto.value) return
 
@@ -774,11 +800,11 @@ const handleTagClick = (tag) => {
 }
 
 const addNewTag = async (photo) => {
-  const newTag = prompt('请输入新标签:').trim();
+  const newTag = prompt('Enter new tag:').trim();
    if (!newTag) return;
 
   if (photo.tags.includes(newTag)) {
-    toast.error(`标签 "${newTag}" 已存在`);
+    toast.error(`Tag "${newTag}" already exists`);
     return;
   }
 
@@ -796,13 +822,13 @@ const addNewTag = async (photo) => {
 
     if (result.msg === 'ok') {
       photo.tags.push(newTag);
-      toast.success(`标签 "${newTag}" 已成功添加`);
+      toast.success(`Tag "${newTag}" added successfully`);
     } else {
-      throw new Error(result.msg || '添加标签失败');
+      throw new Error(result.msg || 'Failed to add tag');
     }
   } catch (error) {
-    console.error('添加标签失败:', error);
-    toast.error(`添加标签失败: ${error.message}`);
+    console.error('Failed to add tag:', error);
+    toast.error(`Failed to add tag: ${error.message}`);
   }
 };
 
@@ -828,15 +854,429 @@ const handleDeleteTag = async (tag, photo) => {
       if (tagIndex > -1) {
         photo.tags.splice(tagIndex, 1);
       }
-      toast.success(`标签 "${tag}" 已成功删除`);
+      toast.success(`Tag "${tag}" was successfully deleted`);
     } else {
-      throw new Error(result.msg || '删除标签失败');
+      throw new Error(result.msg || 'Failed to delete tag');
     }
   } catch (error) {
-    console.error('删除标签失败:', error);
-    toast.error(`删除标签失败: 标签 ${tag} 不存在`);
+    console.error('Failed to delete tag:', error);
+    toast.error(`Failed to delete tag: tag "${tag}" doesn't exist`);
   }
 };
+
+const peopleList = ref([])
+
+const getPeopleById = (id) => {
+  return peopleList.value.find(person => person.peopleId.toString() === id)
+}
+
+const getPeopleByName = (name) => {
+  return peopleList.value.find(person => person.name === name)
+}
+
+const getPeopleByNickname = (name) =>{
+  return peopleList.value.find(person => person.nickname === name)
+}
+
+const getNicknameById = (id) => {
+  const person = getPeopleById(id)
+  if(!person)
+    return id
+  return person.nickname || person.name
+}
+
+const fetchPeopleList = async () => {
+  if (!props.userId) return
+  try {
+    const params = new URLSearchParams({ userId: props.userId })
+    const response = await fetch(`http://10.16.60.67:9090/people/list?${params}`,{
+      method: 'POST'
+    })
+    const result = await response.json()
+
+    if (result && Array.isArray(result.data)) {
+      peopleList.value = result.data
+    } else {
+      peopleList.value = []
+    }
+    console.log('people list:', peopleList.value)
+  } catch (err) {
+    peopleList.value = []
+    toast.error('Failed to get people list')
+    console.error('Failed to get people list:', err)
+  }
+}
+
+onMounted(() => {
+  fetchPeopleList()
+})
+
+// 统计所有people及其对应图片
+const peopleMap = computed(() => {
+  const map = {}
+
+  if (!peopleList.value || peopleList.value.length === 0) return map
+  peopleList.value.forEach(person => {
+    map[person.peopleId] = []
+  })
+  map[" Uncategorized "] = []
+  displayPhotos.value.forEach(photo => {
+    if (!photo.peoples || photo.peoples.length === 0){
+      map[" Uncategorized "].push(photo)
+      return
+    }
+    photo.peoples.forEach(person => {
+      if (!person) return
+      const id = getPeopleByName(person).peopleId
+      if (!map[id]) map[id] = []
+      map[id].push(photo)
+    })
+  })
+  return map
+})
+
+// 控制展开
+const expandedPeople = ref([])
+
+const togglePerson = (person) => {
+  const idx = expandedPeople.value.indexOf(person)
+  if (idx === -1) expandedPeople.value.push(person)
+  else expandedPeople.value.splice(idx, 1)
+}
+
+const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
+
+const peopleTagRename = async (personId) => {
+  const person = getNicknameById(personId)
+	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
+  
+  // Validate input
+  if (!newName || newName.trim() === '' || newName === person) return
+
+  try {
+    const params = new URLSearchParams({
+      userId: props.userId.toString(),
+      name: getPeopleById(personId).name,
+      nickname: newName.trim()
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+
+    if (result.msg === 'ok') {
+      toast.success(`Person "${person}" renamed to "${newName}"`)
+      // Refresh data
+      fetchPeopleList()
+      fetchPhotos() // Optional chaining in case fetchPhotos isn't defined
+    } else {
+      throw new Error(result.msg || 'Rename failed')
+    }
+  } catch (error) {
+    console.error('Rename failed:', error)
+    toast.error(`Rename failed: ${error.message}`)
+  }
+}
+
+const peopleTagDelete = async (personId) => {
+  const person = getPeopleById(personId).name
+	console.log('Deleting person:', person)
+  try {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person}"? This will remove it from all photos.`)
+    if (!confirmDelete) return
+
+    const params = new URLSearchParams({
+      userId: props.userId.toString()
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/people/delete?${params}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([person])
+    })
+
+    const result = await response.json()
+
+    if (result.msg === 'ok') {
+      toast.success(`Person tag "${person}" deleted successfully`)
+      // Refresh the people list and photos
+      fetchPeopleList()
+      fetchPhotos()
+    } else {
+      throw new Error(result.msg || 'Failed to delete person tag')
+    }
+  } catch (error) {
+    console.error('Error deleting person tag:', error)
+    toast.error(`Failed to delete person tag: ${error.message}`)
+  }
+}
+
+const selectedPeoplePhotos = ref([])
+
+const togglePeoplePhotoSelection = (person, photoId) => {
+  const index = selectedPeoplePhotos.value.findIndex(
+    item => item.person === person && item.photoId === photoId
+  )
+
+  if (index === -1) {
+    selectedPeoplePhotos.value.push({ person, photoId })
+  } else {
+    selectedPeoplePhotos.value.splice(index, 1)
+  }
+}
+
+const isPeoplePhotoSelected = (person, photoId) => {
+  return selectedPeoplePhotos.value.some(
+    item => item.person === person && item.photoId === photoId
+  )
+}
+
+const clearSelection = () => {
+  selectedPeoplePhotos.value = []
+}
+
+const addPeopleTagApi = async (person, photoIds) => {
+  const promises = photoIds.map(async photoId => {
+      console.log('Adding people tag:', person, photoId)
+
+      const params = new URLSearchParams({
+        userId: props.userId.toString(),
+        imgId: photoId.toString(),
+        people: person.trim()
+      })
+
+      const response = await fetch(`http://10.16.60.67:9090/imgpeople/add?${params}`, {
+        method: 'POST'
+      })
+      return response.json()
+    })
+
+    const results = await Promise.all(promises)
+    console.log('Add people tag results:', results)
+    return results
+}
+
+const deletePeopleTagApi = async (personPhotoIds) => {
+  const promises = personPhotoIds.map(async ({ person, photoId }) => {
+    const photo = displayPhotos.value.find(p => p.id === photoId)
+    if (!photo) return
+
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      people: getPeopleById(person).name
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/imgpeople/delete?${params}`, {
+      method: 'POST'
+    })
+
+    return response.json()
+  })
+
+  const results = await Promise.all(promises)
+  return results
+}
+
+const addPeopleTag = async () => {
+  const personNameInput = prompt('Enter the new people tag:')
+  if (!personNameInput || !personNameInput.trim()) return
+  const existingPerson = getPeopleByNickname(personNameInput.trim())
+  const personName = existingPerson ? existingPerson.name : personNameInput.trim()
+
+  try {
+
+    const photoIds = selectedPeoplePhotos.value.map(item => item.photoId)
+    const results = await addPeopleTagApi(personName, photoIds)
+    const successCount = results.filter(result => result?.msg === 'ok').length
+
+    if (successCount > 0) {
+      toast.success(`成功为 ${successCount} 张图片添加人物标签 "${personName}"`)
+      fetchPhotos()
+      fetchPeopleList()
+      clearSelection()
+    } else {
+      throw new Error('添加人物标签失败')
+    }
+  } catch (error) {
+    console.error('添加人物标签失败:', error)
+    toast.error(`添加人物标签失败: ${error.message}`)
+  }
+}
+
+const movePeopleTag = async () => {
+  if (!selectedPeoplePhotos.value.length) {
+    toast.error('No tagged photos selected for moving.')
+    return
+  }
+
+  const newTagInput = prompt('Enter the new people tag:')
+  if (!newTagInput || !newTagInput.trim()) {
+    toast.error('New tag is empty or invalid.')
+    return
+  }
+
+  const existingPerson = getPeopleByNickname(newTagInput.trim())
+  const newTag = existingPerson ? existingPerson.name : newTagInput.trim()
+  console.log(newTag)
+
+  // Step 1: filter out invalid old tags
+  const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
+    return getPeopleById(person) !== undefined
+  })
+
+
+  try {
+    // Step 2: delete old tags
+    if(validPersonPhotoIds.length !== 0){
+      const deleteResults = await deletePeopleTagApi(validPersonPhotoIds)
+    }
+
+    // Step 3: add new tag to the same photoIds
+    const photoIdsToAdd = selectedPeoplePhotos.value.map(item => item.photoId)
+    const addResults = await addPeopleTagApi(newTag.trim(), photoIdsToAdd)
+    const addSuccessCount = addResults.filter(r => r?.msg === 'ok').length
+
+    let message = `Moved people tag to "${newTag.trim()}" on ${addSuccessCount} photo(s).`
+
+    toast.success(message)
+    fetchPhotos()
+    fetchPeopleList()
+    clearSelection()
+  } catch (error) {
+    console.error('Failed to move people tag:', error)
+    toast.error(`Failed to move people tag: ${error.message}`)
+  }
+}
+
+const deletePeopleTag = async () => {
+  const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
+    const personEntry = getPeopleById(person)
+    return personEntry !== undefined
+  })
+
+  if (!validPersonPhotoIds.length) {
+    toast.error('No tagged photos selected for deletion.')
+    return
+  }
+
+  if (!confirm('Are you sure you want to delete the selected people tags from these photos?')) {
+    return
+  }
+
+  try {
+    const results = await deletePeopleTagApi(validPersonPhotoIds)
+    const successCount = results.filter(result => result?.msg === 'ok').length
+
+    if (successCount > 0) {
+      toast.success(`Successfully removed people tags from ${successCount} photo(s).`)
+      fetchPhotos()
+      fetchPeopleList()
+      clearSelection()
+    } else {
+      throw new Error('No tags were successfully deleted.')
+    }
+  } catch (error) {
+    console.error('Failed to delete people tags:', error)
+    toast.error(`Failed to delete people tags: ${error.message}`)
+  }
+}
+
+const detectSinglePhotoPeople = async (photo) =>{
+  let file = photo?.file
+  if (!file && photo?.src) {
+    // 如果没有 file，但有 src，则尝试 fetch blob
+    const res = await fetch(photo.src)
+    file = new File([await res.blob()], photo.name || 'image.jpg')
+  }
+  if (!file) throw new Error('No file to recognize')
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch('http://10.16.60.67:8123/face_recognition/', {
+    method: 'POST',
+    body: formData
+  })
+
+  const result = await response.json()
+  return result.person_label
+}
+
+const detectPeopleTag = async () => {
+console.log("people detect", selectedPeoplePhotos)
+
+  if (!selectedPeoplePhotos.value.length) {
+    toast.error('Please select at least one photo.')
+    return
+  }
+
+  const labelMap = {} // { label (number): photo[] }
+
+  let toastId = toast.info(`Processing photo 1 of ${selectedPeoplePhotos.value.length}...`, {
+    timeout: false, // 不自动消失
+    closeOnClick: false,
+    draggable: false,
+    hideProgressBar: false
+  })
+
+  for (let i = 0; i < selectedPeoplePhotos.value.length; i++) {
+    const { photoId } = selectedPeoplePhotos.value[i]
+    const photo = displayPhotos.value.find(p => p.id === photoId)
+    if (!photo) continue
+
+    try {
+      const labels = await detectSinglePhotoPeople(photo)
+      console.log(`Detected labels for photo ${photoId}:`, labels)
+
+      if (Array.isArray(labels) && labels.length > 0) {
+        labels.forEach(label => {
+          if (!labelMap[label.toString()]) {
+            labelMap[label.toString()] = []
+          }
+          labelMap[label.toString()].push(photo.id)
+        })
+      }
+    } catch (err) {
+      console.error(`Failed to detect people in photo ${photoId}:`, err)
+      toast.warning(`Photo ${photoId} recognition failed.`)
+    }
+
+    toast.update(toastId, {
+      content: `Processing photo ${i + 1} of ${selectedPeoplePhotos.value.length}...`,
+      timeout: false,
+      hideProgressBar: false,
+      type: 'info'
+    })
+  }
+  toast.dismiss(toastId)
+
+  // 执行添加人物标签
+  let totalTagsAdded = 0
+  for (const [label, photoIds] of Object.entries(labelMap)) {
+    const personTag = label
+    try {
+      const results = await addPeopleTagApi(personTag, photoIds)
+      const successCount = results.filter(r => r?.msg === 'ok').length
+      totalTagsAdded += successCount
+      if (successCount > 0) {
+        console.log(`Added tag '${personTag}' to ${successCount} photo(s).`)
+      }
+    } catch (err) {
+      console.error(`Failed to add tag '${personTag}':`, err)
+      toast.error(`Failed to tag photos as '${personTag}'`)
+    }
+  }
+
+  toast.success(`Detected ${Object.keys(labelMap).length} unique people and tagged ${totalTagsAdded} photo(s).`)
+  fetchPhotos()
+  fetchPeopleList()
+  clearSelection()
+}
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
 const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
@@ -942,6 +1382,7 @@ defineExpose({
   deletePhotos,
   downloadPhotos,
   getPhotoById,
+  clearSelection,
   initiateUpload,
   addTagToPhoto // 暴露方法
 })
@@ -988,6 +1429,27 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
             class="rounded-none border-r last:border-r-0" title="Small icons" />
+        
+          <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
+            :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
+            class="rounded-none border-r last:border-r-0" title="People icons" />
+        </div>
+        <div v-if="viewMode === 'people'" class="flex border rounded-lg shadow-sm overflow-hidden ml-2">
+          <BaseButton :icon="mdiAccountPlus" :color="'whiteDark'" @click="addPeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Add people tag"/>
+
+          <BaseButton :icon="mdiAccountRemove" :color="'whiteDark'" @click="deletePeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Delete people tag"/>
+
+          <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Move people tag" />
+
+          <BaseButton :icon="mdiFaceRecognition" :color="'whiteDark'" @click="detectPeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Recognize people" />
         </div>
       </div>
 
@@ -1300,7 +1762,7 @@ defineExpose({
     </div>
 
     <!-- Small Grid View -->
-    <div v-else class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
+    <div v-else-if="viewMode == 'small'" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2">
       <div v-for="photo in filteredPhotos" :key="photo.id"
         class="relative flex flex-col items-center"
         :class="[
@@ -1348,6 +1810,71 @@ defineExpose({
           @blur="savePhotoName(photo)"
           @keyup.enter="savePhotoName(photo)"
           @keyup.esc="cancelRenaming" />
+      </div>
+    </div>
+
+    <!-- People View -->
+		<div v-else class="my-6 p-6 bg-white border rounded-lg shadow-sm animate-fade-in">
+      <h3 class="text-lg font-semibold mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2"><path fill="currentColor" :d="mdiAccount" /></svg>
+        People
+      </h3>
+      <div v-if="Object.keys(peopleMap).length === 0" class="text-gray-500">暂无人物信息</div>
+      <div v-else>
+        <div v-for="(photos, personId) in peopleMap" :key="personId" class="mb-4 border-b pb-4">
+          <div class="flex items-center cursor-pointer group" @click="togglePerson(personId)">
+            <svg class="w-5 h-5 mr-2 transition-transform duration-200"
+              :class="isPersonExpanded(personId) ? 'rotate-90' : ''"
+              viewBox="0 0 24 24">
+              <path fill="currentColor" :d="mdiChevronRight" />
+            </svg>
+            <span class="font-medium text-lg text-gray-800">{{ getNicknameById(personId) }}</span>
+            <span class="ml-2 text-xs text-gray-500">({{ photos.length }} 张图片)</span>
+            <div
+							class="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+							@click.stop
+						>
+							<button
+                v-if="personId !== ' Uncategorized '"
+								class="p-1 rounded hover:bg-gray-100"
+								title="Rename"
+								@click="peopleTagRename(personId)"
+							>
+								<svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24">
+									<path fill="currentColor" :d="mdiRenameBox" />
+								</svg>
+							</button>
+							<!-- 删除按钮 -->
+							<button
+                v-if="personId !== ' Uncategorized '"
+								class="p-1 rounded hover:bg-red-100"
+								title="Delete"
+								@click="peopleTagDelete(personId)"
+							>
+								<svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24">
+									<path fill="currentColor" :d="mdiDelete" />
+								</svg>
+							</button>
+						</div>
+					</div>
+          <div v-if="isPersonExpanded(personId)" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div v-for="photo in photos" :key="photo.id" class="relative flex flex-col items-center">
+              <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
+                <button @click.stop="togglePeoplePhotoSelection(personId, photo.id)"
+                  :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
+                  class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
+                  :disabled="!canSelectPhoto(photo)">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="currentColor" :d="isPeoplePhotoSelected(personId, photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
+                  </svg>
+                </button>
+              </div>
+              <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
+                @click="openPhotoModal(photo)" />
+              <span class="text-xs truncate w-full" :title="photo.name">{{ photo.name }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

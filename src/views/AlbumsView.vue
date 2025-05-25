@@ -332,6 +332,16 @@ const loadAlbums = async () => {
             class="mr-2"
             @click="isSelectMode = !isSelectMode"
           />
+          <!-- Add refresh button -->
+          <BaseButton
+            v-if="currentAlbumId"
+            :icon="mdiRefresh"
+            label="Refresh"
+            color="info"
+            small
+            class="mr-2"
+            @click="photoGallery?.refreshPhotos()"
+          />
           <BaseButton
             v-if="currentAlbumId"
             :icon="mdiArrowLeft"
