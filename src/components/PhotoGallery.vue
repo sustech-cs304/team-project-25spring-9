@@ -1862,6 +1862,7 @@ defineExpose({
           @dblclick="startRenaming(photo)">
           {{ photo.name }}
         </span>
+        <input v-else
           v-model="RenamingPhotoName"
           class="border rounded px-2 py-1 text-xs w-full text-center"
           renaming
