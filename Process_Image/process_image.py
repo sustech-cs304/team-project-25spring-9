@@ -1,7 +1,9 @@
+import base64
 import time
 import os
 import shutil
 import json
+import cv2
 import face_recognition
 import numpy as np
 import piexif
@@ -15,7 +17,6 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 import uuid
 import uvicorn
-
 from typing import List
 import gc
 import random
@@ -29,7 +30,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from pydantic import BaseModel
-import oss2
+# import oss2
 
 
 
@@ -436,18 +437,37 @@ def generate_video(image_paths: list[str]) -> str:
     final_video.write_videofile(output_path, logger=None)
     return output_path
 
+def encode_image_to_base64(img_path):
+    try:
+        img = cv2.imread(img_path)
+        if img is None:
+            print(f"错误：无法读取图片，请检查路径是否正确: {img_path}")
+            return None
+        _, buffer = cv2.imencode('.jpg', img)
+        return base64.b64encode(buffer).decode('utf-8')
+    except Exception as e:
+        print(f"图片编码时发生错误: {e}")
+        return None
 
-def generate_image(image_url, style_index):
+def generate_image(image_path, style_index):
     url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation"
     headers = {
         "X-DashScope-Async": "enable",
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
+    base64_image = encode_image_to_base64(image_path)
+
+    encoded_image_data = f"data:image/jpeg;base64,{base64_image}"
+
+    if not base64_image:
+        print("图片处理失败，程序退出。")
+        return
+
     payload = {
         "model": "wanx-style-repaint-v1",
         "input": {
-            "image_url": image_url,
+            "image_url": encoded_image_data,
             "style_index": style_index
         }
     }
@@ -491,35 +511,35 @@ def check_task_status(task_id):
             return None
             break
 
-
-def upload_to_oss(local_path):
-    url = "https://www.picgo.net/api/1/upload"
-    X_API_Key = "chv_S0w6G_50f4a3a43d317348a22ffba85e7caa319b0ebee0afe182d29bc18d70827b6b7e88b2fdf15a6b1a8f6a1b7e28224368473ee12618a440de7269ee091221d230a2"  # 替换为你的实际key
-    image_path = local_path  # 替换为你本地的图片路径
-
-    headers = {
-        "X-API-Key": X_API_Key,
-    }
-
-    files = {
-        "source": open(image_path, "rb"),
-    }
-
-    response = requests.post(url, headers=headers, files=files)
-
-    # 打印响应结果
-    if response.ok:
-        print("上传成功！")
-        # 提取高清图像的URL
-        response_json = response.json()
-        image_url = response_json['image']['url']
-        print(image_url)
-        return str(image_url)
-    else:
-        print("上传失败！")
-        print(response.status_code)
-        print(response.text)
-        return None
+#
+# def upload_to_oss(local_path):
+#     url = "https://www.picgo.net/api/1/upload"
+#     X_API_Key = "chv_S0w6G_50f4a3a43d317348a22ffba85e7caa319b0ebee0afe182d29bc18d70827b6b7e88b2fdf15a6b1a8f6a1b7e28224368473ee12618a440de7269ee091221d230a2"  # 替换为你的实际key
+#     image_path = local_path  # 替换为你本地的图片路径
+#
+#     headers = {
+#         "X-API-Key": X_API_Key,
+#     }
+#
+#     files = {
+#         "source": open(image_path, "rb"),
+#     }
+#
+#     response = requests.post(url, headers=headers, files=files)
+#
+#     # 打印响应结果
+#     if response.ok:
+#         print("上传成功！")
+#         # 提取高清图像的URL
+#         response_json = response.json()
+#         image_url = response_json['image']['url']
+#         print(image_url)
+#         return str(image_url)
+#     else:
+#         print("上传失败！")
+#         print(response.status_code)
+#         print(response.text)
+#         return None
 
 
 
@@ -645,8 +665,8 @@ if __name__ == '__main__':
         with open(file_path, "wb") as f:
             f.write(await file.read())
         try:
-            image_url = upload_to_oss(file_path)  # 假设上传成功返回可访问 URL
-            task_id = generate_image(image_url, style_index)
+            # image_url = upload_to_oss(file_path)  # 假设上传成功返回可访问 URL
+            task_id = generate_image(file_path, style_index)
             if task_id:
                 result_url = check_task_status(task_id)
                 return {"task_id": task_id, "result_url": result_url}

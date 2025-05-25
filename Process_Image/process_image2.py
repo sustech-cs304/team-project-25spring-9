@@ -1,0 +1,838 @@
+import time
+import os
+import shutil
+import json
+import face_recognition
+import numpy as np
+import piexif
+from datetime import datetime
+from geopy.geocoders import Nominatim
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
+import spacy
+from spacy.cli import download
+from fastapi import FastAPI, UploadFile, File,HTTPException
+from fastapi.responses import JSONResponse
+import uuid
+import uvicorn
+import base64
+from typing import List
+import gc
+import random
+import chardet
+from PIL import Image, ImageFilter
+from moviepy.editor import (
+    ImageSequenceClip, AudioFileClip, CompositeVideoClip,
+    concatenate_videoclips, VideoFileClip, vfx
+)
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import requests
+from pydantic import BaseModel
+import oss2
+
+
+
+
+PHOTO_DIR = "photos/"
+SORTED_DIR = "sorted_photos/"
+ENCODINGS_FILE = "face_encodings.json"
+API_KEY = "sk-e8f3a16e76644be7a84db556d976a674"
+
+# 全局变量
+processor = None
+model = None
+nlp = None
+
+
+
+
+# os.makedirs(SORTED_DIR, exist_ok=True)
+
+# ==========================
+# 🌟 加载已有的人脸数据（JSON 文件）
+# ==========================
+def load_encodings():
+    global next_label_id
+    if not os.path.exists(ENCODINGS_FILE):
+        print("📂 没有检测到现有的人脸数据库，初始化为空。")
+        return {}, [], []
+
+    with open(ENCODINGS_FILE, 'r') as f:
+        data = json.load(f)
+
+    known_face_dict = {}  # {label: encoding (np array)}
+    known_face_encodings = []
+    known_face_labels = []
+
+    for label, encoding_list in data.items():
+        label_int = int(label)
+        encoding_array = np.array(encoding_list)
+        known_face_dict[label_int] = encoding_array
+        known_face_encodings.append(encoding_array)
+        known_face_labels.append(label_int)
+
+    next_label_id = max(known_face_dict.keys(), default=0) + 1
+    print(f"✅ 成功加载 {len(known_face_dict)} 个已知人物数据。")
+    return known_face_dict, known_face_encodings, known_face_labels
+
+
+
+# ==========================
+# 🌟 保存人脸编码到 JSON
+# ==========================
+def save_encodings(known_face_dict):
+    data_to_save = {}
+    for label, encoding_array in known_face_dict.items():
+        data_to_save[label] = encoding_array.tolist()  # 转成 JSON 可保存的 list
+
+    with open(ENCODINGS_FILE, 'w') as f:
+        json.dump(data_to_save, f)
+
+    print(f"💾 已保存 {len(data_to_save)} 个人物的编码数据到 {ENCODINGS_FILE}")
+
+
+# 初始化函数
+def init_blip_and_spacy():
+    global processor, model, nlp  # 引用全局变量
+    try:
+        print("正在加载 BLIP 模型和处理器...")
+        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+        model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+        print("BLIP 模型和处理器加载完成！")
+    except Exception as e:
+        print(f"加载 BLIP 模型时出错: {e}")
+        processor, model = None, None
+
+    try:
+        print("正在检测和加载 SpaCy 英文模型...")
+        download("en_core_web_sm")  # 只下载一次
+        nlp = spacy.load("en_core_web_sm")
+        print("SpaCy 英文模型加载完成！")
+    except Exception as e:
+        print(f"加载 SpaCy 模型时出错: {e}")
+        nlp = None
+
+
+# ==========================
+# 🌟 处理单张图片
+# ==========================
+def process_new_photo(photo_path):
+    global next_label_id
+    person_labels = []
+
+    try:
+        # 1. 打开并转换图片为 RGB
+        with Image.open(photo_path) as img:
+            img = img.convert("RGB")
+            image_array = np.array(img)
+
+        # 2. 人脸识别
+        encodings = face_recognition.face_encodings(image_array)
+
+        if not encodings:
+            print(f"⚠️ 图片 {photo_path} 中未检测到人脸，已跳过。")
+            return []
+
+        print(f"✅ 在图片中检测到 {len(encodings)} 张人脸，开始分类...")
+
+        for i, encoding in enumerate(encodings):
+            if not known_face_encodings:
+                # 若是第一张人脸，直接新建人物
+                person_label = next_label_id
+                next_label_id += 1
+
+                known_face_dict[person_label] = encoding
+                known_face_encodings.append(encoding)
+                known_face_labels.append(person_label)
+                print(f"🆕 第 {i+1} 张人脸：新建人物 {person_label}")
+
+            else:
+                # 计算与所有已知人脸的距离
+                distances = face_recognition.face_distance(known_face_encodings, encoding)
+                min_distance = np.min(distances)
+                best_match_index = np.argmin(distances)
+
+                if min_distance < 0.4:  # 阈值可调
+                    person_label = known_face_labels[best_match_index]
+                    print(f"👌 第 {i+1} 张人脸：匹配人物 {person_label}（距离 {min_distance:.2f}）")
+                else:
+                    person_label = next_label_id
+                    next_label_id += 1
+
+                    known_face_dict[person_label] = encoding
+                    known_face_encodings.append(encoding)
+                    known_face_labels.append(person_label)
+                    print(f"🆕 第 {i+1} 张人脸：未匹配成功，新建人物 {person_label}")
+
+            # 保存图片到对应人物文件夹
+            person_folder = os.path.join(SORTED_DIR, f"人物{person_label}")
+            os.makedirs(person_folder, exist_ok=True)
+            shutil.copy(photo_path, person_folder)
+
+            person_labels.append(str(person_label))
+
+        # 更新保存人脸编码
+        save_encodings(known_face_dict)
+
+        return list(set(person_labels))
+
+    except Exception as e:
+        print(f"❌ 处理 {photo_path} 时发生错误: {e}")
+        return []
+
+
+def get_decimal_from_dms(dms, ref):
+    """Convert GPS coordinates in DMS to decimal format."""
+    degrees = dms[0][0] / dms[0][1]
+    minutes = dms[1][0] / dms[1][1]
+    seconds = dms[2][0] / dms[2][1]
+
+    decimal = degrees + (minutes / 60.0) + (seconds / 3600.0)
+
+    if ref in ['S', 'W']:
+        decimal = -decimal
+    return decimal
+
+
+def reverse_geocode(lat, lon):
+    """Use geopy to reverse geocode latitude and longitude to address."""
+    geolocator = Nominatim(user_agent="photo_metadata_app")
+    try:
+        location = geolocator.reverse((lat, lon), exactly_one=True, language='en')
+        if location:
+            return location.address
+        else:
+            return "Address not found"
+    except Exception as e:
+        return f"Error retrieving address: {e}"
+
+
+
+def extract_exif_data(image_path):
+    result = {
+        'Timestamp': None,
+        'Latitude': None,
+        'Longitude': None,
+        'Address': None,
+        'Camera/Device': None
+    }
+
+    try:
+        img = Image.open(image_path)
+    except Exception as e:
+        print(f"无法打开图片: {e}")
+        return result
+
+    # 1. 提取拍摄时间
+    try:
+        exif_data = img._getexif()
+        if exif_data and 36867 in exif_data:
+            timestamp_str = exif_data[36867]  # DateTimeOriginal
+            result['Timestamp'] = datetime.strptime(timestamp_str, '%Y:%m:%d %H:%M:%S')
+    except Exception as e:
+        print(f"读取拍摄时间失败: {e}")
+
+    # 2. 提取设备信息
+    try:
+        exif_bytes = img.info.get('exif', None)
+        exif_dict = piexif.load(exif_bytes) if exif_bytes else None
+
+        if exif_dict:
+            make = exif_dict['0th'].get(piexif.ImageIFD.Make)
+            model = exif_dict['0th'].get(piexif.ImageIFD.Model)
+
+            camera_model = ""
+            if make:
+                camera_model += make.decode('utf-8') + " "
+            if model:
+                camera_model += model.decode('utf-8')
+
+            result['Camera/Device'] = camera_model.strip()
+    except Exception as e:
+        print(f"读取设备信息失败: {e}")
+
+    # 3. GPS信息
+    try:
+        gps_info = exif_dict.get('GPS') if exif_dict else None
+        if gps_info:
+            gps_latitude = gps_info.get(piexif.GPSIFD.GPSLatitude)
+            gps_latitude_ref = gps_info.get(piexif.GPSIFD.GPSLatitudeRef)
+            gps_longitude = gps_info.get(piexif.GPSIFD.GPSLongitude)
+            gps_longitude_ref = gps_info.get(piexif.GPSIFD.GPSLongitudeRef)
+
+            if gps_latitude and gps_latitude_ref and gps_longitude and gps_longitude_ref:
+                lat_ref = gps_latitude_ref.decode('utf-8')
+                lon_ref = gps_longitude_ref.decode('utf-8')
+
+                result['Latitude'] = get_decimal_from_dms(gps_latitude, lat_ref)
+                result['Longitude'] = get_decimal_from_dms(gps_longitude, lon_ref)
+
+                try:
+                    result['Address'] = reverse_geocode(result['Latitude'], result['Longitude'])
+                except Exception as e:
+                    print(f"反向地理编码失败: {e}")
+    except Exception as e:
+        print(f"读取GPS信息失败: {e}")
+
+    # datetime 转为字符串以支持 JSON 序列化
+    if isinstance(result['Timestamp'], datetime):
+        result['Timestamp'] = result['Timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+
+    return result
+
+
+
+# 生成图片描述
+def generate_caption(image_path):
+    try:
+        raw_image = Image.open(image_path).convert('RGB')
+        inputs = processor(raw_image, return_tensors="pt")
+        out = model.generate(**inputs)
+        caption = processor.decode(out[0], skip_special_tokens=True)
+        return caption
+    except Exception as e:
+        print(f"Caption generation error for {image_path}: {e}")
+        return "No description available."
+
+
+def extract_noun_tags(text):
+    """
+    提取英文文本中的关键词（名词和专有名词）
+
+    参数:
+        text (str): 输入的英文文本
+
+    返回:
+        tags (list): 去重且小写处理后的关键词列表
+    """
+    if not text:
+        return []
+
+    # 分词 & 词性标注
+    doc = nlp(text)
+
+    # 只保留名词（NOUN）和专有名词（PROPN）
+    tags = [token.text for token in doc if token.pos_ in ['NOUN', 'PROPN']]
+
+    # 去重 & 小写（可根据需求取消小写处理）
+    tags = list(set(tag.lower() for tag in tags))
+
+    print(f"Image event tags: {tags}")
+
+    return tags
+
+
+# 处理图片
+def process_images(img_path):
+    # 提取元信息
+    metadata = extract_exif_data(img_path)
+
+    # 生成描述
+    caption = generate_caption(img_path)
+
+    # Aoto-tagging
+    tags = extract_noun_tags(caption)
+
+    # 人脸识别
+    person_label = process_new_photo(img_path)
+
+    # ✅ 平铺 JSON 格式
+    photo_info = {
+        'Timestamp': metadata.get('Timestamp').strftime('%Y-%m-%d %H:%M:%S') if isinstance(metadata.get('Timestamp'),
+                                                                                           datetime) else metadata.get(
+            'Timestamp'),
+        'Latitude': metadata.get('Latitude'),
+        'Longitude': metadata.get('Longitude'),
+        'Address': metadata.get('Address'),
+        'Camera/Device': metadata.get('Camera/Device'),
+        'Caption': caption,
+        'AutoTags': tags,
+        'PersonLabel': person_label
+    }
+
+    print(f"Processed {img_path}: {caption} @ {photo_info.get('Address')} on {photo_info.get('Timestamp')}")
+
+    return photo_info
+
+def get_config():
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+    with open(config_file, 'rb') as f:
+        encoding_result = chardet.detect(raw_data := f.read())
+        encoding = encoding_result['encoding']
+    return json.loads(raw_data.decode(encoding))
+
+def transform_image(img, t, x_speed, y_speed, move_on_x, move_positive):
+    original_size = img.size
+    crop_width = img.width * 0.8
+    crop_height = img.height * 0.8
+    if move_on_x:
+        left = min(x_speed * t, img.width - crop_width) if move_positive else max(img.width - crop_width - x_speed * t, 0)
+        upper = (img.height - crop_height) / 2
+    else:
+        upper = min(y_speed * t, img.height - crop_height) if move_positive else max(img.height - crop_height - y_speed * t, 0)
+        left = (img.width - crop_width) / 2
+    cropped_img = img.crop((left, upper, left + crop_width, upper + crop_height))
+    return cropped_img.resize(original_size)
+
+def generate_video(image_paths: list[str]) -> str:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config = get_config()
+
+    temp_dir = os.path.join(current_dir, 'temp')
+    video_dir = os.path.join(current_dir, 'video')
+    voice_path = os.path.join(current_dir, 'bgm', 'bgm.mp3')
+
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(video_dir, exist_ok=True)
+
+    fps = config['fps']
+    enlarge_background = config['enlarge_background']
+    duration = config['duration']
+
+    bgm_audio = AudioFileClip(voice_path)
+    clips = []
+
+    for idx, img_path in enumerate(image_paths):
+        im = Image.open(img_path)
+        max_size = (1920, 1080)
+        im.thumbnail(max_size, Image.Resampling.LANCZOS)
+        effect_type = random.choice([0, 1])
+        if effect_type == 0:
+            x_speed = (im.width - im.width * 0.8) / duration
+            y_speed = 0
+            move_on_x = True
+            move_positive = random.choice([True, False])
+        else:
+            x_speed = 0
+            y_speed = (im.height - im.height * 0.8) / duration
+            move_on_x = False
+            move_positive = random.choice([True, False])
+
+        n_frames = int(fps * duration)
+        frames_foreground = [np.array(transform_image(im, t / fps, x_speed, y_speed, move_on_x, move_positive)) for t in range(n_frames)]
+        img_foreground = ImageSequenceClip(frames_foreground, fps=fps)
+
+        img_blur = im.filter(ImageFilter.GaussianBlur(radius=30))
+        if enlarge_background:
+            img_blur = img_blur.resize((int(im.width * 1.1), int(im.height * 1.1)), Image.Resampling.LANCZOS)
+        frames_background = [np.array(img_blur)] * n_frames
+        img_background = ImageSequenceClip(frames_background, fps=fps)
+
+        final_clip = CompositeVideoClip(
+            [img_background.set_position("center"), img_foreground.set_position("center")],
+            size=img_blur.size
+        )
+
+        final_clip = final_clip.set_duration(duration)
+        temp_clip_path = os.path.join(temp_dir, f'temp_{idx}.mp4')
+        final_clip.write_videofile(temp_clip_path, logger=None)
+        clips.append(VideoFileClip(temp_clip_path))
+        gc.collect()
+
+    final_video = concatenate_videoclips(clips, method="compose")
+    final_video = final_video.set_audio(bgm_audio.subclip(0, final_video.duration))
+    output_path = os.path.join(video_dir, f'output_{datetime.now().strftime("%Y%m%d%H%M%S")}.mp4')
+    final_video.write_videofile(output_path, logger=None)
+    return output_path
+
+
+def generate_image(image_url, style_index):
+    url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation"
+    headers = {
+        "X-DashScope-Async": "enable",
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "wanx-style-repaint-v1",
+        "input": {
+            "image_url": image_url,
+            "style_index": style_index
+        }
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        task_id = response.json().get("output", {}).get("task_id")
+        print(f"任务已提交，任务ID: {task_id}")
+        return task_id
+    else:
+        print("提交失败：", response.status_code, response.text)
+        return None
+
+
+# 2. 根据任务 ID 查询状态
+def check_task_status(task_id):
+    url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+
+    while True:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            output = data.get("output", {})
+            status = output.get("task_status")
+
+            if status == "SUCCEEDED":
+                result_url = output.get("results", [{}])[0].get("url")
+                print("✅ 图像生成成功！")
+                print("🔗 下载地址：", result_url)
+                return result_url
+                break
+            else:
+                print("⚠️ 任务未立即成功，任务状态：", status)
+                print("任务 ID：", output.get("task_id"))
+        else:
+            print("❌ 请求失败：", response.status_code, response.text)
+            return None
+            break
+
+
+def upload_to_oss(local_path):
+    url = "https://www.picgo.net/api/1/upload"
+    X_API_Key = "chv_S0w6G_50f4a3a43d317348a22ffba85e7caa319b0ebee0afe182d29bc18d70827b6b7e88b2fdf15a6b1a8f6a1b7e28224368473ee12618a440de7269ee091221d230a2"  # 替换为你的实际key
+    image_path = local_path  # 替换为你本地的图片路径
+
+    headers = {
+        "X-API-Key": X_API_Key,
+    }
+
+    files = {
+        "source": open(image_path, "rb"),
+    }
+
+    response = requests.post(url, headers=headers, files=files)
+
+    # 打印响应结果
+    if response.ok:
+        print("上传成功！")
+        # 提取高清图像的URL
+        response_json = response.json()
+        image_url = response_json['image']['url']
+        print(image_url)
+        return str(image_url)
+    else:
+        print("上传失败！")
+        print(response.status_code)
+        print(response.text)
+        return None
+
+
+
+if __name__ == '__main__':
+    # ==========================
+    # 🌟 初始化已知人脸数据
+    # ==========================
+    known_face_dict, known_face_encodings, known_face_labels = load_encodings()
+    init_blip_and_spacy()
+
+
+    class StyleTransferRequest(BaseModel):
+        image_url: str
+        style_index: int = 0
+
+
+    # ==========================
+    # 🌐 初始化 FastAPI 应用
+    # ==========================
+    app = FastAPI(
+        title="🖼️ 图像智能处理后端 API",
+        description=(
+            "该服务提供了多种图像处理功能，包括：\n"
+            "- 图片处理\n"
+            "- EXIF 信息提取\n"
+            "- 图像自动描述生成\n"
+            "- 自动打标签\n"
+            "- 人脸识别\n"
+            "- 图像生成视频等"
+        ),
+        version="1.0.0"
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.post("/process_image", summary="处理图像", description="接收图像并调用处理函数返回分析结果")
+    async def process_image(file: UploadFile = File(...)):
+        try:
+            temp_filename = f"temp_{uuid.uuid4().hex}_{file.filename}"
+            with open(temp_filename, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            result = process_images(temp_filename)
+            os.remove(temp_filename)
+            return JSONResponse(content=result)
+
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "temp")
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+    @app.post("/extract_exif/", summary="提取 EXIF 元数据", description="从上传图像中提取 EXIF 信息（如拍摄时间、GPS等）")
+    async def extract_exif_api(file: UploadFile = File(...)):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        metadata = extract_exif_data(file_path)
+        os.remove(file_path)
+        return JSONResponse(metadata)
+
+    @app.post("/generate_caption/", summary="生成图像描述", description="对上传的图像生成自然语言描述")
+    async def caption_api(file: UploadFile = File(...)):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        caption = generate_caption(file_path)
+        os.remove(file_path)
+        return {"caption": caption}
+
+    @app.post("/auto_tag/", summary="自动打标签", description="为上传图像生成描述，并提取其中的名词作为标签")
+    async def auto_tag_api(file: UploadFile = File(...)):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        caption = generate_caption(file_path)
+        tags = extract_noun_tags(caption)
+        os.remove(file_path)
+        return {"tags": tags}
+
+    @app.post("/face_recognition/", summary="人脸识别", description="识别上传图像中的人脸并返回匹配的身份标签")
+    async def face_recognition_api(file: UploadFile = File(...)):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        person_label = process_new_photo(file_path)
+        os.remove(file_path)
+        return {"person_label": person_label}
+
+    @app.post("/generate_video/", summary="合成视频", description="将上传的多张图像合成为一段视频（MP4 格式）")
+    async def generate_video_api(files: List[UploadFile] = File(...)):
+        saved_files = []
+
+        for file in files:
+            ext = os.path.splitext(file.filename)[1]
+            unique_filename = f"{uuid.uuid4().hex}{ext}"
+            file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            saved_files.append(file_path)
+
+        try:
+            output_video_path = generate_video(saved_files)
+            return FileResponse(output_video_path, media_type="video/mp4", filename=os.path.basename(output_video_path))
+        finally:
+            for path in saved_files:
+                os.remove(path)
+
+
+    @app.post("/style_transfer/", summary="图像风格化",
+              description="将图像 URL 提交至 DashScope，等待风格化任务完成后返回结果")
+    async def style_transfer_api(file: UploadFile = File(...), style_index: int = 0):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        try:
+            image_url = upload_to_oss(file_path)  # 假设上传成功返回可访问 URL
+            task_id = generate_image(image_url, style_index)
+            if task_id:
+                result_url = check_task_status(task_id)
+                return {"task_id": task_id, "result_url": result_url}
+            else:
+                return JSONResponse(status_code=500, content={"error": "任务提交失败"})
+        finally:
+            os.remove(file_path)
+    def encode_bytes_to_data_uri(file_bytes: bytes, content_type: str) -> str:
+        """Encodes image bytes to a base64 data URI."""
+        encoded_string = base64.b64encode(file_bytes).decode('utf-8')
+        return f"data:{content_type};base64,{encoded_string}"
+
+    def generate_stylized_image_task(image_data_uri: str, style_index: int) -> str :
+        """
+        Submits a task to DashScope for image style transfer using a data URI.
+        Returns the task_id if successful, None otherwise.
+        """
+        url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation"
+        headers = {
+            "X-DashScope-Async": "enable",  # Use async mode to get a task ID
+            "Authorization": f"Bearer {DASHSCOPE_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "wanx-style-repaint-v1",
+            "input": {
+                # Attempting to use data URI in the 'image_url' field.
+                # This is the critical part that depends on DashScope API's capability.
+                "image_url": image_data_uri,
+                "style_index": style_index
+            }
+            # You can add "parameters": {} if needed for more control, e.g., image size.
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=30) # Added timeout
+            response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+
+            response_data = response.json()
+            task_id = response_data.get("output", {}).get("task_id")
+
+            if task_id:
+                print(f"🎨 Style transfer task submitted successfully. Task ID: {task_id}")
+                return task_id
+            else:
+                # This case might occur if the request was accepted (200 OK) but no task_id was returned.
+                print(f"⚠️ Task submission to DashScope was acknowledged, but no task_id received.")
+                print(f"Full API Response: {response_data}")
+                # Check for specific error messages from DashScope
+                if "message" in response_data:
+                    print(f"DashScope Message: {response_data['message']}")
+                    # If the message indicates an invalid image_url format, the data URI approach is not supported.
+                    if "invalid" in response_data['message'].lower() and "image_url" in response_data['message'].lower():
+                         print("‼️ DashScope API might not support base64 data URIs in the 'image_url' field. Consider uploading to OSS.")
+                return None
+
+        except requests.exceptions.HTTPError as http_err:
+            print(f"❌ HTTP error during DashScope API call: {http_err}")
+            print(f"Response content: {http_err.response.text}")
+        except requests.exceptions.RequestException as req_err:
+            print(f"❌ Request error during DashScope API call: {req_err}")
+        except Exception as e:
+            print(f"❌ An unexpected error occurred in generate_stylized_image_task: {e}")
+        return None
+
+    def check_task_status_and_get_result(task_id: str) -> dict | None:
+        """
+        Checks the status of a DashScope task and returns the result when completed.
+        (This is a simplified example; real-world polling might need more robust logic)
+        """
+        task_url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+        headers = {"Authorization": f"Bearer {DASHSCOPE_API_KEY}"}
+
+        # Implement polling logic here. For this example, we'll just make one check.
+        # In a production scenario, you'd poll periodically until task_status is 'SUCCEEDED' or 'FAILED'.
+        # This endpoint should likely not block; the client should poll.
+        # However, for simplicity in this example, we'll do a single check.
+
+        print(f"⏳ Checking task status for ID: {task_id} (Placeholder - implement proper polling)")
+        # This is a placeholder. In a real app, you'd poll this.
+        # For now, we simulate that the client will handle polling.
+        # The API endpoint will return the task ID, and the client is responsible for polling.
+        # This function, if used server-side to wait, would block.
+        # If this `style_transfer_api_modified` is meant to be async and return quickly,
+        # then `check_task_status_and_get_result` should not be called here directly to wait.
+        # The original code returned task_id and result_url (implying it waited or was mocked).
+
+        # Let's assume for this modified version, we only return the task_id,
+        # and the client will be responsible for polling using another endpoint or method.
+        # So, this function might not be directly used in the flow below if we don't want to block.
+
+        # If you must wait and return the final URL (not recommended for long tasks in a single request):
+        # import time
+        # for _ in range(10): # Poll up to 10 times
+        #     try:
+        #         response = requests.get(task_url, headers=headers, timeout=10)
+        #         response.raise_for_status()
+        #         data = response.json()
+        #         task_status = data.get("output", {}).get("task_status")
+        #         print(f"Task {task_id} status: {task_status}")
+        #         if task_status == "SUCCEEDED":
+        #             # Assuming 'results' contains a list of dictionaries with 'url'
+        #             results = data.get("output", {}).get("results")
+        #             if results and isinstance(results, list) and results[0].get("url"):
+        #                 return {"task_id": task_id, "result_url": results[0]["url"], "status": "SUCCEEDED"}
+        #             else:
+        #                 return {"task_id": task_id, "error": "Task succeeded but result URL not found.", "status": "FAILED_POST_PROCESSING"}
+        #         elif task_status == "FAILED":
+        #             return {"task_id": task_id, "error": data.get("output", {}).get("message", "Task failed"), "status": "FAILED"}
+        #         elif task_status in ["PENDING", "RUNNING"]:
+        #             time.sleep(5) # Wait before polling again
+        #         else: # UNKNOWN or other states
+        #             return {"task_id": task_id, "error": f"Unknown task status: {task_status}", "status": task_status}
+        #     except Exception as e:
+        #         print(f"Error checking task status: {e}")
+        #         return {"task_id": task_id, "error": str(e), "status": "POLLING_ERROR"}
+        # return {"task_id": task_id, "error": "Task timed out after polling.", "status": "TIMED_OUT"}
+        pass # This function will not be used directly to block in the modified API.
+
+    @app.post("/style_transfer_mumu/", summary="图像风格化 (Base64 Data URI)",
+              description="将上传的图像文件进行Base64编码，并作为Data URI提交至DashScope进行风格化。")
+    async def style_transfer_api_modified(
+        file: UploadFile = File(...),
+        style_index: int = 0
+    ):
+        """
+        Handles image upload, encodes it to a base64 data URI,
+        and submits it to DashScope for style transfer.
+        Returns a task ID for polling the result.
+        """
+        if not API_KEY or API_KEY == "YOUR_DASHSCOPE_API_KEY":
+            print("🚨 CRITICAL: DASHSCOPE_API_KEY is not configured!")
+            raise HTTPException(status_code=500, detail="Server configuration error: API key missing.")
+
+        try:
+            file_bytes = await file.read()
+            if not file_bytes:
+                raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+            content_type = file.content_type
+            # Basic content type validation/guessing
+            if not content_type or content_type == "application/octet-stream":
+                filename = file.filename.lower() if file.filename else ""
+                if filename.endswith(".png"):
+                    content_type = "image/png"
+                elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
+                    content_type = "image/jpeg"
+                elif filename.endswith(".webp"): # DashScope might support webp
+                    content_type = "image/webp"
+                else: # Default or raise error if type is critical
+                    print(f"⚠️ Warning: Could not determine specific image type for '{file.filename}', using 'image/jpeg'.")
+                    content_type = "image/jpeg"
+
+            print(f"📄 Received file: '{file.filename}', Type: {content_type}, Size: {len(file_bytes)} bytes.")
+            print("⏳ Encoding image to Base64 Data URI...")
+
+            image_data_uri = encode_bytes_to_data_uri(file_bytes, content_type)
+
+            # Avoid logging the full data URI as it can be very long
+            print(f"✨ Encoded Data URI (prefix): {image_data_uri[:100]}...")
+            print(f"🚀 Calling DashScope API with style_index: {style_index}...")
+
+            task_id = generate_stylized_image_task(image_data_uri, style_index)
+
+            if task_id:
+                # The client should now poll using the task_id, e.g., via another endpoint
+                # that calls check_task_status_and_get_result.
+                return {
+                    "message": "Style transfer task submitted successfully. Poll using the task_id to get the result.",
+                    "task_id": task_id,
+                    "style_index_used": style_index,
+                    "note": "The DashScope API for style transfer is asynchronous. You need to check the task status using the provided task_id to get the final image URL."
+                }
+            else:
+                # Specific error about DashScope call should have been logged in generate_stylized_image_task
+                raise HTTPException(status_code=500, detail="Failed to submit style transfer task to DashScope or obtain a task ID. Check server logs for details.")
+
+        except HTTPException:
+            raise # Re-raise HTTPException to let FastAPI handle it
+        except Exception as e:
+            print(f"❌ An unexpected error occurred in style_transfer_api_modified: {e}")
+            # Log the full error for debugging
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
+
+
+    # 启动 FastAPI 服务
+    uvicorn.run(app, host="0.0.0.0", port=8123)
