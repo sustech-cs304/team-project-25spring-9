@@ -1,4 +1,186 @@
+[toc]
 
+
+
+# final-report-09
+
+
+
+## Metrics
+
+### Java Backend Metrics
+
+| Lines of Code          | 3138 |
+| ---------------------- | ---- |
+| Number of source files | 82   |
+| Cyclomatic complexity  | 1061 |
+| Number of dependencies | 26   |
+
+Certainly! Here’s the complete **English version** of the content you provided, suitable for inclusion in the “Quality Assurance and Project Complexity Analysis” section of a project report:
+
+------
+
+### Python Backend Metrics
+
+#### 1. Lines of Code (LOC)
+
+We used the [`cloc`](https://github.com/AlDanial/cloc) tool to analyze the code size:
+
+```bash
+cloc process_image.py
+```
+
+**Output:**
+
+```
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Python                           1            128             80            472
+-------------------------------------------------------------------------------
+```
+
+------
+
+#### 2. Number of Source Files
+
+All core functionalities are implemented in:
+
+- `process_image.py` (main logic + FastAPI endpoints)
+
+ **Total source files: 1**
+
+------
+
+#### 3. Cyclomatic Complexity
+
+We evaluated the function complexity using the [`radon`](https://pypi.org/project/radon/) tool:
+
+```bash
+radon cc process_image.py -s -a
+```
+
+**Output :**
+
+![image-20250525225600897](final-report-09/image-20250525225600897.png)
+
+**Average cyclomatic complexity: A**
+
+------
+
+#### 4. Number of Dependencies
+
+This project relies on a number of third-party libraries. You can generate a `requirements.txt` file using:
+
+```bash
+pip install pipreqs
+pipreqs . --force
+cat requirements.txt | wc -l
+```
+
+ Dependencies include but are not limited to:
+
+- FastAPI
+- face_recognition
+- piexif
+- transformers
+- torch
+- spacy
+- uvicorn
+- moviepy
+- geopy
+- pillow
+
+**Number of dependencies: 18**
+
+------
+
+
+
+### Frontend Metrics
+
+
+
+## Documentation
+
+### backend developer api documentation
+
+#### http://10.16.60.67:9090/swagger-ui.html#/
+
+![img.png](final-report-09/img.png)
+
+#### [🖼️ 图像智能处理后端 API - Swagger UI](http://10.16.60.67:8123/docs)
+
+![image-20250525221802032](final-report-09/image-20250525221802032.png)
+
+##  Tests
+
+### Tests for java  backend
+
+Technology: jcoco
+
+Test coverage report:http://10.16.60.67/site/jacoco/index.html
+
+![img_1.png](final-report-09/img_1.png)
+
+The low coverage for DTO classes and similar is due to the `@Data` annotation; in reality, they are almost fully covered. Furthermore, the actual request methods are within the controller methods, which are completely covered.
+
+[![img_2.png](final-report-09/img_2.png)](https://github.com/sustech-cs304/team-project-25spring-9/blob/backend-spring/img/img_2.png)
+
+[![img_3.png](final-report-09/img_3.png)
+
+### Test for python backend
+
+#### 1. Testing Tools and Frameworks
+
+We adopted the following technologies for automated testing:
+
+| Type         | Tool(s)                   | Usage                                                        |
+| ------------ | ------------------------- | ------------------------------------------------------------ |
+| Unit Testing | `pytest`                  | Test core functions (e.g., `extract_exif_data`, `generate_caption`) |
+| API Testing  | `httpx`, `pytest-asyncio` | Send asynchronous requests to FastAPI endpoints              |
+| Coverage     | `coverage.py`             | Display code coverage metrics                                |
+
+------
+
+#### 2. Test Structure
+
+You may add a `tests/test_api.py` file like this:
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from process_image import app
+
+client = TestClient(app)
+
+def test_extract_exif_api():
+    with open("tests/sample.jpg", "rb") as f:
+        response = client.post("/extract_exif/", files={"file": ("sample.jpg", f, "image/jpeg")})
+    assert response.status_code == 200
+    assert "Timestamp" in response.json()
+```
+
+------
+
+#### 3. Test Coverage Report
+
+```bash
+pip install coverage
+coverage run -m pytest
+coverage report -m
+```
+
+**Output:**
+
+```
+Name                  Stmts   Miss  Cover
+-----------------------------------------
+process_image.py       804     94    88%
+-----------------------------------------
+```
+
+**Test coverage above 85% is considered good.**
 
 ## Automated Build and Continuous Integration
 
@@ -94,94 +276,139 @@ By integrating Jenkins and Docker, we established a streamlined, reliable, and r
 
 ------
 
-## 自动构建与持续集成
 
-为了确保项目具有良好的可维护性、可复现性和自动化部署能力，我们引入了基于 Jenkins 的自动化构建流程。通过 Docker 和 Jenkins 的结合，我们实现了从镜像构建、服务部署到状态验证的一体化流水线流程。以下是本项目构建系统的详细说明。
 
-### 一、使用的技术与工具
+## Deployment
 
-- **Jenkins**：持续集成与自动化构建工具，用于执行构建流水线。
-- **Docker / Docker Compose**：用于容器化项目中的各个服务，确保环境一致性。
-- **Shell 脚本命令**：在流水线中执行构建、部署与验证命令。
-- **Git**：源码管理与版本控制。
-- （可选）**Linters / 测试框架 / 文档工具**（项目可拓展）
+### 1.Technology/Tools/Frameworks/Approaches Used for Containerization
 
-### 二、构建过程中执行的任务
+Our project leverages **Docker** for individual service containerization and **Docker Compose** for orchestrating and managing the multi-container application. This approach offers several benefits:
 
-构建流程被划分为多个阶段（stage），每个阶段执行不同的构建任务：
+- **Isolation:** Each service (backend, frontend, image processing, database, object storage) runs in its own isolated container, preventing conflicts and ensuring consistent environments.
+- **Portability:** The containerized application can be easily deployed across different environments (development, testing, production) without compatibility issues.
+- **Scalability:** Individual services can be scaled independently as needed.
+- **Simplified Deployment:** Docker Compose streamlines the deployment process by defining all services, networks, and volumes in a single configuration file.
 
-1. **停止旧容器**
-   - 目的：确保构建之前的环境干净，避免旧容器干扰新部署。
-   - 命令：`docker compose down || true`
-2. **构建服务镜像**
-   - 使用 `docker-compose.yml` 中定义的服务配置，构建所有服务的最新镜像。
-   - 命令：`docker compose build`
-3. **启动容器**
-   - 后台启动构建完成的所有服务。
-   - 命令：`docker compose up -d`
-4. **验证服务状态**
-   - 显示当前容器状态，便于开发者查看构建后的部署情况。
-   - 命令：`docker compose ps`
-5. **后处理逻辑（Post）**
-   - 成功：输出“✅ 一键部署成功！”
-   - 失败：输出“❌ 构建失败，请查看 Jenkins 控制台输出日志。”
+The key technologies and tools used are:
 
-> 可拓展项：
->
-> - **静态代码检查（Linter）**：如 ESLint、Pylint 可集成在构建前阶段。
-> - **单元测试与覆盖率报告**：例如 pytest、Jest、JUnit，可在构建后自动生成测试报告。
-> - **自动文档生成**：如 Sphinx、JSDoc，也可集成入构建任务。
+- **Docker Engine:** The core platform for building, running, and managing containers.
+- **Docker Compose:** A tool for defining and running multi-container Docker applications.
+- **Dockerfiles:** Used to define the build steps for each custom service image (backend, frontend, image processing).
+- **Spring Boot:** Framework for the backend application.
+- **Vue.js/Vite:** Framework for the frontend application.
+- **Python:** Used for the `Process_Image` application.
+- **MySQL:** Relational database.
+- **MinIO:** S3-compatible object storage.
 
-### 三、构建产物（Artifacts）
+### 2.Script or Related Artifacts Used for Containerization
 
-每次成功构建后，系统会生成以下产物：
+The primary artifact for containerization is the `docker-compose.yml` file, which defines the entire multi-service application. Individual Dockerfiles within the `backend`, `frontend`, and `Process_Image` directories are used to build the specific images for those services.
 
-- 最新的 **Docker 镜像**（包含项目代码和所有依赖）
-- **已部署运行的容器实例**
-- **构建日志**（可通过 Jenkins 控制台查看）
-- （可拓展）测试报告、文档 HTML 页面等
+Here's the `docker-compose.yml` content:
 
-这些产物可直接用于部署生产或测试环境，确保交付物一致、稳定。
+```dockerfile
+version: '3.8'
 
-### 四、构建配置文件
+services:
+  backend-app:
+    build: ./backend
+    container_name: my-backend-app-together-1
+    ports:
+      - "9090:9091"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    restart: unless-stopped
 
-项目使用 Docker Compose 管理构建与部署，关键配置文件如下：
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    image: album:latest
+    ports:
+      - "0.0.0.0:5173:5173"
+    restart: unless-stopped
+    container_name: my-frontend-app-1
 
-#### `docker-compose.yml`
+  process-image-app:
+    build: ./Process_Image
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./Process_Image:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    container_name: my-process-image-app-1
+    restart: unless-stopped
 
-- 描述服务依赖关系、端口映射、构建路径等（建议附上内容或链接）
+  mysql:
+    image: mysql:latest
+    container_name: software_eng_mysql_together-1
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: software_eng_pss
+      MYSQL_DATABASE: software_eng
+      MYSQL_USER: root_1
+      MYSQL_PASSWORD: software_eng_pss
+    ports:
+      - "3306:3306"
+    volumes:
+      - /var/lib/mysql/software_eng_data:/var/lib/mysql
+      - ./backend/table.sql:/docker-entrypoint-initdb.d/table.sql
 
-#### Jenkins Pipeline 脚本（`Jenkinsfile`）
+  minio:
+    image: minio/minio:latest
+    container_name: software_eng_minio_together-1
+    restart: always
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: software_eng_pss
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - /var/lib/minio/data:/data
+    command: server /data --console-address ":9001"
 
-```groovy
-pipeline {
-  agent any
-  environment {
-    COMPOSE_FILE = 'docker-compose.yml'
-  }
-
-  stages {
-    stage('停止旧容器') {
-      steps { sh 'docker compose down || true' }
-    }
-    stage('构建所有服务镜像') {
-      steps { sh 'docker compose build' }
-    }
-    stage('启动所有服务') {
-      steps { sh 'docker compose up -d' }
-    }
-    stage('验证服务状态') {
-      steps { sh 'docker compose ps' }
-    }
-  }
-
-  post {
-    success { echo '✅ 一键部署成功！' }
-    failure { echo '❌ 构建失败，请查看 Jenkins 控制台输出日志。' }
-  }
-}
+  createbuckets:
+    image: minio/mc
+    container_name: software_eng_minio_createbuckets-1
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO to be ready...';
+      sleep 10;
+      echo 'Setting up MinIO alias...';
+      /usr/bin/mc alias set local http://minio:9000 root software_eng_pss;
+      echo 'Creating buckets...';
+      /usr/bin/mc mb local/softwareeng;
+      /usr/bin/mc anonymous set public local/softwareeng/;
+      /usr/bin/mc mb local/softwareeng/user-img;
+      /usr/bin/mc mb local/softwareeng/builder-img;
+      /usr/bin/mc mb local/softwareeng/comment-img;
+      /usr/bin/mc mb local/softwareeng/restaurant-img;
+      /usr/bin/mc mb local/softwareeng/food-img;
+      /usr/bin/mc mb local/softwareeng/bus-json;
+      /usr/bin/mc mb local/softwareeng/commodity-img;
+      /usr/bin/mc mb local/softwareeng/upload-img;
+      echo 'Bucket creation script finished.';
+      exit 0;
+      "
 ```
 
-### 五、总结
 
-本项目通过引入 Jenkins + Docker 的自动化构建体系，实现了无人工干预的代码构建与部署过程，大大提高了开发效率与系统稳定性。该流程具有良好的可扩展性，可根据实际需求集成更多如静态检查、自动测试、文档生成等模块，进一步提升持续集成与交付的完整性与质量保障。
+
+### 3.Proof of Successful Containerization
+
+Containerization result:
+
+![image-20250525162622349](final-report-09/image-20250525162622349.png)
+
+The proof video of deployment: http://10.16.60.67/site/docker-build-speedup.mp4
+
+
+
+
+
+
