@@ -67,6 +67,10 @@ const fillChartData = () => {
 
 // Number animation function
 const animateNumber = (start, end, duration, callback) => {
+  if (start === end) {
+    callback(end)
+    return
+  }
   const range = end - start
   const stepTime = Math.abs(Math.floor(duration / range))
   const timer = setInterval(() => {
