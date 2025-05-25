@@ -29,6 +29,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from pydantic import BaseModel
+import oss2
+
 
 
 
@@ -490,6 +492,37 @@ def check_task_status(task_id):
             break
 
 
+def upload_to_oss(local_path):
+    url = "https://www.picgo.net/api/1/upload"
+    X_API_Key = "chv_S0w6G_50f4a3a43d317348a22ffba85e7caa319b0ebee0afe182d29bc18d70827b6b7e88b2fdf15a6b1a8f6a1b7e28224368473ee12618a440de7269ee091221d230a2"  # 替换为你的实际key
+    image_path = local_path  # 替换为你本地的图片路径
+
+    headers = {
+        "X-API-Key": X_API_Key,
+    }
+
+    files = {
+        "source": open(image_path, "rb"),
+    }
+
+    response = requests.post(url, headers=headers, files=files)
+
+    # 打印响应结果
+    if response.ok:
+        print("上传成功！")
+        # 提取高清图像的URL
+        response_json = response.json()
+        image_url = response_json['image']['url']
+        print(image_url)
+        return str(image_url)
+    else:
+        print("上传失败！")
+        print(response.status_code)
+        print(response.text)
+        return None
+
+
+
 if __name__ == '__main__':
     # ==========================
     # 🌟 初始化已知人脸数据
@@ -548,7 +581,7 @@ if __name__ == '__main__':
 
     @app.post("/extract_exif/", summary="提取 EXIF 元数据", description="从上传图像中提取 EXIF 信息（如拍摄时间、GPS等）")
     async def extract_exif_api(file: UploadFile = File(...)):
-        file_path = f"temp_{file.filename}"
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
         with open(file_path, "wb") as f:
             f.write(await file.read())
         metadata = extract_exif_data(file_path)
@@ -557,7 +590,7 @@ if __name__ == '__main__':
 
     @app.post("/generate_caption/", summary="生成图像描述", description="对上传的图像生成自然语言描述")
     async def caption_api(file: UploadFile = File(...)):
-        file_path = f"temp_{file.filename}"
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
         with open(file_path, "wb") as f:
             f.write(await file.read())
         caption = generate_caption(file_path)
@@ -566,7 +599,7 @@ if __name__ == '__main__':
 
     @app.post("/auto_tag/", summary="自动打标签", description="为上传图像生成描述，并提取其中的名词作为标签")
     async def auto_tag_api(file: UploadFile = File(...)):
-        file_path = f"temp_{file.filename}"
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
         with open(file_path, "wb") as f:
             f.write(await file.read())
         caption = generate_caption(file_path)
@@ -576,7 +609,7 @@ if __name__ == '__main__':
 
     @app.post("/face_recognition/", summary="人脸识别", description="识别上传图像中的人脸并返回匹配的身份标签")
     async def face_recognition_api(file: UploadFile = File(...)):
-        file_path = f"temp_{file.filename}"
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
         with open(file_path, "wb") as f:
             f.write(await file.read())
         person_label = process_new_photo(file_path)
@@ -607,12 +640,20 @@ if __name__ == '__main__':
 
     @app.post("/style_transfer/", summary="图像风格化",
               description="将图像 URL 提交至 DashScope，等待风格化任务完成后返回结果")
-    async def style_transfer_api(request: StyleTransferRequest):
-        task_id = generate_image(request.image_url, request.style_index)
-        if task_id:
-            result_url = check_task_status(task_id)
-            return {"task_id": task_id, "result_url": result_url}
-        return {"error": "任务提交失败"}
+    async def style_transfer_api(file: UploadFile = File(...), style_index: int = 0):
+        file_path = f"temp_{uuid.uuid4().hex}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        try:
+            image_url = upload_to_oss(file_path)  # 假设上传成功返回可访问 URL
+            task_id = generate_image(image_url, style_index)
+            if task_id:
+                result_url = check_task_status(task_id)
+                return {"task_id": task_id, "result_url": result_url}
+            else:
+                return JSONResponse(status_code=500, content={"error": "任务提交失败"})
+        finally:
+            os.remove(file_path)
 
     # 启动 FastAPI 服务
     uvicorn.run(app, host="0.0.0.0", port=8123)

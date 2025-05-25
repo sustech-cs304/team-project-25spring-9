@@ -14,7 +14,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker # Example: Activate a 'docker' Spring profile
     # Make backend-app depend on mysql and minio to ensure they start first
     restart: unless-stopped
-  # Service for the Process_image application
+  # Service for the Process_Image application
   web:
     build:
       context: ./frontend
@@ -26,13 +26,13 @@ services:
     restart: unless-stopped
     container_name: my-frontend-app-1
   process-image-app:
-    # Build the image using the Dockerfile in the ./Process_image directory
-    build: ./Process_image
+    # Build the image using the Dockerfile in the ./Process_Image directory
+    build: ./Process_Image
     ports:
       - "8123:8123"
     volumes:
-      # Mount the ./Process_image directory to /app in the container
-      - ./Process_image:/app
+      # Mount the ./Process_Image directory to /app in the container
+      - ./Process_Image:/app
     environment:
       - PYTHONUNBUFFERED=1
     container_name: my-process-image-app-1 # Added a container name for clarity
