@@ -69,14 +69,14 @@ const routes = [
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),
   },
-  // {
-  //   meta: {
-  //     title: 'Ui',
-  //   },
-  //   path: '/ui',
-  //   name: 'ui',
-  //   component: () => import('@/views/UiView.vue'),
-  // },
+  {
+    meta: {
+      title: 'Style',
+    },
+    path: '/style',
+    name: 'style',
+    component: () => import('@/views/StyleView.vue'),
+  },
   {
     meta: {
       title: 'Login',
@@ -110,6 +110,30 @@ const routes = [
     name: 'tags',
     component: () => import('../views/TagsView.vue')
   },
+  {
+    meta: {
+      title: 'Shared Photo'
+    },
+    path: '/share/:userId/:photoId',
+    name: 'share',
+    component: () => import('@/views/ShareView.vue')
+  },
+  {
+    meta: {
+      title: 'Shared Photo'
+    },
+    path: '/share/photo/:userId/:photoId',
+    name: 'sharePhoto',
+    component: () => import('@/views/ShareView.vue'),
+  },
+  {
+    meta: {
+      title: 'Shared Album'
+    },
+    path: '/share/album/:userId/:albumId',
+    name: 'shareAlbum',
+    component: () => import('@/views/ShareView.vue')
+  }
 ]
 
 const router = createRouter({
