@@ -31,7 +31,7 @@ public class ImgPeopleController {
     }
     @ApiOperation(value = "添加图片people", tags = "图片类")
     @PostMapping("/add")
-    public AjaxJson add(int imgId, int userId, String  people) {
+    public synchronized  AjaxJson add(int imgId, int userId, String  people) {
         return AjaxJson.getSuccessData(imgPeopleService.addImgPeople(userId, imgId, people));
     }
 }
