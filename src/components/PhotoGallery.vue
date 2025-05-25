@@ -72,6 +72,14 @@ const props = defineProps({
   albumId: {
     type: [Number, String],
     default: null
+  },
+  filterTags: {
+    type: Array,
+    default: () => []
+  },
+  noTags: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -211,7 +219,19 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({ userId: props.userId?.toString() || '' })
+    const params = new URLSearchParams({ 
+      userId: props.userId?.toString() || '' 
+    })
+
+    // Add tags filtering
+    if (props.filterTags.length > 0) {
+      params.append('tags', props.filterTags.join(','))
+    }
+    
+    // Add no-tags filtering
+    if (props.noTags) {
+      params.append('noTags', 'true')
+    }
 
     // 修改这部分来正确处理 null albumId
     if (props.albumId !== undefined) {
@@ -711,7 +731,7 @@ const handleMenuAction = (action) => {
   }
 }
 
-// Modify handlePhotoAction function
+// Modify photo modal action handler
 const handlePhotoAction = (action) => {
   if (!currentPhoto.value) return
 
