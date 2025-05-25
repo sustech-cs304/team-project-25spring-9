@@ -337,7 +337,7 @@ const uploadPhotos = (file) => {
 
     uploadingPhotos.value.push(tempPhoto)
 
-    const formData = new FormData()
+	const formData = new FormData()
     formData.append('files', file)
 
     const params = new URLSearchParams({
@@ -347,7 +347,7 @@ const uploadPhotos = (file) => {
       pub: true
     })
 
-    fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+    fetch(`http://10.16.60.67:9090/img/addnoinfo?${params}`, {
       method: 'POST',
       body: formData
     })
@@ -822,23 +822,50 @@ const handleDeleteTag = async (tag, photo) => {
   }
 };
 
-const showPeoplePanel = ref(false)
+const peopleList = ref([])
+
+const fetchPeopleList = async () => {
+  if (!props.userId) return
+  try {
+    const params = new URLSearchParams({ userId: props.userId })
+    const response = await fetch(`http://10.16.60.67:9090/people/list?${params}`,{
+      method: 'POST'
+    })
+    const result = await response.json()
+    console.log('获取人物列表:', result)
+    if (result && Array.isArray(result.data)) {
+      peopleList.value = result.data
+    } else {
+      peopleList.value = []
+    }
+  } catch (err) {
+    peopleList.value = []
+    toast.error('获取人物列表失败')
+    console.error('获取人物列表失败:', err)
+  }
+}
+
+onMounted(() => {
+  fetchPeopleList()
+})
 
 // 统计所有people及其对应图片
 const peopleMap = computed(() => {
-  return {
-    "张三": [
-      { id: 101, name: "张三的照片1", src: "https://picsum.photos/id/101/300/200" },
-      { id: 102, name: "张三的照片2", src: "https://picsum.photos/id/102/300/200" }
-    ],
-    "李四": [
-    ],
-    "王五": [
-      { id: 301, name: "王五的照片1", src: "https://picsum.photos/id/301/300/200" },
-      { id: 302, name: "王五的照片2", src: "https://picsum.photos/id/302/300/200" },
-      { id: 303, name: "王五的照片3", src: "https://picsum.photos/id/303/300/200" }
-    ]
-  }
+  const map = {}
+  console.log('peopleList:', peopleList.value)
+  if (!peopleList.value || peopleList.value.length === 0) return map
+  peopleList.value.forEach(person => {
+    map[person.name] = []
+  })
+  displayPhotos.value.forEach(photo => {
+    if (!photo.peoples || photo.peoples.length === 0) return
+    photo.peoples.forEach(person => {
+      if (!person) return
+      if (!map[person]) map[person] = []
+      map[person].push(photo)
+    })
+  })
+  return map
 })
 
 // 控制展开
@@ -851,6 +878,51 @@ const togglePerson = (person) => {
 }
 
 const isPersonExpanded = (person) => expandedPeople.value.includes(person)
+
+const peopleTagDeleteApi = async (person) =>{
+  const params = new URLSearchParams({
+      userId: props.userId.toString()
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/people/delete?${params}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([person])
+    })
+
+    const result = await response.json()
+}
+
+const peopleTagRename = (person) => {
+	//TODO: rename
+	console.log('Renaming person:', person)
+}
+
+const peopleTagDelete = async (person) => {
+
+	console.log('Deleting person:', person)
+  try {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person}"? This will remove it from all photos.`)
+    if (!confirmDelete) return
+
+    const result = peopleTagDeleteApi(person)
+
+    if (result.msg === 'ok') {
+      toast.success(`Person tag "${person}" deleted successfully`)
+      // Refresh the people list and photos
+      fetchPeopleList()
+      fetchPhotos()
+    } else {
+      throw new Error(result.msg || 'Failed to delete person tag')
+    }
+  } catch (error) {
+    console.error('Error deleting person tag:', error)
+    toast.error(`Failed to delete person tag: ${error.message}`)
+  }
+}
+
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
 const RenamingPhotoName = ref(''); // 当前正在编辑的图片名称
@@ -1330,7 +1402,7 @@ defineExpose({
 		<div v-else class="my-6 p-6 bg-white border rounded-lg shadow-sm animate-fade-in">
       <h3 class="text-lg font-semibold mb-4 flex items-center">
         <svg class="w-6 h-6 mr-2"><path fill="currentColor" :d="mdiAccount" /></svg>
-        人物列表
+        People
       </h3>
       <div v-if="Object.keys(peopleMap).length === 0" class="text-gray-500">暂无人物信息</div>
       <div v-else>
@@ -1341,9 +1413,33 @@ defineExpose({
               viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiChevronRight" />
             </svg>
-            <span class="font-medium text-blue-700 group-hover:underline">{{ person }}</span>
+            <span class="font-medium text-lg text-gray-800">{{ person }}</span>
             <span class="ml-2 text-xs text-gray-500">({{ photos.length }} 张图片)</span>
-          </div>
+            <div
+							class="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+							@click.stop
+						>
+							<button
+								class="p-1 rounded hover:bg-gray-100"
+								title="Rename"
+								@click="peopleTagRename(person)"
+							>
+								<svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24">
+									<path fill="currentColor" :d="mdiImageEdit" />
+								</svg>
+							</button>
+							<!-- 删除按钮 -->
+							<button
+								class="p-1 rounded hover:bg-red-100"
+								title="Delete"
+								@click="peopleTagDelete(person)"
+							>
+								<svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24">
+									<path fill="currentColor" :d="mdiDelete" />
+								</svg>
+							</button>
+						</div>
+					</div>
           <div v-if="isPersonExpanded(person)" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <div v-for="photo in photos" :key="photo.id" class="flex flex-col items-center">
               <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
