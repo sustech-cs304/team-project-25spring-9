@@ -18,6 +18,30 @@ A modern Vue 3 and Tailwind CSS application for organizing, editing, and managin
 
 ![dependency-graph](image/dependency-graph.svg)
 
+## Statistic
+
+### Cyclomatic Complexity
+[Javascript Cyclomatic Complexity](./statistic/js-cyclomatic-complexity.json)
+
+### Cloc
+```
+      91 text files.
+classified 91 files
+      91 unique files.                              
+       0 files ignored.
+
+github.com/AlDanial/cloc v 1.96  T=0.04 s (2424.6 files/s, 225593.6 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Vuejs Component                 72            863            375           6125
+JavaScript                      10             64             64            564
+CSS                              9             76              7            329
+-------------------------------------------------------------------------------
+SUM:                            91           1003            446           7018
+-------------------------------------------------------------------------------
+```
+
 ## 🚀 Quick Start
 
 ### Prerequisites

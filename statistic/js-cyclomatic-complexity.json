@@ -1,0 +1,422 @@
+[
+  {
+    "file": "src/menuNavBar.js",
+    "functionComplexities": [
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 0
+  },
+  {
+    "file": "src/menuAside.js",
+    "functionComplexities": [
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 0
+  },
+  {
+    "file": "src/main.js",
+    "functionComplexities": [
+      {
+        "name": "anonymous: beforeEach",
+        "complexity": 5,
+        "line": 26
+      },
+      {
+        "name": "anonymous: afterEach",
+        "complexity": 4,
+        "line": 39
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 9
+  },
+  {
+    "file": "src/config.js",
+    "functionComplexities": [
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 0
+  },
+  {
+    "file": "src/colors.js",
+    "functionComplexities": [
+      {
+        "name": "anonymous: getButtonColor",
+        "complexity": 8,
+        "line": 35
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 8
+  },
+  {
+    "file": "src/stores/main.js",
+    "functionComplexities": [
+      {
+        "name": "anonymous: defineStore",
+        "complexity": 5,
+        "line": 7
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 5,
+        "line": 39
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 5,
+        "line": 50
+      },
+      {
+        "name": "setUser",
+        "complexity": 4,
+        "line": 19
+      },
+      {
+        "name": "anonymous: catch",
+        "complexity": 2,
+        "line": 43
+      },
+      {
+        "name": "anonymous: catch",
+        "complexity": 2,
+        "line": 54
+      },
+      {
+        "name": "anonymous: computed",
+        "complexity": 1,
+        "line": 13
+      },
+      {
+        "name": "fetchSampleClients",
+        "complexity": 1,
+        "line": 36
+      },
+      {
+        "name": "fetchSampleHistory",
+        "complexity": 1,
+        "line": 47
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 26
+  },
+  {
+    "file": "src/stores/darkMode.js",
+    "functionComplexities": [
+      {
+        "name": "set",
+        "complexity": 6,
+        "line": 8
+      },
+      {
+        "name": "anonymous: defineStore",
+        "complexity": 1,
+        "line": 6
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 7
+  },
+  {
+    "file": "src/stores/auth.js",
+    "functionComplexities": [
+      {
+        "name": "step",
+        "complexity": 35,
+        "line": 15
+      },
+      {
+        "name": "anonymous: __generator",
+        "complexity": 12,
+        "line": 91
+      },
+      {
+        "name": "anonymous: __generator",
+        "complexity": 9,
+        "line": 49
+      },
+      {
+        "name": "anonymous: __generator",
+        "complexity": 6,
+        "line": 11
+      },
+      {
+        "name": "fulfilled",
+        "complexity": 4,
+        "line": 5
+      },
+      {
+        "name": "rejected",
+        "complexity": 4,
+        "line": 6
+      },
+      {
+        "name": "step",
+        "complexity": 3,
+        "line": 7
+      },
+      {
+        "name": "anonymous: __awaiter",
+        "complexity": 2,
+        "line": 2
+      },
+      {
+        "name": "adopt",
+        "complexity": 2,
+        "line": 3
+      },
+      {
+        "name": "anonymous: P",
+        "complexity": 2,
+        "line": 3
+      },
+      {
+        "name": "anonymous: Promise",
+        "complexity": 2,
+        "line": 4
+      },
+      {
+        "name": "anonymous: sent",
+        "complexity": 2,
+        "line": 12
+      },
+      {
+        "name": "anonymous: defineStore",
+        "complexity": 2,
+        "line": 42
+      },
+      {
+        "name": "anonymous: iterator",
+        "complexity": 1,
+        "line": 13
+      },
+      {
+        "name": "verb",
+        "complexity": 1,
+        "line": 14
+      },
+      {
+        "name": "anonymous: n",
+        "complexity": 1,
+        "line": 14
+      },
+      {
+        "name": "login",
+        "complexity": 1,
+        "line": 46
+      },
+      {
+        "name": "anonymous: __awaiter",
+        "complexity": 1,
+        "line": 47
+      },
+      {
+        "name": "register",
+        "complexity": 1,
+        "line": 88
+      },
+      {
+        "name": "anonymous: __awaiter",
+        "complexity": 1,
+        "line": 89
+      },
+      {
+        "name": "logout",
+        "complexity": 1,
+        "line": 135
+      },
+      {
+        "name": "checkAuth",
+        "complexity": 1,
+        "line": 141
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "error",
+    "complexitySum": 94
+  },
+  {
+    "file": "src/router/index.js",
+    "functionComplexities": [
+      {
+        "name": "anonymous: beforeEach",
+        "complexity": 5,
+        "line": 123
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 35
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 44
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 53
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 62
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 71
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 79
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 87
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 103
+      },
+      {
+        "name": "anonymous: then",
+        "complexity": 2,
+        "line": 112
+      },
+      {
+        "name": "anonymous: scrollBehavior",
+        "complexity": 2,
+        "line": 118
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 35
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 44
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 53
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 62
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 71
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 79
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 87
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 103
+      },
+      {
+        "name": "anonymous: component",
+        "complexity": 1,
+        "line": 112
+      },
+      {
+        "name": "anonymous: some",
+        "complexity": 1,
+        "line": 125
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 35
+  },
+  {
+    "file": "src/components/Charts/chart.config.js",
+    "functionComplexities": [
+      {
+        "name": "anonymous: sampleChartData",
+        "complexity": 3,
+        "line": 37
+      },
+      {
+        "name": "anonymous: randomChartData",
+        "complexity": 2,
+        "line": 11
+      },
+      {
+        "name": "anonymous: datasetObject",
+        "complexity": 1,
+        "line": 18
+      },
+      {
+        "name": "global",
+        "complexity": 0,
+        "line": 0
+      }
+    ],
+    "complexityLevel": "ok",
+    "complexitySum": 6
+  }
+]
