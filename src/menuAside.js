@@ -37,14 +37,14 @@ export default [
     icon: mdiSquareEditOutline,
   },
   {
-    to: '/profile',
-    label: 'Profile',
-    icon: mdiAccountCircle,
-  },
-  {
     to: '/tags',
     label: 'Tags',
     icon: mdiTagMultiple,
+  },
+  {
+    to: '/profile',
+    label: 'Profile',
+    icon: mdiAccountCircle,
   },
 
   // {
