@@ -1001,10 +1001,20 @@ const togglePeoplePhotoSelection = (person, photoId) => {
     item => item.person === person && item.photoId === photoId
   )
 
+  const containsPhotoCnt = selectedPeoplePhotos.value.filter(
+    item => item.photoId === photoId
+  ).length
+
   if (index === -1) {
     selectedPeoplePhotos.value.push({ person, photoId })
+    if (containsPhotoCnt === 0) {
+      emit('select-photo', photoId)
+    }
   } else {
     selectedPeoplePhotos.value.splice(index, 1)
+    if (containsPhotoCnt === 1) {
+      emit('select-photo', photoId)
+    }
   }
 }
 
@@ -1267,7 +1277,7 @@ const handlePeopleTagRename = async (inputValue) => {
   const newName = inputValue.trim()
   const personId = personRenaming.value
   const person = getPeopleById(personId)
-  
+
   try {
     const params = new URLSearchParams({
       userId: props.userId.toString(),
