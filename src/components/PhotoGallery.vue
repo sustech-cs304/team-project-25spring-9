@@ -660,10 +660,10 @@ const handleActionClick = (photo, event) => {
 const handleSharePhoto = (photo) => {
     const shareUrl = photo.src;
     navigator.clipboard.writeText(shareUrl).then(() => {
-      toast.success('分享链接已复制到剪贴板！');
+      toast.success('Link copied to clipboard!');
     }).catch((error) => {
-      console.error('复制链接失败:', error);
-      toast.error('复制链接失败');
+      console.error('Failed to copy link:', error);
+      toast.error('Failed to copy link');
     });
 }
 
@@ -759,11 +759,11 @@ const handleTagClick = (tag) => {
 }
 
 const addNewTag = async (photo) => {
-  const newTag = prompt('请输入新标签:').trim();
+  const newTag = prompt('Enter new tag:').trim();
    if (!newTag) return;
 
   if (photo.tags.includes(newTag)) {
-    toast.error(`标签 "${newTag}" 已存在`);
+    toast.error(`Tag "${newTag}" already exists`);
     return;
   }
 
@@ -781,13 +781,13 @@ const addNewTag = async (photo) => {
 
     if (result.msg === 'ok') {
       photo.tags.push(newTag);
-      toast.success(`标签 "${newTag}" 已成功添加`);
+      toast.success(`Tag "${newTag}" added successfully`);
     } else {
-      throw new Error(result.msg || '添加标签失败');
+      throw new Error(result.msg || 'Failed to add tag');
     }
   } catch (error) {
-    console.error('添加标签失败:', error);
-    toast.error(`添加标签失败: ${error.message}`);
+    console.error('Failed to add tag:', error);
+    toast.error(`Failed to add tag: ${error.message}`);
   }
 };
 
@@ -813,13 +813,13 @@ const handleDeleteTag = async (tag, photo) => {
       if (tagIndex > -1) {
         photo.tags.splice(tagIndex, 1);
       }
-      toast.success(`标签 "${tag}" 已成功删除`);
+      toast.success(`Tag "${tag}" was successfully deleted`);
     } else {
-      throw new Error(result.msg || '删除标签失败');
+      throw new Error(result.msg || 'Failed to delete tag');
     }
   } catch (error) {
-    console.error('删除标签失败:', error);
-    toast.error(`删除标签失败: 标签 ${tag} 不存在`);
+    console.error('Failed to delete tag:', error);
+    toast.error(`Failed to delete tag: tag "${tag}" doesn't exist`);
   }
 };
 
