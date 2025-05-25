@@ -437,37 +437,42 @@ if __name__ == '__main__':
     # 🌟 初始化已知人脸数据
     # ==========================
     known_face_dict, known_face_encodings, known_face_labels = load_encodings()
-
-    # 调用初始化函数
-    # 调用初始化（只执行一次）
     init_blip_and_spacy()
-    app = FastAPI()
+
+    # ==========================
+    # 🌐 初始化 FastAPI 应用
+    # ==========================
+    app = FastAPI(
+        title="🖼️ 图像智能处理后端 API",
+        description=(
+            "该服务提供了多种图像处理功能，包括：\n"
+            "- 图片处理\n"
+            "- EXIF 信息提取\n"
+            "- 图像自动描述生成\n"
+            "- 自动打标签\n"
+            "- 人脸识别\n"
+            "- 图像生成视频等"
+        ),
+        version="1.0.0"
+    )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # 可以替换为特定前端地址如 ["http://localhost:3000"]
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    @app.post("/process_image")
+    @app.post("/process_image", summary="处理图像", description="接收图像并调用处理函数返回分析结果")
     async def process_image(file: UploadFile = File(...)):
         try:
-            # 创建临时路径，防止文件名冲突
             temp_filename = f"temp_{uuid.uuid4().hex}_{file.filename}"
-
-            # 保存文件到临时路径
             with open(temp_filename, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
-            # 调用你的图片处理函数（传路径）
             result = process_images(temp_filename)
-
-            # 删除临时文件，避免堆积
             os.remove(temp_filename)
-
-            # 返回结果
             return JSONResponse(content=result)
 
         except Exception as e:
@@ -475,11 +480,9 @@ if __name__ == '__main__':
 
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "temp")
-    # UPLOAD_FOLDER = os.path.join(os.getcwd(), "image")
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-    @app.post("/extract_exif/")
+    @app.post("/extract_exif/", summary="提取 EXIF 元数据", description="从上传图像中提取 EXIF 信息（如拍摄时间、GPS等）")
     async def extract_exif_api(file: UploadFile = File(...)):
         file_path = f"temp_{file.filename}"
         with open(file_path, "wb") as f:
@@ -488,8 +491,7 @@ if __name__ == '__main__':
         os.remove(file_path)
         return JSONResponse(metadata)
 
-
-    @app.post("/generate_caption/")
+    @app.post("/generate_caption/", summary="生成图像描述", description="对上传的图像生成自然语言描述")
     async def caption_api(file: UploadFile = File(...)):
         file_path = f"temp_{file.filename}"
         with open(file_path, "wb") as f:
@@ -498,8 +500,7 @@ if __name__ == '__main__':
         os.remove(file_path)
         return {"caption": caption}
 
-
-    @app.post("/auto_tag/")
+    @app.post("/auto_tag/", summary="自动打标签", description="为上传图像生成描述，并提取其中的名词作为标签")
     async def auto_tag_api(file: UploadFile = File(...)):
         file_path = f"temp_{file.filename}"
         with open(file_path, "wb") as f:
@@ -509,8 +510,7 @@ if __name__ == '__main__':
         os.remove(file_path)
         return {"tags": tags}
 
-
-    @app.post("/face_recognition/")
+    @app.post("/face_recognition/", summary="人脸识别", description="识别上传图像中的人脸并返回匹配的身份标签")
     async def face_recognition_api(file: UploadFile = File(...)):
         file_path = f"temp_{file.filename}"
         with open(file_path, "wb") as f:
@@ -519,13 +519,11 @@ if __name__ == '__main__':
         os.remove(file_path)
         return {"person_label": person_label}
 
-
-    @app.post("/generate_video/")
+    @app.post("/generate_video/", summary="合成视频", description="将上传的多张图像合成为一段视频（MP4 格式）")
     async def generate_video_api(files: List[UploadFile] = File(...)):
         saved_files = []
 
         for file in files:
-            # 使用 UUID 生成唯一文件名
             ext = os.path.splitext(file.filename)[1]
             unique_filename = f"{uuid.uuid4().hex}{ext}"
             file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
@@ -539,9 +537,8 @@ if __name__ == '__main__':
             output_video_path = generate_video(saved_files)
             return FileResponse(output_video_path, media_type="video/mp4", filename=os.path.basename(output_video_path))
         finally:
-            # 清理临时文件
             for path in saved_files:
                 os.remove(path)
 
-
+    # 启动 FastAPI 服务
     uvicorn.run(app, host="0.0.0.0", port=8123)
