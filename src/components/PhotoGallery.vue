@@ -947,38 +947,16 @@ const togglePerson = (person) => {
 
 const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 
+const personRenaming = ref(null)
+
 const peopleTagRename = async (personId) => {
-  const person = getNicknameById(personId)
-	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
+	personRenaming.value = personId
 
-  // Validate input
-  if (!newName || newName.trim() === '' || newName === person) return
-
-  try {
-    const params = new URLSearchParams({
-      userId: props.userId.toString(),
-      name: getPeopleById(personId).name,
-      nickname: newName.trim()
-    })
-
-    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
-      method: 'POST'
-    })
-
-    const result = await response.json()
-
-    if (result.msg === 'ok') {
-      toast.success(`Person "${person}" renamed to "${newName}"`)
-      // Refresh data
-      fetchPeopleList()
-      fetchPhotos() // Optional chaining in case fetchPhotos isn't defined
-    } else {
-      throw new Error(result.msg || 'Rename failed')
-    }
-  } catch (error) {
-    console.error('Rename failed:', error)
-    toast.error(`Rename failed: ${error.message}`)
-  }
+  peopleInputModalTitle.value = 'Rename People'
+  peopleInputModalPlaceholder.value = 'Enter new people name'
+  currentPeopleAction.value = 'rename'
+  showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = false  
 }
 
 const peopleTagDelete = async (personId) => {
@@ -1212,6 +1190,7 @@ const showPeopleInputModal = ref(false)
 const peopleInputModalTitle = ref('Add People Tag')
 const peopleInputModalPlaceholder = ref('Enter people name')
 const currentPeopleAction = ref(null)
+const inputBoxUseSuggestion = ref(true)
 
 const addPeopleTag = () => {
   if (selectedPeoplePhotos.value.length === 0) {
@@ -1223,6 +1202,7 @@ const addPeopleTag = () => {
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'add'
   showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = true
 }
 
 // 修改 movePeopleTag 方法
@@ -1236,6 +1216,7 @@ const movePeopleTag = () => {
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'move'
   showPeopleInputModal.value = true
+  inputBoxUseSuggestion.value = true
 }
 
 
@@ -1280,6 +1261,38 @@ const handlePeopleInputConfirm = async (inputValue) => {
     toast.error(`Failed: ${error.message}`)
   }
   
+}
+
+const handlePeopleTagRename = async (inputValue) => {
+  const newName = inputValue.trim()
+  const personId = personRenaming.value
+  const person = getPeopleById(personId)
+  
+  try {
+    const params = new URLSearchParams({
+      userId: props.userId.toString(),
+      name: person.name,
+      nickname: newName
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+
+    if (result.msg === 'ok') {
+      toast.success(`Person "${getNicknameById(personId)}" renamed to "${newName}"`)
+      // Refresh data
+      fetchPeopleList()
+      fetchPhotos() // Optional chaining in case fetchPhotos isn't defined
+    } else {
+      throw new Error(result.msg || 'Rename failed')
+    }
+  } catch (error) {
+    console.error('Rename failed:', error)
+    toast.error(`Rename failed: ${error.message}`)
+  }
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
@@ -1891,8 +1904,12 @@ defineExpose({
       :title="peopleInputModalTitle"
       :placeholder="peopleInputModalPlaceholder"
       :peoples="peopleList"
+      :operation="currentPeopleAction"
+      :use-suggestion="inputBoxUseSuggestion"
+
       @close="showPeopleInputModal = false"
       @confirm="handlePeopleInputConfirm"
+      @rename="handlePeopleTagRename"
     />
 
     <!-- Replace old modal with new PhotoModal component -->

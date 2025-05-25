@@ -6,6 +6,14 @@ import BaseButton from '@/components/BaseButton.vue'
 const props = defineProps({
   show: Boolean,
   peoples: Array,
+  useSuggestion: {
+    type: Boolean,
+    default: true
+  },
+  operation: {
+    type: String,
+    default: 'add'
+  },
   title: {
     type: String,
     default: 'Add People Tag'
@@ -20,7 +28,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'confirm'])
+const emit = defineEmits(['close', 'confirm', 'rename'])
 
 const inputValue = ref(props.initialValue)
 const activeIndex = ref(-1) // 当前高亮的联想项
@@ -48,7 +56,14 @@ const handleConfirm = () => {
     return
   }
   if (inputValue.value.trim()) {
-    emit('confirm', inputValue.value.trim())
+    if (props.operation === 'add') {
+      emit('confirm', inputValue.value.trim())
+    } else if (props.operation === 'move') {
+      emit('confirm', inputValue.value.trim())
+    } else if (props.operation === 'rename') {
+      emit('rename', inputValue.value.trim())
+    }
+
     inputValue.value = ''
     suggestionUsed.value = false
     emit('close')
@@ -112,7 +127,7 @@ watch(inputValue, () => {
         />
         <!-- 联想下拉 -->
         <ul
-          v-if="isInputFocused && filteredPeoples.length && inputValue && inputValue.trim() && !suggestionUsed"
+          v-if="useSuggestion && isInputFocused && filteredPeoples.length && inputValue && inputValue.trim() && !suggestionUsed"
           class="absolute left-0 right-0 bg-white border border-gray-200 rounded shadow z-10 mt-1 max-h-40 overflow-auto"
         >
           <li
