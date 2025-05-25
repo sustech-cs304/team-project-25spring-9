@@ -171,7 +171,8 @@ public class ImgController {
                 .eq(Img::getImgId, imgId)    // 条件：imgId == img1
                 .set(name!=null,Img::getImgName, name)   // 更新 valid 字段为 false
                 .set(pub!=null,Img::getPub, pub)
-                .set(albumId!=null,Img::getAlbumId, albumId)
+                .set(albumId!=null&&albumId!=-1,Img::getAlbumId, albumId)
+                .set(albumId != null && albumId.equals(-1), Img::getAlbumId, null)
         ));
     }
 
