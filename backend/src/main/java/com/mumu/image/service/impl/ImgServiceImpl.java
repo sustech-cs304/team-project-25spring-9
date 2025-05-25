@@ -74,6 +74,7 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
         // 1️⃣ 先查询符合条件的图片ID
         List<Integer> imgIds = mapper.selectJoinList(Integer.class, new MPJLambdaWrapper<Img>()
                 .select(Img::getImgId) // 只查询 imgId
+                        .eq(img.getAlbumId()!=null,Img::getAlbumId, img.getAlbumId())
                 .eq(img.getUserId() != null, Img::getUserId, img.getUserId())
                 .eq(img.getImgId() != null, Img::getImgId, img.getImgId())
                 .eq(Img::getValid, true)
