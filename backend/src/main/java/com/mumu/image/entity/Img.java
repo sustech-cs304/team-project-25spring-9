@@ -45,6 +45,7 @@ public class Img implements Serializable {
         this.pub=img.getPub();
         this.imgPos=img.getImgPos();
         this.userId=img.getUserId();
+        this.albumId=img.getAlbumId();
     }
     public Img() {
     }
