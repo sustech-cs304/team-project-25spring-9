@@ -31,11 +31,11 @@ export default [
     label: 'Timeline',
     icon: mdiTimelineClock,
   },
-  // {
-  //   to: '/forms',
-  //   label: 'Forms',
-  //   icon: mdiSquareEditOutline,
-  // },
+  {
+    to: '/style',
+    label: 'Style',
+    icon: mdiSquareEditOutline,
+  },
   {
     to: '/profile',
     label: 'Profile',
