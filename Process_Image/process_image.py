@@ -396,8 +396,24 @@ def generate_video(image_paths: list[str]) -> str:
 
     for idx, img_path in enumerate(image_paths):
         im = Image.open(img_path)
+        # max_size = (1920, 1080)
+        # im.thumbnail(max_size, Image.Resampling.LANCZOS)
         max_size = (1920, 1080)
+        min_size = (1920, 1080)  # 建议设为较合理的最低值
+
+        # 先缩小到不超过 max_size，保持比例
         im.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        # 如果太小，再放大（保持比例）
+        width, height = im.size
+        if width < min_size[0] or height < min_size[1]:
+            scale_w = min_size[0] / width
+            scale_h = min_size[1] / height
+            scale = max(scale_w, scale_h)  # 保证放大后两个维度都 ≥ 最小尺寸
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            im = im.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
         effect_type = random.choice([0, 1])
         if effect_type == 0:
             x_speed = (im.width - im.width * 0.8) / duration

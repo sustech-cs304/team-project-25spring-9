@@ -222,6 +222,10 @@ The Jenkins pipeline is divided into multiple stages, each responsible for a spe
 
 ### 3. Build Artifacts
 
+![image-20250525233031178](final-report-09/image-20250525233031178.png)
+
+![image-20250525233052904](final-report-09/image-20250525233052904.png)
+
 Upon a successful build, the following artifacts are generated:
 
 - **Latest Docker images** containing the compiled code and dependencies.
@@ -406,7 +410,6 @@ Containerization result:
 ![image-20250525162622349](final-report-09/image-20250525162622349.png)
 
 The proof video of deployment: http://10.16.60.67/site/docker-build-speedup.mp4
-
 
 
 
