@@ -19,7 +19,10 @@ import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import { useMainStore } from '@/stores/main'
 import { ref, nextTick } from 'vue'
-import html2canvas_pro from 'html2canvas-pro' // Add this import
+import html2canvas_pro from 'html2canvas-pro'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 // Track if we're in select mode
 const isSelectMode = ref(true)
@@ -145,14 +148,14 @@ const generateTimelineView = async () => {
     timelineVideos.value.push(newTimeline)
 
     // Show success notification
-    alert('Timeline created successfully!')
+    toast.success('Timeline created successfully!')
 
     // Clear selections and exit select mode
     clearSelections()
     isSelectMode.value = false
   } catch (error) {
     console.error('Error generating timeline:', error)
-    alert('Failed to create timeline')
+    toast.error('Failed to create timeline')
   } finally {
     isGeneratingTimeline.value = false // changed from isGeneratingVideo to isGeneratingTimeline
   }
@@ -236,7 +239,7 @@ const generateVideo = async () => {
     }, 100)
 
     // Show success notification
-    alert('Video generated and downloaded successfully!')
+    toast.success('Video generated and downloaded successfully!')
 
     // Clear selections and exit select mode
     clearSelections()
@@ -245,9 +248,9 @@ const generateVideo = async () => {
     console.error('Error generating video:', error)
 
     if (error.name === 'AbortError') {
-      alert('Video generation timed out. Please try again with fewer photos.')
+      toast.info('Video generation timed out. Please try again with fewer photos.')
     } else {
-      alert('Failed to generate video: ' + error.message)
+      toast.info('Failed to generate video: ' + error.message)
     }
   } finally {
     isGeneratingVideo.value = false
@@ -297,7 +300,7 @@ async function downloadTimeline(timeline) {
     link.click();
   } catch (err) {
     console.error('Error downloading timeline:', err);
-    alert('Failed to download timeline: ' + err.message);
+    toast.error('Failed to download timeline: ' + err.message);
   } finally {
     clone.remove();
   }
