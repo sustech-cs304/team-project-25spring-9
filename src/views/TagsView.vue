@@ -1,423 +1,410 @@
 <script setup>
 import {
-  mdiTag,
   mdiTagMultiple,
-  mdiTagRemove,
-  mdiTagPlus,
   mdiRefresh,
-  mdiDeleteOutline,
-  mdiExport,
-  mdiFilterVariant,
-  mdiClose,
-  mdiImageEdit,
-  mdiDelete,
-  mdiDownload,
+  mdiArrowLeft,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
-  mdiImageSearch,
-  mdiViewList,
-  mdiViewGrid,
-  mdiViewGridOutline,
-  mdiViewCompactOutline,
-  mdiImageMultiple,
-  mdiArrowLeft,
+  mdiDownload,
+  mdiImageEdit,
+  mdiDelete,  // 增加需要的图标
+  mdiImageMultiple
 } from '@mdi/js'
-
-import { ref, computed, onMounted } from 'vue'
+import { ref, nextTick, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useMainStore } from '@/stores/main'
 
+// 添加必要的组件导入
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import AlbumsGallery from '@/components/AlbumsGallery.vue'
+import PhotoEditor from '@/components/PhotoEditor.vue'
+import TagGallery from '@/components/TagGallery.vue'
 
 const toast = useToast()
 const mainStore = useMainStore()
 
-// State
+// 修改状态管理
 const isLoading = ref(false)
 const error = ref(null)
-const photos = ref([])
-const selectedTag = ref(null)
-const viewMode = ref('grid')
+const currentTag = ref(null)
+const currentTagTitle = ref('Tags')
 const isSelectMode = ref(false)
 const selectedPhotos = ref([])
-const currentTagGroup = ref(null)
+const viewMode = ref('grid')
+const photoGallery = ref(null)
+const tagGallery = ref(null)
+const allPhotos = ref([])
+const tagGroups = ref([])
 
-// Computed: Group photos by tag
-const photosByTag = computed(() => {
-  const groupedPhotos = new Map()
-
-  groupedPhotos.set('untagged', {
-    name: 'Untagged',
-    photos: photos.value.filter(p => !p.tags?.length)
-  })
-
-  photos.value.forEach(photo => {
-    photo.tags?.forEach(tag => {
-      if (!groupedPhotos.has(tag)) {
-        groupedPhotos.set(tag, { name: tag, photos: [] })
-      }
-      groupedPhotos.get(tag).photos.push(photo)
-    })
-  })
-
-  return Array.from(groupedPhotos.values()).sort((a, b) => b.photos.length - a.photos.length)
-})
-
-const tagAlbums = computed(() => {
-  return photosByTag.value.map(group => ({
-    id: group.name,
-    name: group.name === 'untagged' ? 'Untagged Photos' : group.name,
-    description: group.name === 'untagged' ? 'Photos without any tags' : `Photos tagged with "${group.name}"`,
-    photos: group.photos,
-    coverImage: group.photos[0]?.src || null,
-    isTagGroup: true,
-    count: group.photos.length,
-    style: group.name === 'untagged' ? 'opacity-70' : ''
-  }))
-})
-
-// Fetch and format photos
-const fetchPhotos = async () => {
+// 修改初始化数据方法，移除缓存逻辑
+const initializeData = async () => {
   isLoading.value = true
   error.value = null
+  
   try {
     const params = new URLSearchParams({ userId: mainStore.userId })
     const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`)
     const result = await response.json()
+    
     if (!result?.data) throw new Error('Failed to fetch photos')
-
-    photos.value = result.data.map(photo => ({
-      id: photo.imgId,
-      name: photo.imgName || `Image ${photo.imgId}`,
-      src: `http://10.16.60.67:9000/softwareeng/upload-img/${photo.imgId}.jpeg`,
-      date: photo.imgDate,
-      displayDate: formatDate(photo.imgDate),
-      tags: photo.tags || [],
-      size: 'Unknown',
-      type: photo.imgType || 'JPEG',
-      peoples: photo.peoples,
-      location: photo.imgPos,
-      desc: photo.imgDescribtion || '',
-      userId: photo.userId
+    
+    // 直接更新照片数据
+    allPhotos.value = result.data.map(img => ({
+      id: img.imgId,
+      src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
+      tags: img.tags || []
     }))
+    
+    // 生成标签组
+    const tagMap = new Map()
+    allPhotos.value.forEach(photo => {
+      if (Array.isArray(photo.tags)) {
+        photo.tags.forEach(tag => {
+          if (!tagMap.has(tag)) {
+            tagMap.set(tag, { 
+              id: tag,
+              name: tag,
+              count: 0,
+              photos: []
+            })
+          }
+          const group = tagMap.get(tag)
+          group.count++
+          group.photos.push(photo)
+        })
+      }
+    })
+    
+    // 更新标签组数据
+    tagGroups.value = Array.from(tagMap.values())
+      .sort((a, b) => b.count - a.count)
+      
   } catch (err) {
-    error.value = `Failed to fetch photos: ${err.message}`
-    toast.error(error.value)
+    error.value = err.message
+    toast.error(`Failed to load data: ${err.message}`)
   } finally {
     isLoading.value = false
   }
 }
 
-// Utils
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-// Tag/group view switching
-const selectTagGroup = (group) => {
-  // 从标签组获取完整的album信息
-  const targetAlbum = group.isTagGroup
-    ? group
-    : tagAlbums.value.find(album => album.id === group.name)
-
-  if (targetAlbum) {
-    currentTagGroup.value = targetAlbum
-    selectedTag.value = targetAlbum.id
-    selectedPhotos.value = []
+// Selection logic
+const togglePhotoSelection = (photoId) => {
+  if (selectedPhotos.value.includes(photoId)) {
+    selectedPhotos.value = selectedPhotos.value.filter(id => id !== photoId)
+  } else {
+    selectedPhotos.value.push(photoId)
   }
 }
 
-const backToTags = () => {
-  currentTagGroup.value = null
-  selectedTag.value = null
-  selectedPhotos.value = []
-}
-
-// Filtering
-const filteredPhotos = computed(() => {
-  if (!selectedTag.value) return photos.value
-  return selectedTag.value === 'untagged'
-    ? photos.value.filter(p => !p.tags?.length)
-    : photos.value.filter(p => p.tags?.includes(selectedTag.value))
-})
-
-// Selection logic
 const toggleSelectMode = () => {
   isSelectMode.value = !isSelectMode.value
-  if (!isSelectMode.value) selectedPhotos.value = []
-}
-
-const handlePhotoSelection = (photoId) => {
-  selectedPhotos.value = selectedPhotos.value.includes(photoId)
-    ? selectedPhotos.value.filter(id => id !== photoId)
-    : [...selectedPhotos.value, photoId]
+  if (!isSelectMode.value) clearSelections()
 }
 
 const clearSelections = () => {
   selectedPhotos.value = []
 }
 
-// Actions
-const handleDelete = async () => {
-  if (!selectedPhotos.value.length || !confirm(`Delete ${selectedPhotos.value.length} selected photo(s)?`)) return
-  try {
-    await Promise.all(selectedPhotos.value.map(photoId => {
-      const params = new URLSearchParams({ userId: mainStore.userId, imgId: photoId })
-      return fetch(`http://10.16.60.67:9090/img/delete?${params}`)
-        .then(r => r.json())
-        .then(res => { if (res?.msg !== 'ok') throw new Error(res?.msg || 'Delete failed') })
-    }))
-    toast.success(`${selectedPhotos.value.length} photo(s) deleted`)
+// Photo actions
+const handleDelete = () => {
+  photoGallery.value?.deletePhotos(selectedPhotos)
+  selectedPhotos.value = []
+  // 刷新标签列表
+  tagGallery.value?.refresh()
+}
+
+const handleDownload = () => {
+  photoGallery.value?.downloadPhotos(selectedPhotos)
+}
+
+// Editor handling
+const showEditor = ref(false)
+const editingPhoto = ref(null)
+
+const openEditorWithPhoto = (photoId) => {
+  const photo = photoGallery.value?.getPhotoById(photoId)
+  if (!photo) return
+
+  editingPhoto.value = photo
+  showEditor.value = true
+  isSelectMode.value = false
+  selectedPhotos.value = []
+}
+
+const closeEditor = () => {
+  showEditor.value = false
+  editingPhoto.value = null
+}
+
+const saveEditedPhoto = (updatedPhoto) => {
+  photoGallery.value?.uploadPhotos(updatedPhoto)
+  closeEditor()
+  tagGallery.value?.refresh()
+}
+
+const filteredPhotos = computed(() => {
+  if (!currentTag.value) return allPhotos.value
+  return allPhotos.value.filter(p => Array.isArray(p.tags) && p.tags.includes(currentTag.value))
+})
+
+// 修改 handleRefreshTags 方法
+const handleRefreshTags = () => {
+  initializeData()
+}
+
+// 修改 handlePhotosLoaded 方法
+const handlePhotosLoaded = (photos) => {
+  // 当加载新照片时重新获取所有数据
+  initializeData()
+}
+
+// Replace selectTagGroup to use cached data
+const selectTagGroup = (group) => {
+  // 从最新的 tagGroups 中查找
+  const targetGroup = tagGroups.value.find(g => g.id === group.id)
+  if (targetGroup) {
+    currentTag.value = targetGroup.id
+    currentTagTitle.value = targetGroup.name
     selectedPhotos.value = []
-    fetchPhotos()
-  } catch (err) {
-    toast.error(`Failed to delete: ${err.message}`)
+    nextTick(() => {
+      photoGallery.value?.refreshPhotos()
+    })
   }
 }
 
-const handleDownload = async () => {
-  const downloads = selectedPhotos.value.map(id => filteredPhotos.value.find(p => p.id === id)).filter(Boolean)
-  for (const photo of downloads) {
-    try {
-      const blob = await (await fetch(photo.src)).blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = photo.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      toast.error(`Failed to download ${photo.name}`)
-    }
-  }
-  toast.success(`Downloaded ${downloads.length} photo(s)`)
+// Add onMounted to initialize data
+onMounted(() => {
+  initializeData()
+})
+
+// Handle opening a tag group
+const handleOpenTag = (tag) => {
+  currentTag.value = tag.id
+  currentTagTitle.value = tag.name
+  selectedPhotos.value = []
+  nextTick(() => {
+    photoGallery.value?.refreshPhotos()
+  })
 }
 
-onMounted(fetchPhotos)
+// Handle going back to tag list
+const handleBackToTags = () => {
+  currentTag.value = null
+  currentTagTitle.value = 'Tags'
+  selectedPhotos.value = []
+}
 </script>
 
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <!-- Title section with enhanced styling -->
       <SectionTitleLineWithButton
-        :icon="currentTagGroup ? mdiImageMultiple : mdiTagMultiple"
-        :title="currentTagGroup ? currentTagGroup.name : 'Tags'"
+        :icon="currentTag ? mdiImageMultiple : mdiTagMultiple"
+        :title="currentTagTitle"
         main
-        class="mb-6"
       >
-        <div class="flex gap-3">
+        <div class="flex">
           <BaseButton
-            v-if="currentTagGroup"
+            v-if="currentTag"
             :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
             :label="isSelectMode ? 'View Mode' : 'Select Mode'"
             :color="isSelectMode ? 'info' : 'contrast'"
-            :class="{'shadow-lg transform hover:-translate-y-0.5': !isSelectMode}"
             small
-            class="transition-all duration-200"
+            class="mr-2"
             @click="toggleSelectMode"
           />
           <BaseButton
-            v-if="currentTagGroup"
+            v-if="currentTag"
+            :icon="mdiRefresh"
+            label="Refresh"
+            color="info"
+            small
+            class="mr-2"
+            @click="photoGallery?.refreshPhotos()"
+          />
+          <BaseButton
+            v-if="currentTag"
             :icon="mdiArrowLeft"
             label="Back to Tags"
             color="contrast"
-            class="shadow hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
             small
-            @click="backToTags"
+            @click="handleBackToTags"
           />
-          <template v-else>
-            <BaseButton
-              :icon="mdiRefresh"
-              label="Refresh"
-              color="info"
-              class="shadow hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
-              small
-              @click="fetchPhotos"
-            />
-          </template>
+          <BaseButton
+            v-else
+            :icon="mdiRefresh"
+            label="Refresh"
+            color="info"
+            small
+            class="mr-2"
+            @click="handleRefreshTags"
+          />
         </div>
       </SectionTitleLineWithButton>
 
-      <div v-if="!isLoading && !error" class="space-y-6">
-        <!-- Enhanced Tags Summary -->
-        <CardBox class="overflow-hidden bg-white shadow-lg">
-          <div class="flex flex-wrap gap-2 p-4 max-h-36 overflow-y-auto custom-scrollbar">
+      <!-- Add Tag Navigation Bar - using cached data -->
+      <div class="mb-6">
+        <div class="bg-gradient-to-r from-blue-50 via-white to-purple-50 rounded-xl shadow p-3 overflow-x-auto">
+          <div class="flex flex-nowrap gap-2 min-w-0">
             <BaseButton
-              :icon="mdiFilterVariant"
-              :label="`All Photos (${photos.length})`"
-              :color="!selectedTag ? 'info' : 'whiteDark'"
-              :class="{'shadow transform hover:-translate-y-0.5': !selectedTag}"
-              class="transition-all duration-200"
+              :icon="mdiTagMultiple"
+              :label="`All Photos (${allPhotos.length})`"
+              :color="!currentTag ? 'info' : 'whiteDark'"
+              :class="[
+                'whitespace-nowrap font-medium shadow transition-all duration-200',
+                !currentTag ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : 'bg-white'
+              ]"
+              rounded
               small
-              @click="backToTags"
+              @click="handleBackToTags"
             />
             <BaseButton
-              v-for="group in photosByTag"
-              :key="group.name"
+              v-for="group in tagGroups"
+              :key="group.id"
               :icon="mdiTag"
-              :label="`${group.name === 'untagged' ? 'Untagged' : group.name} (${group.photos.length})`"
-              :color="selectedTag === group.name ? 'info' : 'whiteDark'"
-              :class="{
-                'opacity-75 hover:opacity-100': group.photos.length === 0,
-                'shadow transform hover:-translate-y-0.5': selectedTag === group.name
-              }"
-              class="transition-all duration-200"
+              :label="`${group.name} (${group.count})`"
+              :color="currentTag === group.id ? 'info' : 'whiteDark'"
+              :class="[
+                'whitespace-nowrap font-medium shadow transition-all duration-200',
+                currentTag === group.id 
+                  ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white'
+                  : 'bg-white hover:bg-gray-50'
+              ]"
+              rounded
               small
               @click="selectTagGroup(group)"
             />
           </div>
+        </div>
+      </div>
+
+      <!-- Tag group gallery with new styling -->
+      <TagGallery
+        v-if="!currentTag"
+        ref="tagGallery"
+        @select-tag-group="handleOpenTag"
+      />
+
+      <!-- Photo Gallery for Selected Tag -->
+      <div v-else>
+        <CardBox class="mb-6">
+          <PhotoGallery
+            ref="photoGallery"
+            :key="currentTag"
+            :initial-view-mode="viewMode"
+            :available-view-modes="['details', 'grid', 'large', 'small']"
+            :is-select-mode="isSelectMode"
+            :selected-photo-ids="selectedPhotos"
+            :show-actions="true"
+            :use-api-data="true"
+            :user-id="mainStore.userId"
+            :filter-tags="[currentTag]"
+            class="p-2 shadow-none"
+            @select-photo="togglePhotoSelection"
+            @update:viewMode="mode => viewMode = mode"
+            @photo-edit="openEditorWithPhoto"
+            @photos-loaded="handlePhotosLoaded"
+          />
         </CardBox>
 
-        <!-- Enhanced Tag Groups Gallery -->
-        <div v-if="!currentTagGroup"
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <CardBox
-            v-for="album in tagAlbums"
-            :key="album.id"
-            class="cursor-pointer transition-all duration-300 transform hover:-translate-y-2 hover:shadow-xl bg-white"
-            :class="album.style"
-            @click="selectTagGroup(album)"
-          >
-            <div class="relative aspect-[4/3] overflow-hidden rounded-t-lg">
-              <img
-                v-if="album.coverImage"
-                :src="album.coverImage"
-                class="absolute inset-0 w-full h-full object-cover rounded-t-lg"
-                alt="Album cover"
+        <!-- Action Buttons -->
+        <div class="flex justify-between mb-6">
+          <div class="flex gap-2">
+            <template v-if="isSelectMode">
+              <BaseButton
+                :icon="mdiDelete"
+                label="Remove"
+                color="danger"
+                rounded-full
+                small
+                :disabled="selectedPhotos.length === 0"
+                @click="handleDelete"
               />
-              <div v-else class="absolute inset-0 bg-gray-50 flex items-center justify-center">
-                <svg class="w-16 h-16 text-gray-300" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiImageMultiple" />
-                </svg>
-              </div>
-              <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"/>
-              <div class="absolute bottom-3 right-3 bg-black/80 text-white px-4 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm">
-                {{ album.photos.length }} photos
-              </div>
-            </div>
-            <div class="p-5">
-              <h3 class="text-lg font-semibold mb-2 flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24">
-                  <path fill="currentColor" :d="mdiTag" />
-                </svg>
-                {{ album.name }}
-              </h3>
-              <p class="text-sm text-gray-600">{{ album.description }}</p>
-            </div>
-          </CardBox>
-        </div>
-
-        <!-- Enhanced Photo Gallery View -->
-        <div v-else class="space-y-6">
-          <CardBox class="bg-white shadow-lg">
-            <PhotoGallery
-              :key="selectedTag"
-              :photos="filteredPhotos"
-              :initial-view-mode="viewMode"
-              :available-view-modes="['details', 'grid', 'large', 'small']"
-              :is-select-mode="isSelectMode"
-              :selected-photo-ids="selectedPhotos"
-              :show-actions="true"
-              class="p-2"
-              @select-photo="handlePhotoSelection"
-              @update:viewMode="mode => viewMode = mode"
-            />
-          </CardBox>
-
-          <!-- Enhanced Actions Bar -->
-          <div v-if="isSelectMode && selectedPhotos.length > 0">
-            <CardBox class="bg-white shadow-lg">
-              <div class="flex justify-between items-center p-3">
-                <div class="flex gap-3">
-                  <BaseButton
-                    :icon="mdiDeleteOutline"
-                    label="Delete"
-                    color="danger"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="handleDelete"
-                  />
-                  <BaseButton
-                    :icon="mdiExport"
-                    label="Download"
-                    color="success"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="handleDownload"
-                  />
-                </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-sm font-medium text-gray-700">
-                    {{ selectedPhotos.length }} selected
-                  </span>
-                  <BaseButton
-                    label="Clear selection"
-                    color="whiteDark"
-                    class="shadow hover:shadow-lg transition-all duration-200"
-                    small
-                    @click="clearSelections"
-                  />
-                </div>
-              </div>
-            </CardBox>
+              <BaseButton
+                :icon="mdiDownload"
+                label="Download"
+                color="success"
+                rounded-full
+                small
+                :disabled="selectedPhotos.length === 0"
+                @click="handleDownload"
+              />
+              <BaseButton
+                :icon="mdiImageEdit"
+                label="Edit"
+                color="info"
+                rounded-full
+                small
+                :disabled="selectedPhotos.length !== 1"
+                @click="openEditorWithPhoto(selectedPhotos[0])"
+              />
+            </template>
+          </div>
+          <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
+            <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} selected</span>
+            <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
           </div>
         </div>
       </div>
 
-      <!-- Enhanced Loading State -->
-      <div v-if="isLoading" class="flex justify-center items-center py-16">
-        <div class="animate-spin rounded-full h-14 w-14 border-4 border-blue-500 border-t-transparent shadow-lg"/>
-      </div>
-
-      <!-- Enhanced Error State -->
-      <div v-if="error" class="bg-red-50 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-lg">
-        <div class="flex items-center mb-2">
-          <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
-            <path fill="currentColor" :d="mdiClose" />
-          </svg>
-          <p class="font-bold">Error</p>
-        </div>
-        <p>{{ error }}</p>
-        <BaseButton label="Retry" color="danger" small class="mt-3" @click="fetchPhotos" />
-      </div>
+      <!-- Photo Editor Modal -->
+      <PhotoEditor
+        v-if="showEditor"
+        :photo="editingPhoto"
+        @save="saveEditedPhoto"
+        @close="closeEditor"
+      />
     </SectionMain>
   </LayoutAuthenticated>
 </template>
 
 <style scoped>
-.custom-scrollbar {
+/* Add horizontal scrollbar styling */
+.overflow-x-auto {
   scrollbar-width: thin;
   scrollbar-color: #93c5fd #f8fafc;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+.overflow-x-auto::-webkit-scrollbar {
   height: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.overflow-x-auto::-webkit-scrollbar-track {
   background: #f8fafc;
   border-radius: 4px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.overflow-x-auto::-webkit-scrollbar-thumb {
   background-color: #93c5fd;
   border-radius: 4px;
   transition: all 0.2s;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background-color: #60a5fa;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #a5b4fc #f8fafc;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #a5b4fc;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #818cf8;
 }
 </style>
