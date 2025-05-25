@@ -31,13 +31,13 @@ import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.vue'
 import BaseButton from '@/components/BaseButton.vue'
 
-// 基础状态
+// Basic state
 const chartData = ref(null)
 const photoCount = ref(0)
 const peopleCount = ref(0)
 const tagCount = ref(0)
 
-// 新增的丰富功能状态
+// Enhanced feature states
 const isLoading = ref(false)
 const recentPhotos = ref([])
 const photoStats = ref({
@@ -53,7 +53,7 @@ const currentTime = ref('')
 const inspirationalQuote = ref('')
 const weatherInfo = ref('')
 
-// 动画相关状态
+// Animation related states
 const animatedCounts = ref({
   photos: 0,
   people: 0,
@@ -65,7 +65,7 @@ const fillChartData = () => {
   chartData.value = chartConfig.sampleChartData()
 }
 
-// 数字动画函数
+// Number animation function
 const animateNumber = (start, end, duration, callback) => {
   const range = end - start
   const stepTime = Math.abs(Math.floor(duration / range))
@@ -78,18 +78,18 @@ const animateNumber = (start, end, duration, callback) => {
   }, stepTime)
 }
 
-// 获取问候语
+// Get greeting
 const getGreeting = () => {
   const hour = new Date().getHours()
-  if (hour < 12) return '早上好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
+  if (hour < 12) return 'Good Morning'
+  if (hour < 18) return 'Good Afternoon'
+  return 'Good Evening'
 }
 
-// 获取当前时间
+// Get current time
 const updateCurrentTime = () => {
   const now = new Date()
-  currentTime.value = now.toLocaleString('zh-CN', {
+  currentTime.value = now.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -99,13 +99,13 @@ const updateCurrentTime = () => {
   })
 }
 
-// 励志语录
+// Inspirational quotes
 const inspirationalQuotes = [
-  '每一张照片都是时间的见证者 📸',
-  '用镜头记录生活的美好瞬间 ✨',
-  '照片不只是回忆，更是情感的载体 💝',
-  '在像素中找到永恒 🌟',
-  '每一次快门都是对美的致敬 🎨'
+  'Every photo is a witness to time 📸',
+  'Capture beautiful moments through the lens ✨',
+  'Photos are not just memories, but carriers of emotions 💝',
+  'Find eternity in pixels 🌟',
+  'Every click is a tribute to beauty 🎨'
 ]
 
 const getRandomQuote = () => {
@@ -113,14 +113,14 @@ const getRandomQuote = () => {
   inspirationalQuote.value = inspirationalQuotes[randomIndex]
 }
 
-// 获取天气信息（模拟）
+// Get weather info (simulated)
 const getWeatherInfo = () => {
-  const weathers = ['☀️ 晴朗', '⛅ 多云', '🌤️ 晴间多云', '🌈 雨后天晴']
+  const weathers = ['☀️ Sunny', '⛅ Cloudy', '🌤️ Partly Cloudy', '🌈 Clear After Rain']
   const randomIndex = Math.floor(Math.random() * weathers.length)
   weatherInfo.value = weathers[randomIndex]
 }
 
-// 获取最近照片
+// Get recent photos
 const fetchRecentPhotos = async () => {
   try {
     const mainStore = useMainStore()
@@ -143,7 +143,7 @@ const fetchRecentPhotos = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch recent photos:', error)
-    // 使用示例数据作为后备
+    // Use sample data as fallback
     recentPhotos.value = [
       { id: 1, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/200/150', date: '2024-01-15', tags: ['sunset', 'beach'] },
       { id: 2, name: 'Mountain View', src: 'https://picsum.photos/id/15/200/150', date: '2024-01-14', tags: ['mountain', 'nature'] },
@@ -155,7 +155,7 @@ const fetchRecentPhotos = async () => {
   }
 }
 
-// 获取热门标签
+// Get popular tags
 const fetchPopularTags = async () => {
   try {
     const mainStore = useMainStore()
@@ -169,7 +169,7 @@ const fetchPopularTags = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch popular tags:', error)
-    // 使用示例数据作为后备
+    // Use sample data as fallback
     popularTags.value = [
       { name: 'nature', count: 156 },
       { name: 'travel', count: 89 },
@@ -183,17 +183,17 @@ const fetchPopularTags = async () => {
   }
 }
 
-// 获取统计数据
+// Get statistics data
 const fetchPhotoStats = async () => {
   try {
     const mainStore = useMainStore()
     const params = new URLSearchParams({ userId: mainStore.userId })
 
-    // 这周上传的照片数量
+    // Number of photos uploaded this week
     const weekResponse = await fetch(`http://10.16.60.67:9090/img/weekstats?${params}`)
     const weekData = await weekResponse.json()
 
-    // 这月上传的照片数量
+    // Number of photos uploaded this month
     const monthResponse = await fetch(`http://10.16.60.67:9090/img/monthstats?${params}`)
     const monthData = await monthResponse.json()
 
@@ -205,7 +205,7 @@ const fetchPhotoStats = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch photo stats:', error)
-    // 使用示例数据
+    // Use sample data
     photoStats.value = {
       thisWeek: Math.floor(Math.random() * 20),
       thisMonth: Math.floor(Math.random() * 50),
@@ -215,17 +215,17 @@ const fetchPhotoStats = async () => {
   }
 }
 
-// 获取时间分布数据
+// Get time distribution data
 const fetchTimeDistribution = () => {
-  // 模拟一周上传分布数据
+  // Simulate weekly upload distribution data
   timeDistribution.value = [
-    { day: '周一', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周二', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周三', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周四', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周五', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周六', count: Math.floor(Math.random() * 15) + 5 },
-    { day: '周日', count: Math.floor(Math.random() * 15) + 5 }
+    { day: 'Monday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Tuesday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Wednesday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Thursday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Friday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Saturday', count: Math.floor(Math.random() * 15) + 5 },
+    { day: 'Sunday', count: Math.floor(Math.random() * 15) + 5 }
   ]
 }
 
@@ -249,7 +249,7 @@ const fetchCounts = async () => {
     const tagData = await tagResponse.json()
     tagCount.value = tagData.data || 0
 
-    // 启动数字动画
+    // Start number animation
     await nextTick()
     setTimeout(() => {
       animateNumber(0, photoCount.value, 1000, (val) => {
@@ -270,7 +270,7 @@ const fetchCounts = async () => {
   }
 }
 
-// 刷新所有数据
+// Refresh all data
 const refreshAllData = async () => {
   isLoading.value = true
   await Promise.all([
@@ -284,7 +284,7 @@ const refreshAllData = async () => {
   isLoading.value = false
 }
 
-// 标签颜色
+// Tag colors
 const getTagColor = (index) => {
   const colors = [
     'bg-blue-100 text-blue-700',
@@ -306,14 +306,14 @@ onMounted(async () => {
   getRandomQuote()
   getWeatherInfo()
 
-  // 显示统计卡片动画
+  // Show statistics card animation
   setTimeout(() => {
     showStats.value = true
   }, 100)
 
   await refreshAllData()
 
-  // 每分钟更新时间
+  // Update time every minute
   setInterval(updateCurrentTime, 60000)
 })
 
@@ -326,12 +326,12 @@ const transactionBarItems = computed(() => mainStore.history)
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <!-- 欢迎区域 -->
+      <!-- Welcome Area -->
       <CardBox class="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
         <div class="flex justify-between items-start">
           <div>
             <h1 class="text-2xl font-bold mb-2">
-              {{ greeting }}，{{ mainStore.userName || 'Friend' }}！
+              {{ greeting }}, {{ mainStore.userName || 'Friend' }}!
             </h1>
             <p class="text-blue-100 mb-1">{{ currentTime }}</p>
             <p class="text-blue-100 flex items-center">
@@ -349,16 +349,15 @@ const transactionBarItems = computed(() => mainStore.history)
               small
               :disabled="isLoading"
               @click="refreshAllData"
-              class="animate-spin-on-hover"
             />
           </div>
         </div>
       </CardBox>
 
-      <SectionTitleLineWithButton :icon="mdiChartTimelineVariant" title="数据概览" main>
+      <SectionTitleLineWithButton :icon="mdiChartTimelineVariant" title="Data Overview" main>
       </SectionTitleLineWithButton>
 
-      <!-- 主要统计卡片 -->
+      <!-- Main Statistics Cards -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6"
            :class="{ 'animate-fade-in-up': showStats }">
         <CardBoxWidget
@@ -384,59 +383,19 @@ const transactionBarItems = computed(() => mainStore.history)
         />
       </div>
 
-      <!-- 详细统计信息 -->
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <CardBox class="text-center p-4 hover:shadow-lg transition-shadow">
-          <div class="text-blue-500 text-2xl font-bold">{{ photoStats.thisWeek }}</div>
-          <div class="text-sm text-gray-600 flex items-center justify-center">
-            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiTrendingUp" />
-            </svg>
-            本周上传
-          </div>
-        </CardBox>
-        <CardBox class="text-center p-4 hover:shadow-lg transition-shadow">
-          <div class="text-green-500 text-2xl font-bold">{{ photoStats.thisMonth }}</div>
-          <div class="text-sm text-gray-600 flex items-center justify-center">
-            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiCalendarToday" />
-            </svg>
-            本月上传
-          </div>
-        </CardBox>
-        <CardBox class="text-center p-4 hover:shadow-lg transition-shadow">
-          <div class="text-purple-500 text-2xl font-bold">{{ photoStats.totalSize }}</div>
-          <div class="text-sm text-gray-600 flex items-center justify-center">
-            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiImageArea" />
-            </svg>
-            总容量
-          </div>
-        </CardBox>
-        <CardBox class="text-center p-4 hover:shadow-lg transition-shadow">
-          <div class="text-orange-500 text-2xl font-bold">{{ photoStats.avgPerDay }}</div>
-          <div class="text-sm text-gray-600 flex items-center justify-center">
-            <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiClockOutline" />
-            </svg>
-            日均上传
-          </div>
-        </CardBox>
-      </div>
-
-      <!-- 内容区域 -->
+      <!-- Content Area -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- 最近照片 -->
+        <!-- Recent Photos -->
         <CardBox>
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold flex items-center">
               <svg class="w-5 h-5 mr-2 text-blue-500" viewBox="0 0 24 24">
                 <path fill="currentColor" :d="mdiCamera" />
               </svg>
-              最近照片
+              Recent Photos
             </h3>
             <router-link to="/photos" class="text-blue-500 hover:text-blue-700 text-sm">
-              查看全部 →
+              View All →
             </router-link>
           </div>
           <div v-if="isLoading" class="grid grid-cols-3 gap-2">
@@ -460,17 +419,17 @@ const transactionBarItems = computed(() => mainStore.history)
           </div>
         </CardBox>
 
-        <!-- 热门标签 -->
+        <!-- Popular Tags -->
         <CardBox>
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold flex items-center">
               <svg class="w-5 h-5 mr-2 text-purple-500" viewBox="0 0 24 24">
                 <path fill="currentColor" :d="mdiTag" />
               </svg>
-              热门标签
+              Popular Tags
             </h3>
             <router-link to="/tags" class="text-purple-500 hover:text-purple-700 text-sm">
-              查看全部 →
+              View All →
             </router-link>
           </div>
           <div v-if="isLoading" class="space-y-2">
@@ -487,36 +446,13 @@ const transactionBarItems = computed(() => mainStore.history)
         </CardBox>
       </div>
 
-      <!-- 时间分布图 -->
-      <CardBox class="mb-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold flex items-center">
-            <svg class="w-5 h-5 mr-2 text-green-500" viewBox="0 0 24 24">
-              <path fill="currentColor" :d="mdiChartLine" />
-            </svg>
-            本周上传分布
-          </h3>
-        </div>
-        <div v-if="isLoading" class="h-32 bg-gray-200 animate-pulse rounded"></div>
-        <div v-else class="flex items-end justify-between h-32 px-4">
-          <div v-for="item in timeDistribution" :key="item.day"
-               class="flex flex-col items-center flex-1">
-            <div class="bg-gradient-to-t from-blue-500 to-blue-300 rounded-t transition-all duration-500 hover:from-blue-600 hover:to-blue-400 w-8 mb-2"
-                 :style="{ height: `${(item.count / Math.max(...timeDistribution.map(d => d.count))) * 80}px` }">
-            </div>
-            <div class="text-xs text-gray-600">{{ item.day }}</div>
-            <div class="text-xs text-gray-500">{{ item.count }}</div>
-          </div>
-        </div>
-      </CardBox>
-
-      <!-- 快捷操作 -->
+      <!-- Quick Actions -->
       <CardBox>
         <h3 class="text-lg font-semibold mb-4 flex items-center">
           <svg class="w-5 h-5 mr-2 text-indigo-500" viewBox="0 0 24 24">
             <path fill="currentColor" :d="mdiPalette" />
           </svg>
-          快捷操作
+          Quick Actions
         </h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <router-link to="/photos"
@@ -524,7 +460,7 @@ const transactionBarItems = computed(() => mainStore.history)
             <svg class="w-8 h-8 text-blue-500 mb-2 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiImageMultiple" />
             </svg>
-            <span class="text-sm font-medium">浏览照片</span>
+            <span class="text-sm font-medium">Browse Photos</span>
           </router-link>
 
           <router-link to="/albums"
@@ -532,7 +468,7 @@ const transactionBarItems = computed(() => mainStore.history)
             <svg class="w-8 h-8 text-green-500 mb-2 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiArchiveClockOutline" />
             </svg>
-            <span class="text-sm font-medium">查看相册</span>
+            <span class="text-sm font-medium">View Albums</span>
           </router-link>
 
           <router-link to="/timeline"
@@ -540,7 +476,7 @@ const transactionBarItems = computed(() => mainStore.history)
             <svg class="w-8 h-8 text-purple-500 mb-2 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiChartTimelineVariant" />
             </svg>
-            <span class="text-sm font-medium">时间轴</span>
+            <span class="text-sm font-medium">Timeline</span>
           </router-link>
 
           <router-link to="/style"
@@ -548,7 +484,7 @@ const transactionBarItems = computed(() => mainStore.history)
             <svg class="w-8 h-8 text-orange-500 mb-2 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiPalette" />
             </svg>
-            <span class="text-sm font-medium">AI 风格化</span>
+            <span class="text-sm font-medium">AI Stylization</span>
           </router-link>
         </div>
       </CardBox>
@@ -586,17 +522,17 @@ const transactionBarItems = computed(() => mainStore.history)
   }
 }
 
-/* 卡片悬停效果 */
+/* Card hover effects */
 .hover\:scale-105:hover {
   transform: scale(1.05);
 }
 
-/* 渐变动画 */
+/* Gradient animation */
 .bg-gradient-to-r {
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
 }
 
-/* 自定义滚动条 */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
