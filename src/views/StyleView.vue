@@ -33,37 +33,43 @@ const showUploader = ref(false)
 const showEditor = ref(false)
 const editingPhoto = ref(null)
 const showStylizeHelp = ref(false)
+const showStyleSelector = ref(false)
+const selectedStyle = ref(3)
 
-// Generate incremental IDs for newly added items
-const getNewId = computed(() => {
-  const photos = photoGallery.value?.photos ?? []
-  return Math.max(...photos.map(p => p.id), 0) + 1
-})
+// Style options
+const styleOptions = [
+  { index: 0, name: '复古漫画' },
+  { index: 1, name: '3D童话' },
+  { index: 2, name: '二次元' },
+  { index: 3, name: '小清新' },
+  { index: 4, name: '未来科技' },
+  { index: 5, name: '国画古风' },
+  { index: 6, name: '将军百战' },
+  { index: 7, name: '炫彩卡通' },
+  { index: 8, name: '清雅国风' },
+  { index: 9, name: '喜迎新年' }
+]
 
 // -----------------------------
 // Upload / download helpers
 // -----------------------------
 const handleUpload = file => photoGallery.value.uploadPhotos(file)
-const handleDelete = () => {
-  photoGallery.value.deletePhotos(selectedPhotos.value)
-  clearSelections()
-}
-const handleDownload = () => photoGallery.value.downloadPhotos(selectedPhotos.value)
 
 // -----------------------------
 // Stylize (local API, multipart/form-data)
 // -----------------------------
-function stylizePhoto() {
+function openStyleSelector() {
   if (selectedPhotos.value.length !== 1) {
     toast.error('Please select exactly one photo to stylize.')
     return
   }
+  showStyleSelector.value = true
+}
 
+function stylizePhoto() {
   const photo = photoGallery.value.getPhotoById(selectedPhotos.value[0])
 
   async function getFileFromPhoto() {
-
-
     const photoUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${photo.id}.jpeg`;
     const res = await fetch(photoUrl, { mode: 'cors' })
     const blob = await res.blob()
@@ -74,11 +80,10 @@ function stylizePhoto() {
   const stylizePromise = (async () => {
     const imageFile = await getFileFromPhoto()
     const formData = new FormData()
-    const styleIndex = 3
     formData.append('file', imageFile)
-    formData.append('style_index', styleIndex)
+    // formData.append('style_index', selectedStyle.value)
 
-    const response = await fetch('http://10.16.60.67:8123/style_transfer/', {
+    const response = await fetch('http://10.16.60.67:8123/style_transfer?style_index=' + selectedStyle.value, {
       method: 'POST',
       body: formData
     })
@@ -97,6 +102,7 @@ function stylizePhoto() {
     document.body.removeChild(link)
 
     clearSelections()
+    showStyleSelector.value = false
     return 'Stylized image downloaded successfully!'
   })()
 
@@ -192,7 +198,7 @@ function toggleStylizeHelp() {
         <div class="flex gap-2">
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageEdit" label="Stylize" color="info" rounded-full small class="ml-2"
-              :disabled="selectedPhotos.length !== 1" @click="stylizePhoto" />
+              :disabled="selectedPhotos.length !== 1" @click="openStyleSelector" />
             <BaseButton :icon="mdiHelpCircle" label="Help" color="whiteDark" rounded-full small
               @click="toggleStylizeHelp" />
           </template>
@@ -200,6 +206,36 @@ function toggleStylizeHelp() {
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} selected</span>
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
+        </div>
+      </div>
+
+      <!-- Style Selector Modal -->
+      <div v-if="showStyleSelector" class="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50"
+        @click="showStyleSelector = false">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.stop>
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">选择风格样式</h3>
+            <BaseButton label="×" color="whiteDark" small @click="showStyleSelector = false" />
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">选择风格:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button v-for="style in styleOptions" :key="style.index" @click="selectedStyle = style.index" :class="[
+                'p-3 text-sm rounded-lg border transition-all',
+                selectedStyle === style.index
+                  ? 'bg-blue-100 border-blue-500 text-blue-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+              ]">
+                {{ style.name }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <BaseButton label="取消" color="whiteDark" small @click="showStyleSelector = false" />
+            <BaseButton label="开始风格化" color="info" small @click="stylizePhoto" />
+          </div>
         </div>
       </div>
 
