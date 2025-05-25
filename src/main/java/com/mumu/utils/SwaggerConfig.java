@@ -32,8 +32,8 @@ public class SwaggerConfig {
      */
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("校园指南项目API") //  可以用来自定义API的主标题
-                .description("校园指南项目SwaggerAPI管理") // 可以用来描述整体的API
+                .title("相册后端项目API") //  可以用来自定义API的主标题
+                .description("相册后端项目SwaggerAPI管理") // 可以用来描述整体的API
                 .termsOfServiceUrl("") // 用于定义服务的域名
                 .version("1.0") // 可以用来定义版本。
                 .build(); //
