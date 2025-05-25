@@ -299,31 +299,6 @@ The application includes nginx configuration for production deployment. The serv
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
-1. **Photos not uploading**
-
-   - Check file size limits
-   - Ensure supported file formats
-   - Verify network connection
-
-2. **AI styling not working**
-
-   - Verify DashScope API key is configured
-   - Check API quota and billing status
-
-3. **Performance issues**
-
-   - Clear browser cache
-   - Check available storage space
-   - Optimize photo file sizes
-
-4. **Search not returning expected results**
-   - Check filter criteria spelling and formatting
-   - Verify photos have the metadata you're searching for
-   - Try broader search terms and narrow down gradually
-   - Clear all filters and try again
-
 ### Getting Help
 
 - Check the [GitHub Issues](https://github.com/sustech-cs304/team-project-25spring-9/issues)
