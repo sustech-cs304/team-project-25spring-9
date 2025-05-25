@@ -699,13 +699,14 @@ const handleActionClick = (photo, event) => {
 }
 
 const handleSharePhoto = (photo) => {
-    const shareUrl = photo.src;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      toast.success('Link copied to clipboard!');
-    }).catch((error) => {
-      console.error('Failed to copy link:', error);
-      toast.error('Failed to copy link');
-    });
+  if (!photo || !photo.id) return;
+  const shareUrl = `${window.location.origin}/#/share/photo/${props.userId}/${photo.id}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    toast.success('Share link copied to clipboard!');
+  }).catch((error) => {
+    console.error('Failed to copy link:', error);
+    toast.error('Failed to copy link');
+  });
 }
 
 // Modify handleMenuAction function
@@ -1440,7 +1441,7 @@ defineExpose({
 
           <BaseButton :icon="mdiAccountRemove" :color="'whiteDark'" @click="deletePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
-            class="rounded-none border-r last:border-r-0" title="Delete people tag"/>
+            class="rounded-none border-r last-border-r-0" title="Delete people tag"/>
 
           <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"

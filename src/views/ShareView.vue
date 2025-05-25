@@ -35,10 +35,7 @@ const fetchAlbum = async () => {
   }
 
   try {
-    // Store albumId first
     parentAlbumId.value = albumId
-
-    // 获取相册信息
     const albumParams = new URLSearchParams({ userId, albumId })
     const albumResponse = await fetch(`http://10.16.60.67:9090/album/list?${albumParams}`, {
       method: 'POST'
@@ -51,10 +48,11 @@ const fetchAlbum = async () => {
 
     album.value = albumResult.data[0]
 
-    // 获取相册内的照片
+    // 修改照片获取参数，添加 pub=true
     const photoParams = new URLSearchParams({
       userId,
-      albumId: albumId === '-1' ? '' : albumId
+      albumId: albumId === '-1' ? '' : albumId,
+      pub: true // 添加此条件
     })
     const photoResponse = await fetch(`http://10.16.60.67:9090/img/all?${photoParams}`)
     const photoResult = await photoResponse.json()
@@ -80,7 +78,6 @@ const fetchAlbum = async () => {
 
 const fetchPhoto = async () => {
   const { userId, photoId } = route.params
-  // Remove albumId assignment here since it's now handled in fetchAlbum
 
   if (!userId || !photoId) {
     error.value = 'Invalid URL parameters'
@@ -90,7 +87,8 @@ const fetchPhoto = async () => {
   try {
     const params = new URLSearchParams({
       userId: userId,
-      imgId: photoId
+      imgId: photoId,
+      pub: true  // 添加此条件
     })
 
     const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`)
@@ -101,6 +99,11 @@ const fetchPhoto = async () => {
     }
 
     const photoData = result.data[0]
+    // 检查照片是否公开
+    if (!photoData.pub) {
+      throw new Error('This photo is private')
+    }
+
     photo.value = {
       id: photoData.imgId,
       name: photoData.imgName || `Image ${photoData.imgId}`,
