@@ -58,15 +58,18 @@ const fetchAlbum = async () => {
     const photoResult = await photoResponse.json()
 
     if (photoResult?.data) {
-      albumPhotos.value = photoResult.data.map(img => ({
-        id: img.imgId,
-        name: img.imgName || `Image ${img.imgId}`,
-        src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
-        date: img.imgDate,
-        tags: img.tags || [],
-        peoples: img.peoples || [],
-        location: img.imgPos
-      }))
+      // 只显示 pub=true 的图片
+      albumPhotos.value = photoResult.data
+        .filter(img => img.pub) // 添加这行，只保留公开的图片
+        .map(img => ({
+          id: img.imgId,
+          name: img.imgName || `Image ${img.imgId}`,
+          src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
+          date: img.imgDate,
+          tags: img.tags || [],
+          peoples: img.peoples || [],
+          location: img.imgPos
+        }))
     }
   } catch (err) {
     error.value = err.message
