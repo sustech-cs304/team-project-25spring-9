@@ -88,6 +88,7 @@ const toggleSelectMode = () => {
 // Method to clear all selections
 const clearSelections = () => {
   selectedPhotos.value = []
+  photoGallery.value.clearSelections()
 }
 
 // Open the editor

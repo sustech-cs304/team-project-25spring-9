@@ -4,6 +4,9 @@ import {
   mdiCheckboxBlankOutline,
   mdiDotsVertical,
   mdiClose,
+  mdiAccountPlus,
+  mdiAccountRemove,
+  mdiAccountSwitch,
   mdiArrowLeft,
   mdiArrowRight,
   mdiInformation,
@@ -825,6 +828,21 @@ const handleDeleteTag = async (tag, photo) => {
 
 const peopleList = ref([])
 
+const getPeopleById = (id) => {
+  return peopleList.value.find(person => person.peopleId.toString() === id)
+}
+
+const getPeopleByName = (name) => {
+  return peopleList.value.find(person => person.name === name)
+}
+
+const getNicknameById = (id) => {
+  const person = getPeopleById(id)
+  if(!person)
+    return id
+  return person.nickname || person.name
+}
+
 const fetchPeopleList = async () => {
   if (!props.userId) return
   try {
@@ -833,12 +851,13 @@ const fetchPeopleList = async () => {
       method: 'POST'
     })
     const result = await response.json()
-    console.log('Failed to get people list:', result)
+
     if (result && Array.isArray(result.data)) {
       peopleList.value = result.data
     } else {
       peopleList.value = []
     }
+    console.log('people list:', peopleList.value)
   } catch (err) {
     peopleList.value = []
     toast.error('Failed to get people list')
@@ -853,10 +872,10 @@ onMounted(() => {
 // 统计所有people及其对应图片
 const peopleMap = computed(() => {
   const map = {}
-  console.log('peopleList:', peopleList.value)
+
   if (!peopleList.value || peopleList.value.length === 0) return map
   peopleList.value.forEach(person => {
-    map[person.name] = []
+    map[person.peopleId] = []
   })
   map[" Uncategorized "] = []
   displayPhotos.value.forEach(photo => {
@@ -866,8 +885,9 @@ const peopleMap = computed(() => {
     }
     photo.peoples.forEach(person => {
       if (!person) return
-      if (!map[person]) map[person] = []
-      map[person].push(photo)
+      const id = getPeopleByName(person).peopleId
+      if (!map[id]) map[id] = []
+      map[id].push(photo)
     })
   })
   return map
@@ -882,27 +902,24 @@ const togglePerson = (person) => {
   else expandedPeople.value.splice(idx, 1)
 }
 
-const isPersonExpanded = (person) => expandedPeople.value.includes(person)
+const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 
-const peopleTagRename = async (person) => {
+const peopleTagRename = async (personId) => {
+  const person = getNicknameById(personId)
 	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
   
   // Validate input
   if (!newName || newName.trim() === '' || newName === person) return
 
   try {
-    // TODO: replace by real api
     const params = new URLSearchParams({
-      userId: props.userId?.toString() || ''
+      userId: props.userId.toString(),
+      name: getPeopleById(personId).name,
+      nickname: newName.trim()
     })
 
-    const response = await fetch(`http://10.16.60.67:9090/people/rename?${params}`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'accept': '*/*' 
-      },
-      body: JSON.stringify([person, newName.trim()]) // Array format as per API requirements
+    const response = await fetch(`http://10.16.60.67:9090/people/change?${params}`, {
+      method: 'POST'
     })
 
     const result = await response.json()
@@ -921,8 +938,8 @@ const peopleTagRename = async (person) => {
   }
 }
 
-const peopleTagDelete = async (person) => {
-
+const peopleTagDelete = async (personId) => {
+  const person = getPeopleById(personId).name
 	console.log('Deleting person:', person)
   try {
     const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person}"? This will remove it from all photos.`)
@@ -974,6 +991,88 @@ const isPeoplePhotoSelected = (person, photoId) => {
   return selectedPeoplePhotos.value.some(
     item => item.person === person && item.photoId === photoId
   )
+}
+
+const clearSelection = () => {
+  selectedPeoplePhotos.value = []
+}
+
+const addPeopleTagApi = async (person, photoIds) => {
+  console.log(photoIds)
+  const promises = photoIds.map(async ({ photoId }) => {
+      const photo = displayPhotos.value.find(p => p.id === photoId)
+      
+      if (!photo) return
+
+      console.log('Adding people tag:', person, photo)
+
+      const params = new URLSearchParams({
+        userId: photo.userId.toString(),
+        imgId: photo.id.toString(),
+        people: person.trim()
+      })
+
+      const response = await fetch(`http://10.16.60.67:9090/imgpeople/add?${params}`, {
+        method: 'POST'
+      })
+      return response.json()
+    })
+
+    const results = await Promise.all(promises)
+    console.log('Add people tag results:', results)
+    return results
+}
+
+const deletePeopleTagApi = async (person, photoId) => {
+  const promises = selectedPeoplePhotos.value.map(async ({ photoId }) => {
+    const photo = displayPhotos.value.find(p => p.id === photoId)
+    if (!photo) return
+
+    const params = new URLSearchParams({
+      userId: photo.userId.toString(),
+      imgId: photo.id.toString(),
+      people: personName.trim()
+    })
+
+    const response = await fetch(`http://10.16.60.67:9090/imgpeople/delete?${params}`, {
+        method: 'POST'
+      })
+    return response.json()
+  })
+
+  const results = await Promise.all(promises)
+  return results
+}
+
+const addPeopleTag = async () => {
+  const personName = prompt('Enter the new people tag:')
+  if (!personName || !personName.trim()) return
+
+  try {
+    const photoIds = selectedPeoplePhotos.value.map(item => item.photoId)
+    const results = await addPeopleTagApi(personName, photoIds)
+    const successCount = results.filter(result => result?.msg === 'ok').length
+
+    if (successCount > 0) {
+      toast.success(`成功为 ${successCount} 张图片添加人物标签 "${personName}"`)
+      fetchPhotos()
+      fetchPeopleList()
+      clearSelection()
+    } else {
+      throw new Error('添加人物标签失败')
+    }
+  } catch (error) {
+    console.error('添加人物标签失败:', error)
+    toast.error(`添加人物标签失败: ${error.message}`)
+  }
+}
+
+const movePeopleTag = async () => {
+  console.log('Moving people tag')
+}
+
+const deletePeopleTag = async () => {
+  
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
@@ -1040,7 +1139,8 @@ defineExpose({
   uploadPhotos,
   deletePhotos,
   downloadPhotos,
-  getPhotoById
+  getPhotoById,
+  clearSelection
 })
 </script>
 
@@ -1089,6 +1189,19 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
             :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
             class="rounded-none border-r last:border-r-0" title="People icons" />
+        </div>
+        <div v-if="viewMode === 'people'" class="flex border rounded-lg shadow-sm overflow-hidden ml-2">
+          <BaseButton :icon="mdiAccountPlus" :color="'whiteDark'" @click="addPeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Add people tag"/>
+
+          <BaseButton :icon="mdiAccountRemove" :color="'whiteDark'" @click="deletePeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Delete people tag"/>
+
+          <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
+            :disabled="selectedPeoplePhotos.length === 0"
+            class="rounded-none border-r last:border-r-0" title="Move people tag" />
         </div>
       </div>
 
@@ -1459,24 +1572,24 @@ defineExpose({
       </h3>
       <div v-if="Object.keys(peopleMap).length === 0" class="text-gray-500">暂无人物信息</div>
       <div v-else>
-        <div v-for="(photos, person) in peopleMap" :key="person" class="mb-4 border-b pb-4">
-          <div class="flex items-center cursor-pointer group" @click="togglePerson(person)">
+        <div v-for="(photos, personId) in peopleMap" :key="personId" class="mb-4 border-b pb-4">
+          <div class="flex items-center cursor-pointer group" @click="togglePerson(personId)">
             <svg class="w-5 h-5 mr-2 transition-transform duration-200"
-              :class="isPersonExpanded(person) ? 'rotate-90' : ''"
+              :class="isPersonExpanded(personId) ? 'rotate-90' : ''"
               viewBox="0 0 24 24">
               <path fill="currentColor" :d="mdiChevronRight" />
             </svg>
-            <span class="font-medium text-lg text-gray-800">{{ person }}</span>
+            <span class="font-medium text-lg text-gray-800">{{ getNicknameById(personId) }}</span>
             <span class="ml-2 text-xs text-gray-500">({{ photos.length }} 张图片)</span>
             <div
 							class="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
 							@click.stop
 						>
 							<button
-                v-if="person !== ' Uncategorized '"
+                v-if="personId !== ' Uncategorized '"
 								class="p-1 rounded hover:bg-gray-100"
 								title="Rename"
-								@click="peopleTagRename(person)"
+								@click="peopleTagRename(personId)"
 							>
 								<svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24">
 									<path fill="currentColor" :d="mdiRenameBox" />
@@ -1484,10 +1597,10 @@ defineExpose({
 							</button>
 							<!-- 删除按钮 -->
 							<button
-                v-if="person !== ' Uncategorized '"
+                v-if="personId !== ' Uncategorized '"
 								class="p-1 rounded hover:bg-red-100"
 								title="Delete"
-								@click="peopleTagDelete(person)"
+								@click="peopleTagDelete(personId)"
 							>
 								<svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24">
 									<path fill="currentColor" :d="mdiDelete" />
@@ -1495,15 +1608,15 @@ defineExpose({
 							</button>
 						</div>
 					</div>
-          <div v-if="isPersonExpanded(person)" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div v-if="isPersonExpanded(personId)" class="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <div v-for="photo in photos" :key="photo.id" class="relative flex flex-col items-center">
               <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
-                <button @click.stop="togglePeoplePhotoSelection(person, photo.id)"
+                <button @click.stop="togglePeoplePhotoSelection(personId, photo.id)"
                   :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
                   class="bg-white bg-opacity-70 rounded-md p-0.5 text-gray-700 hover:text-blue-500"
                   :disabled="!canSelectPhoto(photo)">
                   <svg class="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="currentColor" :d="isPeoplePhotoSelected(person, photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
+                    <path fill="currentColor" :d="isPeoplePhotoSelected(personId, photo.id) ? mdiCheckboxMarked : mdiCheckboxBlankOutline" />
                   </svg>
                 </button>
               </div>
