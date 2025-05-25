@@ -36,17 +36,6 @@ const toast = useToast()
 
 // Define props for the component
 const props = defineProps({
-  photos: {
-    type: Array,
-    default: () => [
-      { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-      { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-      { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-      { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-      { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-      { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' }
-    ]
-  },
   initialViewMode: {
     type: String,
     default: 'grid',
@@ -79,6 +68,10 @@ const props = defineProps({
   hideSearch: {
     type: Boolean,
     default: false
+  },
+  albumId: {
+    type: [Number, String],
+    default: null
   }
 })
 
@@ -218,9 +211,13 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({
-      userId: props.userId.toString()
-    })
+    const params = new URLSearchParams({ userId: props.userId?.toString() || '' })
+
+    // 修改这部分来正确处理 null albumId
+    if (props.albumId !== undefined) {
+      // 如果 albumId 是 null，传空字符串表示未分类相册
+      params.append('albumId', props.albumId === null ? '' : props.albumId.toString())
+    }
 
     if (appliedFilters.value.query) {
       params.append('imgName', appliedFilters.value.query)
@@ -285,8 +282,17 @@ const generateNewId = (() => {
 // Add upload queue
 const uploadingPhotos = ref([])
 
+// 添加临时相册 ID 变量
+const tempAlbumId = ref(null)
+
+// 修改 initiateUpload 方法
+const initiateUpload = (albumId = null) => {
+  tempAlbumId.value = albumId  // 使用 .value 来设置 ref 值
+  showUploader.value = true
+}
+
 // Modify upload method
-const uploadPhotos = (file, tags = []) => {
+const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
@@ -347,6 +353,11 @@ const uploadPhotos = (file, tags = []) => {
       userId: props.userId.toString(),
       pub: true
     })
+
+    // 只有当 targetAlbumId 不为 null 且不为 -1 时才添加 albumId
+    if (targetAlbumId !== null && targetAlbumId !== -1) {
+      params.append('albumId', targetAlbumId.toString())
+    }
 
     if (tags && tags.length > 0) {
       params.append('tags', tags.join(','))
@@ -889,15 +900,10 @@ onUnmounted(() => {
 // 添加在组件的 data 部分
 const showUploader = ref(false)
 
-// 添加启动上传的方法
-const initiateUpload = () => {
-  showUploader.value = true
-}
-
 // 修改 uploadPhotos 处理方法
 const handleUploadComplete = (file, tags = []) => {
   showUploader.value = false
-  uploadPhotos(file, tags)
+  uploadPhotos(file, tags, tempAlbumId.value)  // 使用 .value 来获取 ref 值
 }
 
 defineExpose({

@@ -51,7 +51,6 @@ const removeFromQueue = (index) => {
 
 const uploadAll = async () => {
   if (uploadQueue.value.length === 0) {
-    toast.error('Please select files first')
     return
   }
 
@@ -64,9 +63,7 @@ const uploadAll = async () => {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0) || []
 
-      // 确保文件内容存在
       if (!item.file) {
-        toast.error(`Failed to upload ${item.name || 'file'}: No content`)
         continue
       }
 
@@ -77,11 +74,9 @@ const uploadAll = async () => {
     uploadQueue.value = []
     tagInputs.value = []
     emit('close')
-    toast.success('All files uploaded successfully')
 
   } catch (error) {
     console.error('Upload error:', error)
-    toast.error(`Upload failed: ${error.message}`)
   }
 }
 
