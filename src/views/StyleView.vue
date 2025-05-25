@@ -1,13 +1,10 @@
 <script setup>
 import {
   mdiImageMultiple,
-  mdiImagePlus,
-  mdiImageRemove,
   mdiImageEdit,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
-  mdiRefresh,
-  mdiDownload
+  mdiRefresh
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -20,101 +17,97 @@ import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed } from 'vue'
 import { toast } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
-
 import { useMainStore } from '@/stores/main'
 
-// Get store for user data
+// -----------------------------
+// Global / reactive state
+// -----------------------------
 const mainStore = useMainStore()
-
-// Track if we're in select mode
 const isSelectMode = ref(true)
-
-// Track selected photos
 const selectedPhotos = ref([])
-
-// Track filtered photos
-const displayedPhotos = ref([])
-
-// Track current view mode
 const currentViewMode = ref('grid')
-
-// Enable API data
 const useApiData = ref(true)
-
 const photoGallery = ref(null)
-
-// Add showUploader state
 const showUploader = ref(false)
-
-// Method to generate a new unique ID
-const getNewId = computed(() => Math.max(...photoGallery.value?.photos?.map(p => p.id) ?? [0]) + 1)
-
-// Modify handleUpload to handle both single and multiple files
-const handleUpload = (file) => {
-  photoGallery.value.uploadPhotos(file)
-}
-
-// Add delete method
-const handleDelete = () => {
-  photoGallery.value.deletePhotos(selectedPhotos)
-  clearSelections()
-}
-
-// Add download method
-const handleDownload = () => {
-  photoGallery.value.downloadPhotos(selectedPhotos)
-}
 const showEditor = ref(false)
 const editingPhoto = ref(null)
 
-// --------------------------
-// Stylize integration (Local API)
-// --------------------------
-const stylizePhoto = () => {
+// Generate incremental IDs for newly added items
+const getNewId = computed(() => {
+  const photos = photoGallery.value?.photos ?? []
+  return Math.max(...photos.map(p => p.id), 0) + 1
+})
+
+// -----------------------------
+// Upload / download helpers
+// -----------------------------
+const handleUpload = file => photoGallery.value.uploadPhotos(file)
+const handleDelete = () => {
+  photoGallery.value.deletePhotos(selectedPhotos.value)
+  clearSelections()
+}
+const handleDownload = () => photoGallery.value.downloadPhotos(selectedPhotos.value)
+
+// -----------------------------
+// Stylize (local API, multipart/form-data)
+// -----------------------------
+function stylizePhoto () {
   if (selectedPhotos.value.length !== 1) {
     toast.error('Please select exactly one photo to stylize.')
     return
   }
+
   const photo = photoGallery.value.getPhotoById(selectedPhotos.value[0])
-  const photoUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${photo.imgId}.jpeg`
-  if (!photoUrl) {
-    toast.error('Unable to locate the selected photo URL.')
-    return
+
+  async function getFileFromPhoto () {
+    if (photo.file instanceof File) return photo.file
+    if (photo.rawFile instanceof File) return photo.rawFile
+
+    const res = await fetch(photo.url, { mode: 'cors' })
+    const blob = await res.blob()
+    const fileName = `${photo.name || 'photo'}.jpeg`
+    return new File([blob], fileName, { type: blob.type || 'image/jpeg' })
   }
 
-  const stylizePromise = fetch('http://10.24.120.158:8123/style_transfer/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_url: photoUrl, style_index: 3 })
-  })
-    .then(async (res) => {
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Failed to stylize image')
-      const stylizedImageUrl = data.result_url
-      if (!stylizedImageUrl) throw new Error('No stylized image URL returned')
-      // 将新图加入画廊
-      photoGallery.value.uploadPhotos([
-        { id: getNewId.value, url: stylizedImageUrl, name: `${photo.name}-stylized` }
-      ])
-      clearSelections()
-      return 'Stylized image added to gallery!'
+  const stylizePromise = (async () => {
+    const imageFile = await getFileFromPhoto()
+    const formData = new FormData()
+    const styleIndex = 3
+    formData.append('file', imageFile)
+    formData.append('style_index', styleIndex.toString())
+
+    const response = await fetch('http://10.24.120.158:8123/style_transfer/', {
+      method: 'POST',
+      body: formData
     })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.message || 'Stylize request failed')
+
+    const stylizedUrl = data.result_url
+    if (!stylizedUrl) throw new Error('No result_url returned by API')
+
+    photoGallery.value.uploadPhotos([
+      { id: getNewId.value, url: stylizedUrl, name: `${photo.name}-stylized` }
+    ])
+    clearSelections()
+    return 'Stylized image added to gallery!'
+  })()
 
   toast.promise(
     stylizePromise,
     {
       pending: 'Stylizing…',
-      success: 'Stylize successful! New image added to gallery.',
-      error: 'Stylize failed: {{message}}'
+      success: msg => msg,
+      error: err => `Stylize failed: ${err.message}`
     },
-    { position: toast.POSITION.BOTTOM_CENTER }
+    { position: toast.POSITION.TOP_RIGHT }
   )
 }
 
-// --------------------------
-// Existing editor helpers (kept for future use)
-// --------------------------
-const togglePhotoSelection = (photoId) => {
+// -----------------------------
+// Selection helpers
+// -----------------------------
+function togglePhotoSelection (photoId) {
   if (selectedPhotos.value.includes(photoId)) {
     selectedPhotos.value = selectedPhotos.value.filter(id => id !== photoId)
   } else {
@@ -122,25 +115,36 @@ const togglePhotoSelection = (photoId) => {
   }
 }
 
-const toggleSelectMode = () => {
+function toggleSelectMode () {
   isSelectMode.value = !isSelectMode.value
   if (!isSelectMode.value) clearSelections()
 }
-const clearSelections = () => { selectedPhotos.value = [] }
 
-// Editor workflows (unchanged)
-const openEditor = () => {
+function clearSelections () {
+  selectedPhotos.value = []
+}
+
+// -----------------------------
+// Editor helpers
+// -----------------------------
+function openEditor () {
   if (selectedPhotos.value.length === 1) openEditorWithPhoto(selectedPhotos.value[0])
 }
-const openEditorWithPhoto = (photoId) => {
+
+function openEditorWithPhoto (photoId) {
   const photo = photoGallery.value.getPhotoById(photoId)
   editingPhoto.value = photo
   showEditor.value = true
   isSelectMode.value = false
   selectedPhotos.value = []
 }
-const closeEditor = () => { showEditor.value = false; editingPhoto.value = null }
-const saveEditedPhoto = (updatedPhoto) => {
+
+function closeEditor () {
+  showEditor.value = false
+  editingPhoto.value = null
+}
+
+function saveEditedPhoto (updatedPhoto) {
   photoGallery.value.uploadPhotos(updatedPhoto)
   closeEditor()
 }
@@ -149,31 +153,59 @@ const saveEditedPhoto = (updatedPhoto) => {
 <template>
   <LayoutAuthenticated>
     <SectionMain>
+      <!-- Title line -->
       <SectionTitleLineWithButton :icon="mdiImageMultiple" title="Photos" main>
         <div class="flex">
-          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos"
-            :color="isSelectMode ? 'info' : 'contrast'" small class="mr-2" label="Refresh"
-            @click="$refs.photoGallery.refreshPhotos()" />
-          <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-            :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
-            @click="toggleSelectMode" />
+          <BaseButton
+            v-if="useApiData"
+            :icon="mdiRefresh"
+            tooltip="Refresh Photos"
+            :color="isSelectMode ? 'info' : 'contrast'"
+            small
+            class="mr-2"
+            label="Refresh"
+            @click="$refs.photoGallery.refreshPhotos()"
+          />
+          <BaseButton
+            :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
+            :label="isSelectMode ? 'View Mode' : 'Select Mode'"
+            :color="isSelectMode ? 'info' : 'contrast'"
+            small
+            @click="toggleSelectMode"
+          />
         </div>
       </SectionTitleLineWithButton>
 
-      <!-- Photo Display Component with integrated search and view controls -->
+      <!-- Gallery -->
       <CardBox class="mb-6">
-        <PhotoGallery ref="photoGallery" :initial-view-mode="currentViewMode"
-          :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
-          :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
-          :userId="mainStore.userId" @select-photo="togglePhotoSelection" @photo-edit="openEditorWithPhoto" />
+        <PhotoGallery
+          ref="photoGallery"
+          :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']"
+          :is-select-mode="isSelectMode"
+          :selected-photo-ids="selectedPhotos"
+          :show-actions="true"
+          :use-api-data="useApiData"
+          :userId="mainStore.userId"
+          @select-photo="togglePhotoSelection"
+          @photo-edit="openEditorWithPhoto"
+        />
       </CardBox>
 
       <!-- Action Buttons -->
       <div class="flex justify-between mb-6">
         <div class="flex gap-2">
           <template v-if="isSelectMode">
-            <BaseButton :icon="mdiImageEdit" label="Stylize" color="info" rounded-full small class="ml-2"
-              :disabled="selectedPhotos.length !== 1" @click="stylizePhoto" />
+            <BaseButton
+              :icon="mdiImageEdit"
+              label="Stylize"
+              color="info"
+              rounded-full
+              small
+              class="ml-2"
+              :disabled="selectedPhotos.length !== 1"
+              @click="stylizePhoto"
+            />
           </template>
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
@@ -182,10 +214,10 @@ const saveEditedPhoto = (updatedPhoto) => {
         </div>
       </div>
 
-      <!-- Add PhotoUploader component -->
+      <!-- Uploader -->
       <PhotoUploader :show="showUploader" @close="showUploader = false" @upload="handleUpload" />
 
-      <!-- Photo Editor Modal -->
+      <!-- Editor Modal -->
       <PhotoEditor v-if="showEditor" :photo="editingPhoto" @save="saveEditedPhoto" @close="showEditor = false" />
     </SectionMain>
   </LayoutAuthenticated>
