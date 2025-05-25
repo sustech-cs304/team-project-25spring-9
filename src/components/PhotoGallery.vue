@@ -895,7 +895,6 @@ onMounted(() => {
 const peopleMap = computed(() => {
   const map = {}
 
-  if (!peopleList.value || peopleList.value.length === 0) return map
   peopleList.value.forEach(person => {
     map[person.peopleId] = []
   })
