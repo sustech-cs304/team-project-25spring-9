@@ -78,6 +78,7 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 .isNull(img.getAlbumId() != null && img.getAlbumId() == -1, Img::getAlbumId)
                 .eq(img.getUserId() != null, Img::getUserId, img.getUserId())
                 .eq(img.getImgId() != null, Img::getImgId, img.getImgId())
+                        .eq(img.getPub() != null, Img::getPub, img.getPub())
                 .eq(Img::getValid, true)
                 .like(img.getImgPos() != null, Img::getImgPos, img.getImgPos())
                 .like(img.getImgName() != null, Img::getImgName, img.getImgName())
