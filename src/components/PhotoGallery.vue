@@ -28,6 +28,7 @@ import {
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoModal from '@/components/PhotoModal.vue'
+import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -885,12 +886,27 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 
+// 添加在组件的 data 部分
+const showUploader = ref(false)
+
+// 添加启动上传的方法
+const initiateUpload = () => {
+  showUploader.value = true
+}
+
+// 修改 uploadPhotos 处理方法
+const handleUploadComplete = (file, tags = []) => {
+  showUploader.value = false
+  uploadPhotos(file, tags)
+}
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
   deletePhotos,
   downloadPhotos,
-  getPhotoById
+  getPhotoById,
+  initiateUpload
 })
 </script>
 
@@ -1335,6 +1351,14 @@ defineExpose({
       </button>
     </div>
 
+    <!-- 修改 PhotoUploader 组件 -->
+    <PhotoUploader
+      v-if="showUploader"
+      :show="showUploader"
+      :userId="userId"
+      @close="showUploader = false"
+      @upload="handleUploadComplete"
+    />
   </div>
 </template>
 

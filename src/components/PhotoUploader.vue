@@ -1,7 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import { useToast } from 'vue-toastification'
 import { mdiCloudUpload, mdiClose } from '@mdi/js'
 import BaseButton from '@/components/BaseButton.vue'
+
+const toast = useToast()
 
 const props = defineProps({
   show: Boolean
@@ -46,19 +49,43 @@ const removeFromQueue = (index) => {
   tagInputs.value.splice(index, 1)
 }
 
-const uploadAll = () => {
-  uploadQueue.value.forEach((item, idx) => {
-    const tags = tagInputs.value[idx]
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0)
-    emit('upload', item.file, tags)
-  })
-  uploadQueue.value = []
-  tagInputs.value = []
-  emit('close')
+const uploadAll = async () => {
+  if (uploadQueue.value.length === 0) {
+    toast.error('Please select files first')
+    return
+  }
+
+  try {
+    // 对每个文件进行上传
+    for (let i = 0; i < uploadQueue.value.length; i++) {
+      const item = uploadQueue.value[i]
+      const tags = tagInputs.value[i]
+        ?.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0) || []
+
+      // 确保文件内容存在
+      if (!item.file) {
+        toast.error(`Failed to upload ${item.name || 'file'}: No content`)
+        continue
+      }
+
+      emit('upload', item.file, tags)
+    }
+
+    // 清理状态
+    uploadQueue.value = []
+    tagInputs.value = []
+    emit('close')
+    toast.success('All files uploaded successfully')
+
+  } catch (error) {
+    console.error('Upload error:', error)
+    toast.error(`Upload failed: ${error.message}`)
+  }
 }
 
+// 其他辅助方法
 const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B'
   else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'

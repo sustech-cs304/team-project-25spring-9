@@ -16,7 +16,6 @@ import SectionTitleLineWithButton from '@/components/SectionTitleLineWithButton.
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoGallery from '@/components/PhotoGallery.vue'
 import PhotoEditor from '@/components/PhotoEditor.vue'
-import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -48,34 +47,6 @@ const showUploader = ref(false)
 
 // Method to generate a new unique ID
 const getNewId = computed(() => Math.max(...photos.value.map(p => p.id), 0) + 1)
-
-// Modify handleUpload to handle both single and multiple files
-const handleUpload = (file, tags) => {
-  if (!file) return;
-  if (photoGallery.value) {
-    // 将 file 和 tags 都传递给 PhotoGallery 组件的 uploadPhotos 方法
-    photoGallery.value.uploadPhotos(file, tags);
-    return;
-  }
-  // 如果没有 PhotoGallery 引用，使用默认上传逻辑
-  const formData = new FormData();
-  formData.append('files', file);
-
-  const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const params = new URLSearchParams({
-    imgDate: currentDate,
-    imgName: file.name,
-    userId: mainStore.userId,
-    pub: true
-  });
-
-  // 添加 tags 参数
-  if (Array.isArray(tags) && tags.length > 0) {
-    params.append('tags', tags.join(','));
-  }
-
-  // ...rest of upload logic...
-}
 
 // Add delete method
 const handleDelete = () => {
@@ -176,7 +147,7 @@ const saveEditedPhoto = (updatedPhoto) => {
             color="info"
             rounded-full
             small
-            @click="showUploader = true"
+            @click="$refs.photoGallery.initiateUpload()"
           />
           <template v-if="isSelectMode">
             <BaseButton :icon="mdiImageRemove" label="Remove" color="danger" rounded-full small class="ml-2"
@@ -192,13 +163,6 @@ const saveEditedPhoto = (updatedPhoto) => {
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
         </div>
       </div>
-
-      <!-- Add PhotoUploader component -->
-      <PhotoUploader
-        :show="showUploader"
-        @close="showUploader = false"
-        @upload="handleUpload"
-      />
 
       <!-- Photo Editor Modal -->
       <PhotoEditor
