@@ -30,6 +30,7 @@ import {
   mdiMapMarker,
   mdiAccount,
   mdiMagnify,
+  mdiEyeOffOutline // 添加私密图标
 } from '@mdi/js'
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import PeopleInputModal from '@/components/PeopleInputModal.vue'
@@ -956,7 +957,7 @@ const peopleTagRename = async (personId) => {
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'rename'
   showPeopleInputModal.value = true
-  inputBoxUseSuggestion.value = false  
+  inputBoxUseSuggestion.value = false
 }
 
 const peopleTagDelete = async (personId) => {
@@ -1045,7 +1046,6 @@ const addPeopleTagApi = async (person, photoIds) => {
     })
 
     const results = await Promise.all(promises)
-    console.log('Add people tag results:', results)
     return results
 }
 
@@ -1207,7 +1207,7 @@ const addPeopleTag = () => {
     toast.error('Please select at least one photo')
     return
   }
-  
+
   peopleInputModalTitle.value = 'Add People Tag'
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'add'
@@ -1221,7 +1221,7 @@ const movePeopleTag = () => {
     toast.error('No tagged photos selected for moving.')
     return
   }
-  
+
   peopleInputModalTitle.value = 'Move People Tag'
   peopleInputModalPlaceholder.value = 'Enter new people name'
   currentPeopleAction.value = 'move'
@@ -1232,7 +1232,7 @@ const movePeopleTag = () => {
 
 const handlePeopleInputConfirm = async (inputValue) => {
   if (!inputValue) return
-  
+
   try {
     if (currentPeopleAction.value === 'add') {
       const existingPerson = getPeopleByNickname(inputValue)
@@ -1270,7 +1270,7 @@ const handlePeopleInputConfirm = async (inputValue) => {
     console.error('Failed to perform people action:', error)
     toast.error(`Failed: ${error.message}`)
   }
-  
+
 }
 
 const handlePeopleTagRename = async (inputValue) => {
@@ -1588,6 +1588,7 @@ defineExpose({
             <th class="px-3 py-2 text-left">Name</th>
             <th class="px-3 py-2 text-left">Size</th>
             <th class="px-3 py-2 text-left">Modified Date</th>
+            <th class="px-3 py-2 text-left">Visibility</th> <!-- 添加此列 -->
             <th class="px-3 py-2 text-left">Tags</th>
             <th v-if="showActions" class="px-3 py-2 text-right">Actions</th>
           </tr>
@@ -1651,6 +1652,13 @@ defineExpose({
             <td class="px-3 py-2">{{ photo.size }}</td>
             <td class="px-3 py-2">{{ photo.displayDate }}</td>
 
+            <!-- Visibility column -->
+            <td class="px-3 py-2">
+              <span :class="photo.pub ? 'text-green-600' : 'text-gray-600'">
+                {{ photo.pub ? 'Public' : 'Private' }}
+              </span>
+            </td>
+
             <!-- Tags column -->
             <td class="px-3 py-2 whitespace-nowrap">
               <div class="flex gap-1 overflow-x-auto">
@@ -1708,6 +1716,14 @@ defineExpose({
           ⚠️
         </div>
 
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-3 right-3 z-10 bg-white/90 rounded-full p-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
+        </div>
+
         <div v-if="isSelectMode" class="absolute top-4 left-4 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1758,6 +1774,14 @@ defineExpose({
              class="absolute top-2 right-2 text-red-500"
              title="Upload failed">
           ⚠️
+        </div>
+
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-2 right-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
+          <svg class="w-3.5 h-3.5 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
         </div>
 
         <div v-if="isSelectMode" class="absolute top-3 left-3 z-10">
@@ -1812,6 +1836,14 @@ defineExpose({
           ⚠️
         </div>
 
+        <!-- Add private indicator -->
+        <div v-if="!photo.pub"
+             class="absolute top-1 right-1 z-10 bg-white/90 rounded-full p-0.5 shadow-sm">
+          <svg class="w-3 h-3 text-gray-600" viewBox="0 0 24 24">
+            <path fill="currentColor" :d="mdiEyeOffOutline" />
+          </svg>
+        </div>
+
         <div v-if="isSelectMode" class="absolute top-2 left-2 z-10">
           <button @click.stop="togglePhotoSelection(photo.id)"
             :class="{ 'opacity-50 cursor-not-allowed': !canSelectPhoto(photo) }"
@@ -1830,7 +1862,6 @@ defineExpose({
           @dblclick="startRenaming(photo)">
           {{ photo.name }}
         </span>
-        <input v-else
           v-model="RenamingPhotoName"
           class="border rounded px-2 py-1 text-xs w-full text-center"
           renaming
