@@ -277,7 +277,7 @@ public class ImgController {
 
     @ApiOperation(value = "添加图片无添加图片信息", tags = "图片类")
     @PostMapping("/addnoinfo")
-    public AjaxJson uploadImgNoInfo(ImgDTO imgDTO, MultipartFile files) throws IOException, ParseException {
+    public AjaxJson uploadImgNoInfo(ImgDTO imgDTO, MultipartFile files) throws IOException, ParseException, InterruptedException {
         String fileName = UUID.randomUUID().toString()+".jpg";
         try {
             fileName = files.getOriginalFilename();
@@ -343,6 +343,7 @@ public class ImgController {
         imgTagService.addImgTag(imgDTO.getUserId(),img.getImgId(),tagId);
         peopleService.checkAndInsertPeople(imgDTO.getUserId(),imgDTO.getPeoples());
         tagService.checkAndInsertTag(imgDTO.getUserId(),imgDTO.getTags());
+        Thread.sleep(1000);
         // upload img
         return AjaxJson.getSuccessData(imgDTO);
     }
