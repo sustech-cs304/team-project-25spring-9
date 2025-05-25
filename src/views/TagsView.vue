@@ -10,7 +10,7 @@ import {
   mdiDelete,  // 增加需要的图标
   mdiImageMultiple
 } from '@mdi/js'
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useMainStore } from '@/stores/main'
 
@@ -27,7 +27,7 @@ import TagGallery from '@/components/TagGallery.vue'
 const toast = useToast()
 const mainStore = useMainStore()
 
-// 关键状态
+// 修改状态管理
 const isLoading = ref(false)
 const error = ref(null)
 const currentTag = ref(null)
@@ -37,27 +37,58 @@ const selectedPhotos = ref([])
 const viewMode = ref('grid')
 const photoGallery = ref(null)
 const tagGallery = ref(null)
+const allPhotos = ref([])
+const tagGroups = ref([])
 
-// Handle opening a tag group
-const handleOpenTag = (tag) => {
-  currentTag.value = tag.id
-  currentTagTitle.value = tag.name
-  selectedPhotos.value = []
-  nextTick(() => {
-    photoGallery.value?.refreshPhotos()
-  })
-}
-
-// Handle going back to tag list
-const handleBackToTags = () => {
-  currentTag.value = null
-  currentTagTitle.value = 'Tags'
-  selectedPhotos.value = []
-}
-
-// Handle refreshing tags
-const handleRefreshTags = () => {
-  photoGallery.value?.refreshPhotos()
+// 修改初始化数据方法，移除缓存逻辑
+const initializeData = async () => {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    const params = new URLSearchParams({ userId: mainStore.userId })
+    const response = await fetch(`http://10.16.60.67:9090/img/all?${params}`)
+    const result = await response.json()
+    
+    if (!result?.data) throw new Error('Failed to fetch photos')
+    
+    // 直接更新照片数据
+    allPhotos.value = result.data.map(img => ({
+      id: img.imgId,
+      src: `http://10.16.60.67:9000/softwareeng/upload-img/${img.imgId}.jpeg`,
+      tags: img.tags || []
+    }))
+    
+    // 生成标签组
+    const tagMap = new Map()
+    allPhotos.value.forEach(photo => {
+      if (Array.isArray(photo.tags)) {
+        photo.tags.forEach(tag => {
+          if (!tagMap.has(tag)) {
+            tagMap.set(tag, { 
+              id: tag,
+              name: tag,
+              count: 0,
+              photos: []
+            })
+          }
+          const group = tagMap.get(tag)
+          group.count++
+          group.photos.push(photo)
+        })
+      }
+    })
+    
+    // 更新标签组数据
+    tagGroups.value = Array.from(tagMap.values())
+      .sort((a, b) => b.count - a.count)
+      
+  } catch (err) {
+    error.value = err.message
+    toast.error(`Failed to load data: ${err.message}`)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // Selection logic
@@ -119,6 +150,53 @@ const filteredPhotos = computed(() => {
   if (!currentTag.value) return allPhotos.value
   return allPhotos.value.filter(p => Array.isArray(p.tags) && p.tags.includes(currentTag.value))
 })
+
+// 修改 handleRefreshTags 方法
+const handleRefreshTags = () => {
+  initializeData()
+}
+
+// 修改 handlePhotosLoaded 方法
+const handlePhotosLoaded = (photos) => {
+  // 当加载新照片时重新获取所有数据
+  initializeData()
+}
+
+// Replace selectTagGroup to use cached data
+const selectTagGroup = (group) => {
+  // 从最新的 tagGroups 中查找
+  const targetGroup = tagGroups.value.find(g => g.id === group.id)
+  if (targetGroup) {
+    currentTag.value = targetGroup.id
+    currentTagTitle.value = targetGroup.name
+    selectedPhotos.value = []
+    nextTick(() => {
+      photoGallery.value?.refreshPhotos()
+    })
+  }
+}
+
+// Add onMounted to initialize data
+onMounted(() => {
+  initializeData()
+})
+
+// Handle opening a tag group
+const handleOpenTag = (tag) => {
+  currentTag.value = tag.id
+  currentTagTitle.value = tag.name
+  selectedPhotos.value = []
+  nextTick(() => {
+    photoGallery.value?.refreshPhotos()
+  })
+}
+
+// Handle going back to tag list
+const handleBackToTags = () => {
+  currentTag.value = null
+  currentTagTitle.value = 'Tags'
+  selectedPhotos.value = []
+}
 </script>
 
 <template>
@@ -168,37 +246,43 @@ const filteredPhotos = computed(() => {
         </div>
       </SectionTitleLineWithButton>
 
-      <!-- Tag Filters Bar -->
-      <div class="bg-gradient-to-r from-blue-50 via-white to-purple-50 rounded-xl shadow p-3 mb-6 overflow-x-auto custom-scrollbar">
-        <div class="flex flex-nowrap gap-2 min-w-0">
-          <BaseButton
-            :icon="mdiTagMultiple"
-            :label="`All Photos${Array.isArray(allPhotos?.value) ? ` (${allPhotos.value.length})` : ''}`"
-            :color="!currentTag ? 'info' : 'whiteDark'"
-            :class="[
-              'whitespace-nowrap rounded-full font-semibold shadow',
-              !currentTag ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : ''
-            ]"
-            small
-            @click="handleBackToTags"
-          />
-          <BaseButton
-            v-for="group in tagGroups"
-            :key="group.id"
-            :icon="mdiTag"
-            :label="`${group.name}${group.count !== undefined ? ` (${group.count})` : ''}`"
-            :color="currentTag === group.id ? 'info' : 'whiteDark'"
-            :class="[
-              'whitespace-nowrap rounded-full font-semibold shadow',
-              currentTag === group.id ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : 'bg-white'
-            ]"
-            small
-            @click="() => selectTagGroup(group)"
-          />
+      <!-- Add Tag Navigation Bar - using cached data -->
+      <div class="mb-6">
+        <div class="bg-gradient-to-r from-blue-50 via-white to-purple-50 rounded-xl shadow p-3 overflow-x-auto">
+          <div class="flex flex-nowrap gap-2 min-w-0">
+            <BaseButton
+              :icon="mdiTagMultiple"
+              :label="`All Photos (${allPhotos.length})`"
+              :color="!currentTag ? 'info' : 'whiteDark'"
+              :class="[
+                'whitespace-nowrap font-medium shadow transition-all duration-200',
+                !currentTag ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : 'bg-white'
+              ]"
+              rounded
+              small
+              @click="handleBackToTags"
+            />
+            <BaseButton
+              v-for="group in tagGroups"
+              :key="group.id"
+              :icon="mdiTag"
+              :label="`${group.name} (${group.count})`"
+              :color="currentTag === group.id ? 'info' : 'whiteDark'"
+              :class="[
+                'whitespace-nowrap font-medium shadow transition-all duration-200',
+                currentTag === group.id 
+                  ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white'
+                  : 'bg-white hover:bg-gray-50'
+              ]"
+              rounded
+              small
+              @click="selectTagGroup(group)"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Tag group gallery with新样式 -->
+      <!-- Tag group gallery with new styling -->
       <TagGallery
         v-if="!currentTag"
         ref="tagGallery"
@@ -223,6 +307,7 @@ const filteredPhotos = computed(() => {
             @select-photo="togglePhotoSelection"
             @update:viewMode="mode => viewMode = mode"
             @photo-edit="openEditorWithPhoto"
+            @photos-loaded="handlePhotosLoaded"
           />
         </CardBox>
 
@@ -278,6 +363,31 @@ const filteredPhotos = computed(() => {
 </template>
 
 <style scoped>
+/* Add horizontal scrollbar styling */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #93c5fd #f8fafc;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background-color: #93c5fd;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #60a5fa;
+}
+
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #a5b4fc #f8fafc;
