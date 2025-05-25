@@ -59,6 +59,9 @@ const editingPhoto = ref(null)
 // 新增 currentAlbumTitle ref
 const currentAlbumTitle = ref('Albums')
 
+// 添加 albums ref 用于存储相册列表
+const albums = ref([])
+
 // Handler for clicking on an album
 const handleOpenAlbum = (album) => {
   console.log('Opening album:', album) // Debug log
@@ -181,13 +184,13 @@ const movePhotosToAlbum = async () => {
 };
 
 // Open move dialog
-const openMoveDialog = () => {
+const openMoveDialog = async () => {
   if (selectedPhotos.value.length === 0) {
-    toast.error("Please select photos to move");
-    return;
+    toast.error("Please select photos to move")
+    return
   }
-
-  showMoveDialog.value = true;
+  await loadAlbums()
+  showMoveDialog.value = true
 };
 
 // Handle delete photos
@@ -271,6 +274,38 @@ const createAlbum = async () => {
 
   } catch (err) {
     toast.error(`Failed to create album: ${err.message}`)
+  }
+}
+
+// 添加 loadAlbums 方法
+const loadAlbums = async () => {
+  try {
+    const params = new URLSearchParams({
+      userId: mainStore.userId
+    })
+    const response = await fetch(`http://10.16.60.67:9090/album/list?${params}`, {
+      method: 'POST'
+    })
+    const result = await response.json()
+    if (!result || result.msg !== 'ok') {
+      throw new Error('Failed to fetch albums')
+    }
+    // 组装 albums 列表，未分类相册
+    albums.value = [
+      {
+        id: -1,
+        name: 'Unfiled Photos',
+        photos: []
+      },
+      ...(result.data || []).map(album => ({
+        id: album.albumId,
+        name: album.albumName,
+        photos: [] // 可根据需要填充照片数
+      }))
+    ]
+  } catch (err) {
+    toast.error('Failed to load albums')
+    albums.value = []
   }
 }
 
@@ -426,7 +461,7 @@ const createAlbum = async () => {
               <option value="" disabled selected>Select an album</option>
               <option v-for="album in albums" :key="album.id || 'unfiled'"
                 :value="album.id === null ? 'null' : album.id">
-                {{ album.name }} ({{ album.photos.length }} photos)
+                {{ album.name }}
               </option>
             </select>
           </div>
