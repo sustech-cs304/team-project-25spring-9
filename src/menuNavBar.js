@@ -46,11 +46,6 @@ export default [
     isDesktopNoLabel: true,
     isToggleLightDark: true,
   },
-  {
-    icon: mdiTagMultiple,
-    label: 'Tags',
-    to: { name: 'tags' },
-  },
   // {
   //   icon: mdiLogout,
   //   label: 'Log out',

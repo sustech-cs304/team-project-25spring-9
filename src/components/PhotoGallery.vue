@@ -28,6 +28,7 @@ import {
 import CardBoxComponentEmpty from '@/components/CardBoxComponentEmpty.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import PhotoModal from '@/components/PhotoModal.vue'
+import PhotoUploader from '@/components/PhotoUploader.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 
@@ -35,17 +36,6 @@ const toast = useToast()
 
 // Define props for the component
 const props = defineProps({
-  photos: {
-    type: Array,
-    default: () => [
-      { id: 1, name: 'Mountain View', src: 'https://picsum.photos/id/10/300/200', size: '2.4 MB', date: '2023-09-15', type: 'JPG' },
-      { id: 2, name: 'Beach Sunset', src: 'https://picsum.photos/id/11/300/200', size: '3.1 MB', date: '2023-10-02', type: 'PNG' },
-      { id: 3, name: 'City Skyline', src: 'https://picsum.photos/id/12/300/200', size: '1.8 MB', date: '2023-11-20', type: 'JPG' },
-      { id: 4, name: 'Forest Path', src: 'https://picsum.photos/id/13/300/200', size: '2.9 MB', date: '2024-01-05', type: 'JPG' },
-      { id: 5, name: 'Desert Landscape', src: 'https://picsum.photos/id/14/300/200', size: '2.2 MB', date: '2024-02-18', type: 'PNG' },
-      { id: 6, name: 'Ocean Waves', src: 'https://picsum.photos/id/15/300/200', size: '4.0 MB', date: '2024-03-10', type: 'TIFF' }
-    ]
-  },
   initialViewMode: {
     type: String,
     default: 'grid',
@@ -78,6 +68,10 @@ const props = defineProps({
   hideSearch: {
     type: Boolean,
     default: false
+  },
+  albumId: {
+    type: [Number, String],
+    default: null
   }
 })
 
@@ -217,9 +211,13 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({
-      userId: props.userId.toString()
-    })
+    const params = new URLSearchParams({ userId: props.userId?.toString() || '' })
+
+    // 修改这部分来正确处理 null albumId
+    if (props.albumId !== undefined) {
+      // 如果 albumId 是 null，传空字符串表示未分类相册
+      params.append('albumId', props.albumId === null ? '' : props.albumId.toString())
+    }
 
     if (appliedFilters.value.query) {
       params.append('imgName', appliedFilters.value.query)
@@ -284,8 +282,17 @@ const generateNewId = (() => {
 // Add upload queue
 const uploadingPhotos = ref([])
 
+// 添加临时相册 ID 变量
+const tempAlbumId = ref(null)
+
+// 修改 initiateUpload 方法
+const initiateUpload = (albumId = null) => {
+  tempAlbumId.value = albumId  // 使用 .value 来设置 ref 值
+  showUploader.value = true
+}
+
 // Modify upload method
-const uploadPhotos = (file) => {
+const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
@@ -324,7 +331,8 @@ const uploadPhotos = (file) => {
       date: currentDate.split(' ')[0],
       type: file.type.split('/')[1].toUpperCase(),
       isUploading: true,
-      tempUrl: localUrl
+      tempUrl: localUrl,
+      tags: tags || [] // Add tags to tempPhoto
     }
 
     if (!props.useApiData) {
@@ -346,7 +354,16 @@ const uploadPhotos = (file) => {
       pub: true
     })
 
-    fetch(`http://10.16.60.67:9090/img/add?${params}`, {
+    // 只有当 targetAlbumId 不为 null 且不为 -1 时才添加 albumId
+    if (targetAlbumId !== null && targetAlbumId !== -1) {
+      params.append('albumId', targetAlbumId.toString())
+    }
+
+    if (tags && tags.length > 0) {
+      params.append('tags', tags.join(','))
+    }
+
+    fetch(`http://10.16.60.67:9090/img/addnoinfo?${params}`, {
       method: 'POST',
       body: formData
     })
@@ -674,7 +691,6 @@ const handleMenuAction = (action) => {
 
   switch (action) {
     case 'edit':
-      closePhotoModal()
       emit('photo-edit', actionMenuPhoto.value.id)
       break
     case 'delete':
@@ -697,13 +713,12 @@ const handleMenuAction = (action) => {
 
 // Modify handlePhotoAction function
 const handlePhotoAction = (action) => {
-  if (isModalOpen.value) {
-    actionMenuPhoto.value = currentPhoto.value
-  }
+  if (!currentPhoto.value) return
+
   switch (action) {
     case 'edit':
-      closePhotoModal()
       emit('photo-edit', currentPhoto.value.id)
+      closePhotoModal()
       break
     case 'delete':
       deletePhotos({ value: [currentPhoto.value.id] })
@@ -833,32 +848,30 @@ const startRenaming = (photo) => {
 };
 
 // 保存名称
-const savePhotoName = async (photo) => {
-  if (RenamingPhotoName.value.trim() && RenamingPhotoName.value !== photo.name) {
-    // 调用 API 更新名称（API 暂时留空）
+const savePhotoName = async (photo, newName) => {
+  // 如果 newName 存在，则用它，否则用 RenamingPhotoName.value
+  const nameToSave = typeof newName === 'string' ? newName : RenamingPhotoName.value;
+  if (nameToSave.trim() && nameToSave !== photo.name) {
     const params = new URLSearchParams({
       userId: photo.userId.toString(),
       imgId: photo.id.toString(),
-      name: RenamingPhotoName.value.trim()
+      name: nameToSave.trim()
     });
-
-    try{
-        const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
-            method: 'GET'
-        });
-
-        const result = await response.json();
-
-        if(result.msg === 'ok') {
-            photo.name = RenamingPhotoName.value.trim();
-            toast.success(`图片名称已更新为 "${photo.name}"`);
-        } else {
-            throw new Error(result.msg || '更新名称失败');
-        }
-    }catch(error){
-        console.error('更新名称失败:', error);
-        toast.error(`更新名称失败`);
-    };
+    try {
+      const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
+        method: 'GET'
+      });
+      const result = await response.json();
+      if (result.msg === 'ok') {
+        photo.name = nameToSave.trim();
+        toast.success(`图片名称已更新为 "${photo.name}"`);
+      } else {
+        throw new Error(result.msg || '更新名称失败');
+      }
+    } catch (error) {
+      console.error('更新名称失败:', error);
+      toast.error(`更新名称失败`);
+    }
   }
   cancelRenaming();
 };
@@ -884,12 +897,53 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 
+// 添加在组件的 data 部分
+const showUploader = ref(false)
+
+// 修改 uploadPhotos 处理方法
+const handleUploadComplete = (file, tags = []) => {
+  showUploader.value = false
+  uploadPhotos(file, tags, tempAlbumId.value)  // 使用 .value 来获取 ref 值
+}
+
+// 为 photoGallery 添加 addTagToPhoto 方法
+const addTagToPhoto = async (photo, tag) => {
+  if (!photo || !tag) return;
+  // 如果已有该标签则不重复添加
+  if (photo.tags && photo.tags.includes(tag)) {
+    toast.error(`标签 "${tag}" 已存在`);
+    return;
+  }
+  try {
+    const params = new URLSearchParams({
+      userId: photo.userId?.toString() || '',
+      imgId: photo.id?.toString() || '',
+      tag: tag
+    });
+    const response = await fetch(`http://10.16.60.67:9090/imgtag/add?${params}`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+    if (result.msg === 'ok') {
+      if (!photo.tags) photo.tags = [];
+      photo.tags.push(tag);
+      toast.success(`标签 "${tag}" 已成功添加`);
+    } else {
+      throw new Error(result.msg || '添加标签失败');
+    }
+  } catch (error) {
+    toast.error(`添加标签失败: ${error.message}`);
+  }
+};
+
 defineExpose({
   refreshPhotos,
   uploadPhotos,
   deletePhotos,
   downloadPhotos,
-  getPhotoById
+  getPhotoById,
+  initiateUpload,
+  addTagToPhoto // 暴露方法
 })
 </script>
 
@@ -1117,10 +1171,11 @@ defineExpose({
                       @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
-                <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+                <!-- 删除 add tag 按钮 -->
+                <!-- <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
                     @click.stop="addNewTag(photo)">
                     +
-                </button>
+                </button> -->
               </div>
             </td>
 
@@ -1176,7 +1231,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-40 object-cover rounded mb-2 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-sm w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1216,7 +1283,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-24 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-sm truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center text-sm truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-sm w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1256,7 +1335,19 @@ defineExpose({
         </div>
         <img :src="photo.src" class="w-full h-16 object-cover rounded mb-1 cursor-pointer"
           @click="openPhotoModal(photo)" />
-        <span class="text-center text-xs truncate w-full block" :title="photo.name">{{ photo.name }}</span>
+        <span v-if="!RenamingPhotoId || RenamingPhotoId !== photo.id"
+          class="text-center text-xs truncate w-full block cursor-pointer"
+          :title="photo.name"
+          @dblclick="startRenaming(photo)">
+          {{ photo.name }}
+        </span>
+        <input v-else
+          v-model="RenamingPhotoName"
+          class="border rounded px-2 py-1 text-xs w-full text-center"
+          renaming
+          @blur="savePhotoName(photo)"
+          @keyup.enter="savePhotoName(photo)"
+          @keyup.esc="cancelRenaming" />
       </div>
     </div>
 
@@ -1276,6 +1367,8 @@ defineExpose({
       @tag-click="handleTagClick"
       @add-tag="addNewTag(currentPhoto)"
       @delete-tag="(tag) => handleDeleteTag(tag, currentPhoto)"
+      @rename="(newName) => savePhotoName(currentPhoto, newName)"
+      :addTagToPhoto="addTagToPhoto"
     />
 
     <!-- Action Menu -->
@@ -1297,6 +1390,14 @@ defineExpose({
       </button>
     </div>
 
+    <!-- 修改 PhotoUploader 组件 -->
+    <PhotoUploader
+      v-if="showUploader"
+      :show="showUploader"
+      :userId="userId"
+      @close="showUploader = false"
+      @upload="handleUploadComplete"
+    />
   </div>
 </template>
 
