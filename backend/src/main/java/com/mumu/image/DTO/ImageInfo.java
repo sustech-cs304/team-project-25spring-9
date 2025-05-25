@@ -1,5 +1,6 @@
 package com.mumu.image.DTO;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -12,18 +13,18 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ImageInfo {
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @JsonProperty("timestamp")
-
+    @JsonProperty("Timestamp")
+    @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss", timezone="GMT+8")
     private Date timestamp;
-    @JsonProperty("latitude")
+    @JsonProperty("Latitude")
     private Double latitude;
-    @JsonProperty("longitude")
+    @JsonProperty("Longitude")
     private Double longitude;
-    @JsonProperty("address")
+    @JsonProperty("Address")
     private String address;
     @JsonProperty("Camera/Device")
     private String cameraDevice;
-    @JsonProperty("caption")
+    @JsonProperty("Caption")
     private String caption;
     @JsonProperty("AutoTags")
     private List<String> autoTags;
