@@ -971,10 +971,10 @@ const peopleTagRename = async (personId) => {
 }
 
 const peopleTagDelete = async (personId) => {
-  const person = getPeopleById(personId).name
+  const person = getPeopleById(personId)
 	console.log('Deleting person:', person)
   try {
-    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person}"? This will remove it from all photos.`)
+    const confirmDelete = window.confirm(`Are you sure you want to delete the person tag "${person.nickname}"? This will remove it from all photos.`)
     if (!confirmDelete) return
 
     const params = new URLSearchParams({
@@ -986,13 +986,13 @@ const peopleTagDelete = async (personId) => {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify([person])
+      body: JSON.stringify([person.name])
     })
 
     const result = await response.json()
 
     if (result.msg === 'ok') {
-      toast.success(`Person tag "${person}" deleted successfully`)
+      toast.success(`Person tag "${person.nickname}" deleted successfully`)
       // Refresh the people list and photos
       fetchPeopleList()
       fetchPhotos()
