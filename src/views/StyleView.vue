@@ -4,7 +4,8 @@ import {
   mdiImageEdit,
   mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
-  mdiRefresh
+  mdiRefresh,
+  mdiHelpCircle
 } from '@mdi/js'
 import SectionMain from '@/components/SectionMain.vue'
 import CardBox from '@/components/CardBox.vue'
@@ -31,6 +32,7 @@ const photoGallery = ref(null)
 const showUploader = ref(false)
 const showEditor = ref(false)
 const editingPhoto = ref(null)
+const showStylizeHelp = ref(false)
 
 // Generate incremental IDs for newly added items
 const getNewId = computed(() => {
@@ -51,7 +53,7 @@ const handleDownload = () => photoGallery.value.downloadPhotos(selectedPhotos.va
 // -----------------------------
 // Stylize (local API, multipart/form-data)
 // -----------------------------
-function stylizePhoto () {
+function stylizePhoto() {
   if (selectedPhotos.value.length !== 1) {
     toast.error('Please select exactly one photo to stylize.')
     return
@@ -59,7 +61,7 @@ function stylizePhoto () {
 
   const photo = photoGallery.value.getPhotoById(selectedPhotos.value[0])
 
-  async function getFileFromPhoto () {
+  async function getFileFromPhoto() {
 
 
     const photoUrl = `http://10.16.60.67:9000/softwareeng/upload-img/${photo.id}.jpeg`;
@@ -112,7 +114,7 @@ function stylizePhoto () {
 // -----------------------------
 // Selection helpers
 // -----------------------------
-function togglePhotoSelection (photoId) {
+function togglePhotoSelection(photoId) {
   if (selectedPhotos.value.includes(photoId)) {
     selectedPhotos.value = selectedPhotos.value.filter(id => id !== photoId)
   } else {
@@ -120,23 +122,23 @@ function togglePhotoSelection (photoId) {
   }
 }
 
-function toggleSelectMode () {
+function toggleSelectMode() {
   isSelectMode.value = !isSelectMode.value
   if (!isSelectMode.value) clearSelections()
 }
 
-function clearSelections () {
+function clearSelections() {
   selectedPhotos.value = []
 }
 
 // -----------------------------
 // Editor helpers
 // -----------------------------
-function openEditor () {
+function openEditor() {
   if (selectedPhotos.value.length === 1) openEditorWithPhoto(selectedPhotos.value[0])
 }
 
-function openEditorWithPhoto (photoId) {
+function openEditorWithPhoto(photoId) {
   const photo = photoGallery.value.getPhotoById(photoId)
   editingPhoto.value = photo
   showEditor.value = true
@@ -144,14 +146,21 @@ function openEditorWithPhoto (photoId) {
   selectedPhotos.value = []
 }
 
-function closeEditor () {
+function closeEditor() {
   showEditor.value = false
   editingPhoto.value = null
 }
 
-function saveEditedPhoto (updatedPhoto) {
+function saveEditedPhoto(updatedPhoto) {
   photoGallery.value.uploadPhotos(updatedPhoto)
   closeEditor()
+}
+
+// -----------------------------
+// Help modal helper
+// -----------------------------
+function toggleStylizeHelp() {
+  showStylizeHelp.value = !showStylizeHelp.value
 }
 </script>
 
@@ -161,61 +170,55 @@ function saveEditedPhoto (updatedPhoto) {
       <!-- Title line -->
       <SectionTitleLineWithButton :icon="mdiImageMultiple" title="Photos" main>
         <div class="flex">
-          <BaseButton
-            v-if="useApiData"
-            :icon="mdiRefresh"
-            tooltip="Refresh Photos"
-            :color="isSelectMode ? 'info' : 'contrast'"
-            small
-            class="mr-2"
-            label="Refresh"
-            @click="$refs.photoGallery.refreshPhotos()"
-          />
-          <BaseButton
-            :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
-            :label="isSelectMode ? 'View Mode' : 'Select Mode'"
-            :color="isSelectMode ? 'info' : 'contrast'"
-            small
-            @click="toggleSelectMode"
-          />
+          <BaseButton v-if="useApiData" :icon="mdiRefresh" tooltip="Refresh Photos"
+            :color="isSelectMode ? 'info' : 'contrast'" small class="mr-2" label="Refresh"
+            @click="$refs.photoGallery.refreshPhotos()" />
+          <BaseButton :icon="isSelectMode ? mdiCursorDefault : mdiCheckboxMultipleMarkedOutline"
+            :label="isSelectMode ? 'View Mode' : 'Select Mode'" :color="isSelectMode ? 'info' : 'contrast'" small
+            @click="toggleSelectMode" />
         </div>
       </SectionTitleLineWithButton>
 
       <!-- Gallery -->
       <CardBox class="mb-6">
-        <PhotoGallery
-          ref="photoGallery"
-          :initial-view-mode="currentViewMode"
-          :available-view-modes="['details', 'grid', 'large', 'small']"
-          :is-select-mode="isSelectMode"
-          :selected-photo-ids="selectedPhotos"
-          :show-actions="true"
-          :use-api-data="useApiData"
-          :userId="mainStore.userId"
-          @select-photo="togglePhotoSelection"
-          @photo-edit="openEditorWithPhoto"
-        />
+        <PhotoGallery ref="photoGallery" :initial-view-mode="currentViewMode"
+          :available-view-modes="['details', 'grid', 'large', 'small']" :is-select-mode="isSelectMode"
+          :selected-photo-ids="selectedPhotos" :show-actions="true" :use-api-data="useApiData"
+          :userId="mainStore.userId" @select-photo="togglePhotoSelection" @photo-edit="openEditorWithPhoto" />
       </CardBox>
 
       <!-- Action Buttons -->
       <div class="flex justify-between mb-6">
         <div class="flex gap-2">
           <template v-if="isSelectMode">
-            <BaseButton
-              :icon="mdiImageEdit"
-              label="Stylize"
-              color="info"
-              rounded-full
-              small
-              class="ml-2"
-              :disabled="selectedPhotos.length !== 1"
-              @click="stylizePhoto"
-            />
+            <BaseButton :icon="mdiImageEdit" label="Stylize" color="info" rounded-full small class="ml-2"
+              :disabled="selectedPhotos.length !== 1" @click="stylizePhoto" />
+            <BaseButton :icon="mdiHelpCircle" label="Help" color="whiteDark" rounded-full small
+              @click="toggleStylizeHelp" />
           </template>
         </div>
         <div v-if="isSelectMode && selectedPhotos.length > 0" class="flex items-center">
           <span class="mr-2 text-sm text-gray-700">{{ selectedPhotos.length }} selected</span>
           <BaseButton label="Clear selection" color="whiteDark" small @click="clearSelections" />
+        </div>
+      </div>
+
+      <!-- Stylize Help Modal -->
+      <div v-if="showStylizeHelp"
+        class="fixed inset-0 bg-opacity-10 backdrop-blur-sm flex items-center justify-center z-50"
+        @click="showStylizeHelp = false">
+        <div class="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-auto" @click.stop>
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Stylize Help</h3>
+            <BaseButton label="×" color="whiteDark" small @click="showStylizeHelp = false" />
+          </div>
+          <div class="text-center">
+            <img src="/stylize.png" alt="Stylize Help" class="max-w-full h-auto rounded-lg shadow-lg"
+              @error="$event.target.style.display = 'none'" />
+            <p class="mt-4 text-sm text-gray-600">
+              Select exactly one photo and click the Stylize button to apply artistic styles to your image.
+            </p>
+          </div>
         </div>
       </div>
 
