@@ -225,15 +225,15 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({ 
-      userId: props.userId?.toString() || '' 
+    const params = new URLSearchParams({
+      userId: props.userId?.toString() || ''
     })
 
     // Add tags filtering
     if (props.filterTags.length > 0) {
       params.append('tags', props.filterTags.join(','))
     }
-    
+
     // Add no-tags filtering
     if (props.noTags) {
       params.append('noTags', 'true')
@@ -915,7 +915,6 @@ onMounted(() => {
 const peopleMap = computed(() => {
   const map = {}
 
-  if (!peopleList.value || peopleList.value.length === 0) return map
   peopleList.value.forEach(person => {
     map[person.peopleId] = []
   })
@@ -949,7 +948,7 @@ const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 const peopleTagRename = async (personId) => {
   const person = getNicknameById(personId)
 	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
-  
+
   // Validate input
   if (!newName || newName.trim() === '' || newName === person) return
 
@@ -1429,7 +1428,7 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
             class="rounded-none border-r last:border-r-0" title="Small icons" />
-        
+
           <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
             :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
             class="rounded-none border-r last:border-r-0" title="People icons" />

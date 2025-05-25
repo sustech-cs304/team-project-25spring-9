@@ -110,6 +110,30 @@ const routes = [
     name: 'tags',
     component: () => import('../views/TagsView.vue')
   },
+  {
+    meta: {
+      title: 'Shared Photo'
+    },
+    path: '/share/:userId/:photoId',
+    name: 'share',
+    component: () => import('@/views/ShareView.vue')
+  },
+  {
+    meta: {
+      title: 'Shared Photo'
+    },
+    path: '/share/photo/:userId/:photoId',
+    name: 'sharePhoto',
+    component: () => import('@/views/ShareView.vue'),
+  },
+  {
+    meta: {
+      title: 'Shared Album'
+    },
+    path: '/share/album/:userId/:albumId',
+    name: 'shareAlbum',
+    component: () => import('@/views/ShareView.vue')
+  }
 ]
 
 const router = createRouter({
