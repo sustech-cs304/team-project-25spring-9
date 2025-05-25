@@ -502,13 +502,14 @@ def check_task_status(task_id):
                 print("✅ 图像生成成功！")
                 print("🔗 下载地址：", result_url)
                 return result_url
-                break
-            else:
+            elif status == "FAILED":
                 print("⚠️ 任务未立即成功，任务状态：", status)
                 print("任务 ID：", output.get("task_id"))
+                break
+            else:
+                time.sleep(0.5)
         else:
             print("❌ 请求失败：", response.status_code, response.text)
-            return None
             break
 
 #
