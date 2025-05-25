@@ -1171,10 +1171,11 @@ defineExpose({
                       @click.stop="handleTagClick(tag)">
                   {{ tag }}
                 </span>
-                <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
+                <!-- 删除 add tag 按钮 -->
+                <!-- <button class="px-2 py-0.5 text-xs rounded bg-gray-200 hover:bg-gray-300 cursor-pointer"
                     @click.stop="addNewTag(photo)">
                     +
-                </button>
+                </button> -->
               </div>
             </td>
 

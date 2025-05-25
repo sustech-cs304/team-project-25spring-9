@@ -62,7 +62,7 @@ const showAutoTagModal = ref(false)
 const autoTagLoading = ref(false)
 const autoTagError = ref('')
 const autoTagOptions = ref([])
-const selectedAutoTags = ref([])
+const selectedAutoTags = ref([]) // 可以移除，不再需要
 
 // 修改变量定义
 const manualTagInput = ref('')
@@ -116,9 +116,8 @@ const closeAutoTagModal = () => {
 }
 
 const toggleSelectAutoTag = (tag) => {
-  if (pendingTags.value.includes(tag)) {
-    pendingTags.value = pendingTags.value.filter(t => t !== tag)
-  } else if (!props.photo?.tags?.includes(tag)) {
+  // 只要 pendingTags 和 photo.tags 都没有才添加
+  if (!pendingTags.value.includes(tag) && !(props.photo?.tags || []).includes(tag)) {
     pendingTags.value.push(tag)
   }
 }
@@ -234,7 +233,7 @@ const handleManualTagInput = (e) => {
               <!-- 移除 v-if 条件，初始化 tags 数组 -->
               <div class="flex flex-wrap gap-2">
                 <!-- Show existing tags -->
-                <span v-for="(tag, index) in (photo?.tags || [])" 
+                <span v-for="(tag, index) in (photo?.tags || [])"
                   :key="tag"
                   class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
                   :class="getTagColor(index)"
@@ -248,11 +247,11 @@ const handleManualTagInput = (e) => {
                     ×
                   </button>
                 </span>
-                
+
                 <!-- Unified Manage Tags button -->
                 <button class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-1"
                   @click.stop="showAutoTagModal = true">
-                  <span class="font-medium">Manage Tags</span>
+                  <span class="font-medium">Add Tags</span>
                 </button>
               </div>
 
@@ -261,7 +260,7 @@ const handleManualTagInput = (e) => {
                 class="fixed inset-0 z-60 flex items-center justify-center bg-black/40">
                 <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative" @click.stop>
                   <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium">Manage Tags</h3>
+                    <h3 class="text-lg font-medium">Add Tags</h3>
                     <button class="p-1 rounded-full hover:bg-gray-200" @click="closeAutoTagModal">
                       <svg class="w-6 h-6" viewBox="0 0 24 24">
                         <path fill="currentColor" :d="mdiClose" />
@@ -274,7 +273,7 @@ const handleManualTagInput = (e) => {
                     <label class="block text-sm font-medium text-gray-700 mb-2">Tags to Add</label>
                     <!-- 待添加的标签列表 -->
                     <div class="flex flex-wrap gap-2 mb-4">
-                      <span v-for="tag in pendingTags" 
+                      <span v-for="tag in pendingTags"
                             :key="tag"
                             class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
                         {{ tag }}
@@ -285,7 +284,7 @@ const handleManualTagInput = (e) => {
                         </button>
                       </span>
                     </div>
-                    
+
                     <!-- 手动输入框 -->
                     <div class="flex gap-2">
                       <input
@@ -302,7 +301,7 @@ const handleManualTagInput = (e) => {
                   <div class="mb-6">
                     <div class="flex justify-between items-center mb-2">
                       <label class="text-sm font-medium text-gray-700">Auto-Generated Tags</label>
-                      <button 
+                      <button
                         class="px-3 py-1 text-sm rounded bg-blue-100 hover:bg-blue-200 text-blue-700"
                         :class="{ 'opacity-50 cursor-wait': autoTagLoading }"
                         @click="openAutoTagModal"
@@ -339,13 +338,13 @@ const handleManualTagInput = (e) => {
                   </div>
 
                   <div class="flex justify-end gap-3 pt-4 border-t">
-                    <button 
-                      class="px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium" 
+                    <button
+                      class="px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
                       @click="closeAutoTagModal"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       v-if="pendingTags.length > 0"
                       class="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600"
                       @click="submitTags"
