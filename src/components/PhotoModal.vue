@@ -16,7 +16,8 @@ const props = defineProps({
   photo: Object,
   showActions: Boolean,
   tagColorClasses: Array,
-  addTagToPhoto: Function // Add this prop
+  addTagToPhoto: Function,
+  userId: Number, // 添加 userId prop
 })
 
 const emit = defineEmits([
@@ -150,6 +151,17 @@ const handleManualTagInput = (e) => {
     }
     manualTagInput.value = ''
   }
+}
+
+// 修改分享处理方法
+const handleShare = () => {
+  if (!props.photo || !props.userId) return;
+  const shareUrl = `${window.location.origin}/#/share/photo/${props.userId}/${props.photo.id}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    emit('action', 'share');
+  }).catch((error) => {
+    console.error('Failed to copy share link:', error);
+  });
 }
 </script>
 

@@ -79,6 +79,14 @@ const props = defineProps({
   albumId: {
     type: [Number, String],
     default: null
+  },
+  filterTags: {
+    type: Array,
+    default: () => []
+  },
+  noTags: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -218,7 +226,19 @@ const fetchPhotos = async () => {
   error.value = null
 
   try {
-    const params = new URLSearchParams({ userId: props.userId?.toString() || '' })
+    const params = new URLSearchParams({
+      userId: props.userId?.toString() || ''
+    })
+
+    // Add tags filtering
+    if (props.filterTags.length > 0) {
+      params.append('tags', props.filterTags.join(','))
+    }
+
+    // Add no-tags filtering
+    if (props.noTags) {
+      params.append('noTags', 'true')
+    }
 
     // 修改这部分来正确处理 null albumId
     if (props.albumId !== undefined) {
@@ -680,23 +700,14 @@ const handleActionClick = (photo, event) => {
 }
 
 const handleSharePhoto = (photo) => {
-  const shareUrl = photo.src;
-  if (navigator.share) {
-    navigator.share({
-      title: '分享图片',
-      text: photo.name,
-      url: shareUrl
-    }).then(() => {
-      console.log('分享成功');
-    }).catch(console.error);
-  }else{
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      toast.success('Link copied to clipboard!');
-    }).catch((error) => {
-      console.error('Failed to copy link:', error);
-      toast.error('Failed to copy link');
-    })
-  }
+  if (!photo || !photo.id) return;
+  const shareUrl = `${window.location.origin}/#/share/photo/${props.userId}/${photo.id}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    toast.success('Share link copied to clipboard!');
+  }).catch((error) => {
+    console.error('Failed to copy link:', error);
+    toast.error('Failed to copy link');
+  });
 }
 
 // Modify handleMenuAction function
@@ -728,7 +739,7 @@ const handleMenuAction = (action) => {
   }
 }
 
-// Modify handlePhotoAction function
+// Modify photo modal action handler
 const handlePhotoAction = (action) => {
   if (!currentPhoto.value) return
 
@@ -939,7 +950,7 @@ const isPersonExpanded = (personId) => expandedPeople.value.includes(personId)
 const peopleTagRename = async (personId) => {
   const person = getNicknameById(personId)
 	const newName = window.prompt(`Enter new name (current: ${person}):`, person)
-  
+
   // Validate input
   if (!newName || newName.trim() === '' || newName === person) return
 
@@ -1422,7 +1433,7 @@ defineExpose({
           <BaseButton v-if="availableViewModes.includes('small')" :icon="mdiViewCompactOutline"
             :color="viewMode === 'small' ? 'info' : 'whiteDark'" @click="setViewMode('small')"
             class="rounded-none border-r last:border-r-0" title="Small icons" />
-        
+
           <BaseButton v-if="availableViewModes.includes('people')" :icon="mdiAccount"
             :color="viewMode === 'people' ? 'info' : 'whiteDark'" @click="setViewMode('people')"
             class="rounded-none border-r last:border-r-0" title="People icons" />
@@ -1434,7 +1445,7 @@ defineExpose({
 
           <BaseButton :icon="mdiAccountRemove" :color="'whiteDark'" @click="deletePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
-            class="rounded-none border-r last:border-r-0" title="Delete people tag"/>
+            class="rounded-none border-r last-border-r-0" title="Delete people tag"/>
 
           <BaseButton :icon="mdiAccountSwitch" :color="'whiteDark'" @click="movePeopleTag"
             :disabled="selectedPeoplePhotos.length === 0"
