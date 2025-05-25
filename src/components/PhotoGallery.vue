@@ -1200,8 +1200,7 @@ console.log("people detect", selectedPeoplePhotos)
 const showPeopleInputModal = ref(false)
 const peopleInputModalTitle = ref('Add People Tag')
 const peopleInputModalPlaceholder = ref('Enter people name')
-const currentPeopleAction = ref(null) // 'add' | 'move'
-const pendingPeopleAction = ref(() => {})
+const currentPeopleAction = ref(null)
 
 const addPeopleTag = () => {
   if (selectedPeoplePhotos.value.length === 0) {
@@ -1242,9 +1241,6 @@ const handlePeopleInputConfirm = async (inputValue) => {
 
       if (successCount > 0) {
         toast.success(`成功为 ${successCount} 张图片添加人物标签 "${inputValue}"`)
-        fetchPhotos()
-        fetchPeopleList()
-        clearSelection()
       }
     } else if (currentPeopleAction.value === 'move') {
       const existingPerson = getPeopleByNickname(inputValue)
@@ -1264,14 +1260,15 @@ const handlePeopleInputConfirm = async (inputValue) => {
       const addSuccessCount = addResults.filter(r => r?.msg === 'ok').length
 
       toast.success(`Moved people tag to "${newTag.trim()}" on ${addSuccessCount} photo(s).`)
-      fetchPhotos()
-      fetchPeopleList()
-      clearSelection()
     }
+    fetchPhotos()
+    fetchPeopleList()
+    clearSelection()
   } catch (error) {
     console.error('Failed to perform people action:', error)
     toast.error(`Failed: ${error.message}`)
   }
+  
 }
 
 const RenamingPhotoId = ref(null); // 当前正在编辑的图片 ID
@@ -1882,6 +1879,7 @@ defineExpose({
       :show="showPeopleInputModal"
       :title="peopleInputModalTitle"
       :placeholder="peopleInputModalPlaceholder"
+      :peoples="peopleList"
       @close="showPeopleInputModal = false"
       @confirm="handlePeopleInputConfirm"
     />
