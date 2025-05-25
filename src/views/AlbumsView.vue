@@ -437,7 +437,7 @@ const loadAlbums = async () => {
       </div>
 
       <!-- New Album Dialog -->
-      <div v-if="showNewAlbumDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div v-if="showNewAlbumDialog" class="fixed inset-0 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 max-w-md w-full" @click.stop>
           <h3 class="text-xl font-medium mb-4">Create New Album</h3>
 
