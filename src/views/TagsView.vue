@@ -3,7 +3,7 @@ import {
   mdiTagMultiple,
   mdiRefresh,
   mdiArrowLeft,
-  mdiCheckboxMultipleMarkedOutline, 
+  mdiCheckboxMultipleMarkedOutline,
   mdiCursorDefault,
   mdiDownload,
   mdiImageEdit,
@@ -116,7 +116,7 @@ const saveEditedPhoto = (updatedPhoto) => {
 }
 
 const filteredPhotos = computed(() => {
-  if (!currentTag.value) return allPhotos.value 
+  if (!currentTag.value) return allPhotos.value
   return allPhotos.value.filter(p => Array.isArray(p.tags) && p.tags.includes(currentTag.value))
 })
 </script>
@@ -139,7 +139,6 @@ const filteredPhotos = computed(() => {
             class="mr-2"
             @click="toggleSelectMode"
           />
-          <!-- Add refresh button -->
           <BaseButton
             v-if="currentTag"
             :icon="mdiRefresh"
@@ -157,10 +156,49 @@ const filteredPhotos = computed(() => {
             small
             @click="handleBackToTags"
           />
+          <BaseButton
+            v-else
+            :icon="mdiRefresh"
+            label="Refresh"
+            color="info"
+            small
+            class="mr-2"
+            @click="handleRefreshTags"
+          />
         </div>
       </SectionTitleLineWithButton>
 
-      <!-- Tag Groups List -->
+      <!-- Tag Filters Bar -->
+      <div class="bg-gradient-to-r from-blue-50 via-white to-purple-50 rounded-xl shadow p-3 mb-6 overflow-x-auto custom-scrollbar">
+        <div class="flex flex-nowrap gap-2 min-w-0">
+          <BaseButton
+            :icon="mdiTagMultiple"
+            :label="`All Photos${Array.isArray(allPhotos?.value) ? ` (${allPhotos.value.length})` : ''}`"
+            :color="!currentTag ? 'info' : 'whiteDark'"
+            :class="[
+              'whitespace-nowrap rounded-full font-semibold shadow',
+              !currentTag ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : ''
+            ]"
+            small
+            @click="handleBackToTags"
+          />
+          <BaseButton
+            v-for="group in tagGroups"
+            :key="group.id"
+            :icon="mdiTag"
+            :label="`${group.name}${group.count !== undefined ? ` (${group.count})` : ''}`"
+            :color="currentTag === group.id ? 'info' : 'whiteDark'"
+            :class="[
+              'whitespace-nowrap rounded-full font-semibold shadow',
+              currentTag === group.id ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white' : 'bg-white'
+            ]"
+            small
+            @click="() => selectTagGroup(group)"
+          />
+        </div>
+      </div>
+
+      <!-- Tag group gallery with新样式 -->
       <TagGallery
         v-if="!currentTag"
         ref="tagGallery"
@@ -238,3 +276,25 @@ const filteredPhotos = computed(() => {
     </SectionMain>
   </LayoutAuthenticated>
 </template>
+
+<style scoped>
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #a5b4fc #f8fafc;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #a5b4fc;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #818cf8;
+}
+</style>
