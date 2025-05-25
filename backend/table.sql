@@ -37,12 +37,12 @@ CREATE TABLE `img_tag`
     PRIMARY KEY (`it_id`)
 );
 
-CREATE TABLE `people`
-(
-    `people_id` int        NOT NULL AUTO_INCREMENT,
+CREATE TABLE `people` (
+    `people_id` int NOT NULL AUTO_INCREMENT,
     `name`      text,
-    `user_id`   int                 DEFAULT NULL,
-    `valid`     tinyint(1) NOT NULL DEFAULT '1',
+    `user_id`   int DEFAULT NULL,
+    `valid`     tinyint(1) NOT NULL DEFAULT 1,
+    `nickname`  text AS (`name`) STORED, -- `TEXT` 类型通常需要 STORED
     PRIMARY KEY (`people_id`)
 );
 CREATE TABLE `tag`

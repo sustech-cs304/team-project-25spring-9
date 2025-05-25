@@ -74,7 +74,8 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
         // 1️⃣ 先查询符合条件的图片ID
         List<Integer> imgIds = mapper.selectJoinList(Integer.class, new MPJLambdaWrapper<Img>()
                 .select(Img::getImgId) // 只查询 imgId
-                        .eq(img.getAlbumId()!=null,Img::getAlbumId, img.getAlbumId())
+                .eq(img.getAlbumId() != null && img.getAlbumId() != -1, Img::getAlbumId, img.getAlbumId())
+                .isNull(img.getAlbumId() != null && img.getAlbumId() == -1, Img::getAlbumId)
                 .eq(img.getUserId() != null, Img::getUserId, img.getUserId())
                 .eq(img.getImgId() != null, Img::getImgId, img.getImgId())
                 .eq(Img::getValid, true)
@@ -111,6 +112,7 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 .selectAll(Img.class) // 查询所有图片字段
                 .select(Tag::getTagName)     // 查询 tagName
                 .select(People::getName)     // 查询 peopleName
+                        .select(People::getNickname)
                 .leftJoin(ImgTag.class, ImgTag::getImgId, Img::getImgId)
                 .leftJoin(Tag.class, Tag::getTagId, ImgTag::getTagId)
                 .leftJoin(ImgPeople.class, ImgPeople::getImgId, Img::getImgId)
@@ -133,6 +135,7 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
                 dto.setTags(new ArrayList<>());
                 dto.setAlbumId(image.getAlbumId());
                 dto.setPeoples(new ArrayList<>());
+                dto.setPeoples_nickname(new ArrayList<>());
 //                String imgName = String.format("%d.jpeg", image.getImgId());
 //                dto.setImg(minioUtilS.download(imgName, ImgPath));
                 return dto;
@@ -145,8 +148,14 @@ public class ImgServiceImpl extends ServiceImpl<ImgMapper, Img> implements ImgSe
             }
             // 收集 peopleName
             if (image.getName() != null) {
-                if (!imgMap.get(image.getImgId()).getPeoples().contains(image.getName()))
+                if (!imgMap.get(image.getImgId()).getPeoples().contains(image.getName())) {
                     imgMap.get(image.getImgId()).getPeoples().add(image.getName());
+                    if (image.getNickname() != null) {
+                        imgMap.get(image.getImgId()).getPeoples_nickname().add(image.getNickname());
+                    } else {
+                        imgMap.get(image.getImgId()).getPeoples_nickname().add(image.getName());
+                    }
+                }
             }
         }
 
