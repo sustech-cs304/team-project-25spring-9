@@ -1,11 +1,14 @@
 package com.mumu.image.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mumu.image.DTO.ImageInfo;
 import com.mumu.image.DTO.ImgDTO;
 import com.mumu.image.entity.Img;
+import com.mumu.image.entity.People;
+import com.mumu.image.entity.Tag;
 import com.mumu.image.service.*;
 import com.mumu.utils.AjaxJson;
 import com.mumu.utils.MinioUtils;
@@ -176,7 +179,28 @@ public class ImgController {
         ));
     }
 
+    @ApiOperation(value = "获取图片数量", tags = "图片类")
+    @GetMapping("/getimgcnt")
+    public AjaxJson getimgcnt(int userId) {
+        return AjaxJson.getSuccessData(imgService.count(new LambdaQueryWrapper<Img>()
+                .eq(Img::getUserId, userId)
+        ));
+    }
 
+    @ApiOperation(value = "获取people数量", tags = "图片类")
+    @GetMapping("/getpeoplecnt")
+    public AjaxJson getpeoplecnt(int userId) {
+        return AjaxJson.getSuccessData(peopleService.count(new LambdaQueryWrapper<People>()
+                .eq(People::getUserId, userId)
+        ));
+    }
+    @ApiOperation(value = "获取tag数量", tags = "图片类")
+    @GetMapping("/gettagcnt")
+    public AjaxJson gettagcnt(int userId) {
+        return AjaxJson.getSuccessData(tagService.count(new LambdaQueryWrapper<Tag>()
+                .eq(Tag::getUserId, userId)
+        ));
+    }
 
     @ApiOperation(value = "添加图片带信息", tags = "图片类")
     @PostMapping("/add")
