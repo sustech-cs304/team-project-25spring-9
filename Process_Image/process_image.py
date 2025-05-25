@@ -27,13 +27,16 @@ from moviepy.editor import (
 )
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-
+import requests
+from pydantic import BaseModel
 
 
 
 PHOTO_DIR = "photos/"
 SORTED_DIR = "sorted_photos/"
 ENCODINGS_FILE = "face_encodings.json"
+API_KEY = "sk-e8f3a16e76644be7a84db556d976a674"
+
 # 全局变量
 processor = None
 model = None
@@ -432,12 +435,73 @@ def generate_video(image_paths: list[str]) -> str:
     return output_path
 
 
+def generate_image(image_url, style_index):
+    url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation"
+    headers = {
+        "X-DashScope-Async": "enable",
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "wanx-style-repaint-v1",
+        "input": {
+            "image_url": image_url,
+            "style_index": style_index
+        }
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        task_id = response.json().get("output", {}).get("task_id")
+        print(f"任务已提交，任务ID: {task_id}")
+        return task_id
+    else:
+        print("提交失败：", response.status_code, response.text)
+        return None
+
+
+# 2. 根据任务 ID 查询状态
+def check_task_status(task_id):
+    url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+
+    while True:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            output = data.get("output", {})
+            status = output.get("task_status")
+
+            if status == "SUCCEEDED":
+                result_url = output.get("results", [{}])[0].get("url")
+                print("✅ 图像生成成功！")
+                print("🔗 下载地址：", result_url)
+                return result_url
+                break
+            else:
+                print("⚠️ 任务未立即成功，任务状态：", status)
+                print("任务 ID：", output.get("task_id"))
+        else:
+            print("❌ 请求失败：", response.status_code, response.text)
+            return None
+            break
+
+
 if __name__ == '__main__':
     # ==========================
     # 🌟 初始化已知人脸数据
     # ==========================
     known_face_dict, known_face_encodings, known_face_labels = load_encodings()
     init_blip_and_spacy()
+
+
+    class StyleTransferRequest(BaseModel):
+        image_url: str
+        style_index: int = 0
+
 
     # ==========================
     # 🌐 初始化 FastAPI 应用
@@ -539,6 +603,16 @@ if __name__ == '__main__':
         finally:
             for path in saved_files:
                 os.remove(path)
+
+
+    @app.post("/style_transfer/", summary="图像风格化",
+              description="将图像 URL 提交至 DashScope，等待风格化任务完成后返回结果")
+    async def style_transfer_api(request: StyleTransferRequest):
+        task_id = generate_image(request.image_url, request.style_index)
+        if task_id:
+            result_url = check_task_status(task_id)
+            return {"task_id": task_id, "result_url": result_url}
+        return {"error": "任务提交失败"}
 
     # 启动 FastAPI 服务
     uvicorn.run(app, host="0.0.0.0", port=8123)

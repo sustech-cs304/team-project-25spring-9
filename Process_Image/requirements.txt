@@ -7,7 +7,11 @@ piexif==1.1.3
 face-recognition==1.3.0
 geopy==2.4.1
 transformers==4.49.0
-torch
-chardet
+torch~=2.6.0
+chardet~=5.2.0
 moviepy==1.0.3
 python-multipart
+tqdm~=4.67.1
+streamlit~=1.43.2
+requests~=2.32.3
+pydantic~=2.10.6
