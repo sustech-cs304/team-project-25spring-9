@@ -836,6 +836,10 @@ const getPeopleByName = (name) => {
   return peopleList.value.find(person => person.name === name)
 }
 
+const getPeopleByNickname = (name) =>{
+  return peopleList.value.find(person => person.nickname === name)
+}
+
 const getNicknameById = (id) => {
   const person = getPeopleById(id)
   if(!person)
@@ -1041,10 +1045,13 @@ const deletePeopleTagApi = async (personPhotoIds) => {
 }
 
 const addPeopleTag = async () => {
-  const personName = prompt('Enter the new people tag:')
-  if (!personName || !personName.trim()) return
+  const personNameInput = prompt('Enter the new people tag:')
+  if (!personNameInput || !personNameInput.trim()) return
+  const existingPerson = getPeopleByNickname(personNameInput.trim())
+  const personName = existingPerson ? existingPerson.name : personNameInput.trim()
 
   try {
+
     const photoIds = selectedPeoplePhotos.value.map(item => item.photoId)
     const results = await addPeopleTagApi(personName, photoIds)
     const successCount = results.filter(result => result?.msg === 'ok').length
@@ -1069,25 +1076,27 @@ const movePeopleTag = async () => {
     return
   }
 
-  const newTag = prompt('Enter the new people tag:')
-  if (!newTag || !newTag.trim()) {
+  const newTagInput = prompt('Enter the new people tag:')
+  if (!newTagInput || !newTagInput.trim()) {
     toast.error('New tag is empty or invalid.')
     return
   }
+
+  const existingPerson = getPeopleByNickname(newTagInput.trim())
+  const newTag = existingPerson ? existingPerson.name : newTagInput.trim()
+  console.log(newTag)
 
   // Step 1: filter out invalid old tags
   const validPersonPhotoIds = selectedPeoplePhotos.value.filter(({ person }) => {
     return getPeopleById(person) !== undefined
   })
 
-  if (!validPersonPhotoIds.length) {
-    toast.error('No valid people tags found to move.')
-    return
-  }
 
   try {
     // Step 2: delete old tags
-    const deleteResults = await deletePeopleTagApi(validPersonPhotoIds)
+    if(validPersonPhotoIds.length !== 0){
+      const deleteResults = await deletePeopleTagApi(validPersonPhotoIds)
+    }
 
     // Step 3: add new tag to the same photoIds
     const photoIdsToAdd = selectedPeoplePhotos.value.map(item => item.photoId)
