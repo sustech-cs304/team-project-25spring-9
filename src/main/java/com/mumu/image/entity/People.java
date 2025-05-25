@@ -29,5 +29,7 @@ public class People implements Serializable {
 
     private Boolean valid;
 
+    private String nickname;
+
 
 }

@@ -1,13 +1,9 @@
 package com.mumu.image.DTO;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
-import lombok.Getter;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 @Data
@@ -25,8 +21,10 @@ public class ImgDTO {
     private Integer userId;
     private ResponseEntity<byte[]> img;
     private List<String> peoples;
+    private List<String> peoples_nickname;
     private List<String> tags;
     //duplicated
     private String name;
+    private String nickname;
     private String tagName;
 }
