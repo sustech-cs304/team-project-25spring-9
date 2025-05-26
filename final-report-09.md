@@ -162,7 +162,7 @@ A modern Vue 3 and Tailwind CSS application for organizing, editing, and managin
 1. **Create an Account**
 
    - Navigate to the registration page
-     ![login-register](../../Software Engineering/team-project-25spring-9/frontend/image/login-register.png)
+     ![image-20250526114147717](final-report-09/image-20250526114147717.png)
    - Fill in your username, email, and password
      ![Register](final-report-09/register.png)
    - Complete the registration process
@@ -196,7 +196,7 @@ A modern Vue 3 and Tailwind CSS application for organizing, editing, and managin
 - Downloads preserve original image quality and metadata
 - Large selections may take time to process before download begins
 
-![photos-view](../../Software Engineering/team-project-25spring-9/frontend/image/photos-view.png)
+![image-20250526114025942](final-report-09/image-20250526114025942.png)
 
 ##### Advanced Search & Filtering
 
@@ -263,7 +263,7 @@ The Smart Album includes powerful search and filtering capabilities to help you 
 - Move photos between albums using the selection tools
 - Delete albums (photos will be moved to "Unfiled")
 
-![albums-view](../../Software Engineering/team-project-25spring-9/frontend/image/albums-view.png)
+![image-20250526114236434](final-report-09/image-20250526114236434.png)
 ![albums-view-create](final-report-09/albums-view-create.png)
 
 ##### Using the Timeline
@@ -283,7 +283,7 @@ The Smart Album includes powerful search and filtering capabilities to help you 
    - Adjusting brightness, contrast, and saturation
    - Adding text overlays
 
-![photos-view-edit](../../Software Engineering/team-project-25spring-9/frontend/image/photos-view-edit.png)
+![image-20250526114309010](final-report-09/image-20250526114309010.png)
 
 ##### AI Style Transfer
 
@@ -299,13 +299,13 @@ The Smart Album includes powerful search and filtering capabilities to help you 
    - Use the tag interface to add descriptive keywords
    - Create custom tag categories
 
-![tag-add](../../Software Engineering/team-project-25spring-9/frontend/image/tag-add.png)
+![image-20250526114327751](final-report-09/image-20250526114327751.png)
 
 2. **Searching by Tags**
    - Use the search functionality to find photos by tags
    - Filter your photo library using tag combinations
 
-![tag-search](../../Software Engineering/team-project-25spring-9/frontend/image/tag-search.png)
+![image-20250526114352764](final-report-09/image-20250526114352764.png)
 
 ##### Advanced Features
 
