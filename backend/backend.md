@@ -10,6 +10,10 @@
 
 ![img.png](backend.assets/img.png)
 
+[🖼️ 图像智能处理后端 API - Swagger UI](http://10.16.60.67:8123/docs)
+
+![image-20250525221802032](backend/image-20250525221802032.png)
+
 ## Tests for backend
 
 Technology: jcoco

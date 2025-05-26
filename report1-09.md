@@ -1,7 +1,7 @@
 # report1-09
 
 ### **1.Smart Photo Album Features**
-    
+
 1. **Effortless Photo Management & Advanced Search Capabilities**
     Organize your photos seamlessly by time, location, and custom tags. Easily browse and retrieve memories with structured categorization.Instantly find your photos based on content, date, location, or tags.
 2. **AI-Powered Photo Recognition & Auto Tagging**
@@ -10,8 +10,10 @@
     Enhance your photos with powerful editing tools, including cropping, filters, adjustments, and retouching options—all within the app.
 4. **Memory Timeline & Video Generation**
     Relive special moments with automatically generated memory timelines. The system can create video highlights using your best photos and clips.
-5. **Seamless Social Sharing & Collaboration**
-    Share your favorite moments effortlessly with family and friends. Collaborate on shared albums, comment on photos, and react with emojis.
+5. **Seamless Social Sharing**
+    Share your favorite moments effortlessly with family and friends. Collaborate on shared albums.
+6. **Style Transfer**
+    Transform any portrait into striking artworks at the click of a button. Behind the scenes we call Alibaba Cloud’s wanx-style-repaint-v1 model.
 
 ### **2.Non-Functional Requirements**
 
