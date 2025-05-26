@@ -128,6 +128,7 @@ const error = ref(null)
 const showAdvancedSearch = ref(false)
 const advancedFilters = ref({
   dateRange: { start: '', end: '' },
+  location: '',
   tags: [],
   peoples: ''
 })
@@ -136,6 +137,7 @@ const advancedFilters = ref({
 const appliedFilters = ref({
   query: '',
   dateRange: { start: '', end: '' },
+  location: '',
   tags: [],
   peoples: ''
 })
@@ -143,6 +145,7 @@ const appliedFilters = ref({
 // Add temporary filter state to store unapplied changes
 const tempFilters = ref({
   dateRange: { start: '', end: '' },
+  location: '',
   tags: [],
   peoples: ''
 })
@@ -253,8 +256,11 @@ const fetchPhotos = async () => {
     if (appliedFilters.value.dateRange.end) {
       params.append('endDate', appliedFilters.value.dateRange.end)
     }
+    if (appliedFilters.value.location) {
+      params.append('imgPos', appliedFilters.value.location)
+    }
     if (appliedFilters.value.peoples) {
-      params.append('peoples_nickname', appliedFilters.value.peoples)
+      params.append('peoples', appliedFilters.value.peoples)
     }
     if (appliedFilters.value.tags?.length > 0) {
       params.append('tags', appliedFilters.value.tags.join(','))
@@ -318,17 +324,20 @@ const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
+    location: '',
     tags: [],
     peoples: ''
   }
   appliedFilters.value = {
     query: '',
     dateRange: { start: '', end: '' },
+    location: '',
     tags: [],
     peoples: ''
   }
   advancedFilters.value = {
     dateRange: { start: '', end: '' },
+    location: '',
     tags: [],
     peoples: ''
   }
@@ -537,6 +546,7 @@ const applyFilters = () => {
       start: tempFilters.value.dateRange.start || '',
       end: tempFilters.value.dateRange.end || ''
     },
+    location: tempFilters.value.location || '',
     tags: tempFilters.value.tags?.length ? tempFilters.value.tags : [],
     peoples: tempFilters.value.peoples || ''
   }
@@ -548,6 +558,7 @@ const clearAdvancedFilters = () => {
   searchQuery.value = ''
   tempFilters.value = {
     dateRange: { start: '', end: '' },
+    location: '',
     tags: [],
     peoples: ''
   }
@@ -1489,6 +1500,19 @@ defineExpose({
                 class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
                 placeholder="To date" />
             </div>
+          </div>
+
+          <!-- Location -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium flex items-center text-gray-700">
+              <svg class="w-6 h-6 mr-1">
+                <path fill="currentColor" :d="mdiMapMarker" />
+              </svg>
+              <span>Location</span>
+            </label>
+            <input v-model="tempFilters.location" type="text"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+              placeholder="Enter location name" />
           </div>
 
           <!-- Tags -->
