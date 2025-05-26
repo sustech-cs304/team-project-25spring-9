@@ -376,7 +376,7 @@ const uploadPhotos = (file, tags = [], targetAlbumId = null) => {
     formData.append('files', file)
 
     const params = new URLSearchParams({
-      imgDate: currentDate,
+      // imgDate: currentDate,
       imgName: file.name,
       userId: props.userId.toString(),
       pub: true
