@@ -260,7 +260,7 @@ const fetchPhotos = async () => {
       params.append('imgPos', appliedFilters.value.location)
     }
     if (appliedFilters.value.peoples) {
-      params.append('peoples', appliedFilters.value.peoples)
+      params.append('peoples_nickname', appliedFilters.value.peoples)
     }
     if (appliedFilters.value.tags?.length > 0) {
       params.append('tags', appliedFilters.value.tags.join(','))
