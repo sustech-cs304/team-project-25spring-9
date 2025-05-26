@@ -16,8 +16,6 @@
 | Cyclomatic complexity  | 1061 |
 | Number of dependencies | 26   |
 
-Certainly! Here’s the complete **English version** of the content you provided, suitable for inclusion in the “Quality Assurance and Project Complexity Analysis” section of a project report:
-
 ------
 
 ### Python Backend Metrics
@@ -99,11 +97,35 @@ cat requirements.txt | wc -l
 
 ### Frontend Metrics
 
+#### Cyclomatic Complexity
+
+[Javascript Cyclomatic Complexity](./statistic/js-cyclomatic-complexity.json)
+
+#### Cloc
+
+```
+      91 text files.
+classified 91 files
+      91 unique files.                              
+       0 files ignored.
+
+github.com/AlDanial/cloc v 1.96  T=0.04 s (2424.6 files/s, 225593.6 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Vuejs Component                 72            863            375           6125
+JavaScript                      10             64             64            564
+CSS                              9             76              7            329
+-------------------------------------------------------------------------------
+SUM:                            91           1003            446           7018
+-------------------------------------------------------------------------------
+```
+
 
 
 ## Documentation
 
-### backend developer api documentation
+### Documentation for developers
 
 #### http://10.16.60.67:9090/swagger-ui.html#/
 
@@ -112,6 +134,195 @@ cat requirements.txt | wc -l
 #### [🖼️ 图像智能处理后端 API - Swagger UI](http://10.16.60.67:8123/docs)
 
 ![image-20250525221802032](final-report-09/image-20250525221802032.png)
+
+###  Documentation for end users
+
+A modern Vue 3 and Tailwind CSS application for organizing, editing, and managing your photo collections with AI-powered styling capabilities.
+
+#### ✨ Features
+
+- **Photo Management**: Upload, organize, and view photos in a beautiful gallery interface
+- **Album Organization**: Create and manage photo albums with drag-and-drop functionality
+- **Timeline View**: Browse photos chronologically with an intuitive timeline interface
+- **AI Photo Styling**: Transform your photos with AI-powered style transfer using Aliyun DashScope
+- **Photo Editing**: Built-in photo editor with cropping, filters, and adjustment tools
+- **Advanced Search & Filtering**: Powerful search capabilities with multiple filter criteria
+- **Tag System**: Organize photos with custom tags for easy searching and filtering
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **User Profiles**: Personal user accounts with secure authentication
+
+#### Architecture
+
+![dependency-graph](final-report-09/dependency-graph.svg)
+
+#### 📖 User Guide
+
+##### Getting Started
+
+1. **Create an Account**
+
+   - Navigate to the registration page
+     ![login-register](../../Software Engineering/team-project-25spring-9/frontend/image/login-register.png)
+   - Fill in your username, email, and password
+     ![Register](final-report-09/register.png)
+   - Complete the registration process
+
+2. **Login**
+   - Use your credentials to access your personal photo library
+
+##### Managing Photos
+
+###### Uploading Photos
+
+- Navigate to the **Photos** section
+- Click the upload button or drag and drop files into the photo area
+- Supported formats: JPG, PNG, GIF, WebP
+- Multiple files can be uploaded simultaneously
+- Progress indicator shows upload status for each file
+
+###### Deleting Photos
+
+- Select photos using the checkbox selection mode
+- Click the delete button in the toolbar
+- Confirm deletion in the popup dialog
+- **Note**: Deleted photos are permanently removed and cannot be recovered
+- Alternatively, right-click on individual photos for quick delete option
+
+###### Downloading Photos
+
+- **Single Photo**: Click on a photo and select the download option
+- **Multiple Photos**: Select photos using checkboxes and click the download button
+- **Bulk Download**: Selected photos will be packaged into a ZIP file
+- Downloads preserve original image quality and metadata
+- Large selections may take time to process before download begins
+
+![photos-view](../../Software Engineering/team-project-25spring-9/frontend/image/photos-view.png)
+
+##### Advanced Search & Filtering
+
+The Smart Album includes powerful search and filtering capabilities to help you quickly find specific photos in your collection.
+
+###### Quick Search
+
+1. **Basic Text Search**
+   - Use the search bar at the top of the Photos section
+   - Search by photo name, file type, or any text field
+   - Press Enter or click the search button to apply
+   - Real-time suggestions appear as you type
+
+###### Advanced Search Panel
+
+1. **Accessing Advanced Search**
+
+   - Click the filter icon next to the search bar
+   - The advanced search panel will expand below the search bar
+   - Multiple filter criteria can be applied simultaneously
+
+2. **Date Range Filtering**
+
+   - **Start Date**: Select the earliest date for photos to include
+   - **End Date**: Select the latest date for photos to include
+   - Use date pickers for precise date selection
+   - Leave either field empty for open-ended ranges
+   - Example: Find all photos from your vacation in July 2024
+
+3. **Location-Based Search**
+
+   - Enter location names, cities, or places
+   - Searches through photo location metadata
+   - Supports partial matches (e.g., "Paris" will find "Paris, France")
+   - Case-insensitive search
+
+4. **Tag-Based Filtering**
+
+   - **Adding Tags**: Type tag names and press Enter or comma
+   - **Multiple Tags**: Add multiple tags for more specific searches
+   - **Tag Colors**: Each tag gets a unique color for easy identification
+   - **Removing Tags**: Click the 'x' on any tag to remove it
+   - **Auto-complete**: Suggests existing tags as you type
+   - Example: Search for photos tagged with both "family" and "vacation"
+
+5. **People Search**
+   - Search for photos containing specific people
+   - Enter names or identifiers
+   - Useful for finding photos with friends, family members, or colleagues
+   - Supports partial name matching
+
+###### Filter Combinations
+
+- **Multiple Criteria**: Use any combination of filters for precise results
+- **AND Logic**: All specified criteria must match (photos must meet every condition)
+- **Real-time Results**: Photo gallery updates instantly as you apply filters
+
+![advanced-search](final-report-09/advanced-search.png)
+
+##### Organizing with Albums
+
+- Go to the **Albums** section
+- Create new albums with custom names and descriptions
+- Move photos between albums using the selection tools
+- Delete albums (photos will be moved to "Unfiled")
+
+![albums-view](../../Software Engineering/team-project-25spring-9/frontend/image/albums-view.png)
+![albums-view-create](final-report-09/albums-view-create.png)
+
+##### Using the Timeline
+
+- Access the **Timeline** view to browse photos by date
+- Scroll through your photo history chronologically
+
+##### Photo Editing
+
+###### Basic Editing
+
+1. Select a photo from any view
+2. Click the edit button or double-click the photo
+3. Use the built-in editor for:
+   - Cropping and resizing
+   - Applying filters
+   - Adjusting brightness, contrast, and saturation
+   - Adding text overlays
+
+![photos-view-edit](../../Software Engineering/team-project-25spring-9/frontend/image/photos-view-edit.png)
+
+##### AI Style Transfer
+
+1. Navigate to the **Style** section
+2. Select photos you want to stylize
+3. Choose from available AI style presets
+4. Process and download your stylized images
+
+##### Organizing with Tags
+
+1. **Adding Tags**
+   - Select photos in any view
+   - Use the tag interface to add descriptive keywords
+   - Create custom tag categories
+
+![tag-add](../../Software Engineering/team-project-25spring-9/frontend/image/tag-add.png)
+
+2. **Searching by Tags**
+   - Use the search functionality to find photos by tags
+   - Filter your photo library using tag combinations
+
+![tag-search](../../Software Engineering/team-project-25spring-9/frontend/image/tag-search.png)
+
+##### Advanced Features
+
+###### Batch Operations
+
+- Select multiple photos using the selection mode
+- Perform bulk operations:
+  - Move to albums
+  - Download as ZIP
+  - Apply tags
+  - Delete photos
+
+###### Download and Export
+
+- Download individual photos or entire albums
+- Export photos in original quality
+- Batch download selected photos as ZIP files
 
 ##  Tests
 
@@ -129,7 +340,7 @@ The low coverage for DTO classes and similar is due to the `@Data` annotation; i
 
 [![img_3.png](final-report-09/img_3.png)
 
-### Test for python backend
+### Tests for python backend
 
 #### 1. Testing Tools and Frameworks
 
@@ -158,7 +369,31 @@ def test_extract_exif_api():
     with open("tests/sample.jpg", "rb") as f:
         response = client.post("/extract_exif/", files={"file": ("sample.jpg", f, "image/jpeg")})
     assert response.status_code == 200
-    assert "Timestamp" in response.json()
+    assert "Timestamp" in response.json()   
+
+def test_generate_caption():
+    with open(SAMPLE_IMAGE, "rb") as f:
+        response = client.post("/generate_caption/", files={"file": ("sample.jpg", f, "image/jpeg")})
+    assert response.status_code == 200
+    assert "caption" in response.json()
+
+
+def test_auto_tag():
+    with open(SAMPLE_IMAGE, "rb") as f:
+        response = client.post("/auto_tag/", files={"file": ("sample.jpg", f, "image/jpeg")})
+    assert response.status_code == 200
+    assert "tags" in response.json()
+    assert isinstance(response.json()["tags"], list)
+
+
+def test_process_image():
+    with open(SAMPLE_IMAGE, "rb") as f:
+        response = client.post("/process_image", files={"file": ("sample.jpg", f, "image/jpeg")})
+    assert response.status_code == 200
+    data = response.json()
+    assert "Caption" in data
+    assert "AutoTags" in data
+    assert "PersonLabel" in data
 ```
 
 ------
@@ -181,6 +416,10 @@ process_image.py       804     94    88%
 ```
 
 **Test coverage above 85% is considered good.**
+
+
+
+
 
 ## Automated Build and Continuous Integration
 

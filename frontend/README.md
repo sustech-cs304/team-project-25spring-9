@@ -1,3 +1,9 @@
+
+
+[toc]
+
+
+
 # Smart Album
 
 A modern Vue 3 and Tailwind CSS application for organizing, editing, and managing your photo collections with AI-powered styling capabilities.
@@ -21,9 +27,11 @@ A modern Vue 3 and Tailwind CSS application for organizing, editing, and managin
 ## Statistic
 
 ### Cyclomatic Complexity
+
 [Javascript Cyclomatic Complexity](./statistic/js-cyclomatic-complexity.json)
 
 ### Cloc
+
 ```
       91 text files.
 classified 91 files
