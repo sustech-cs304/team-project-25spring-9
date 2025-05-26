@@ -11,7 +11,7 @@ import {
   mdiEyeOutline,   // 添加 public 图标
   mdiEyeOffOutline // 添加 private 图标
 } from '@mdi/js'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 
 const toast = useToast()
@@ -183,7 +183,7 @@ const toggleVisibility = async () => {
     const response = await fetch(`http://10.16.60.67:9090/img/cname?${params}`, {
       method: 'GET'
     })
-    
+
     const result = await response.json()
     if (result.msg === 'ok') {
       props.photo.pub = !props.photo.pub
@@ -196,6 +196,12 @@ const toggleVisibility = async () => {
     toast.error('Failed to update visibility')
   }
 }
+
+// 修改 locationList computed 属性，直接返回字符串
+const locationList = computed(() => {
+  if (!props.photo?.location) return []
+  return [props.photo.location] // 返回完整字符串作为数组的唯一元素
+})
 </script>
 
 <template>
@@ -277,8 +283,8 @@ const toggleVisibility = async () => {
               <div class="mb-3 flex items-center gap-3">
                 <span
                   class="px-3 py-1.5 rounded-full text-sm font-medium select-none cursor-pointer flex items-center gap-1.5 transition-all duration-200"
-                  :class="photo?.pub ? 
-                    'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200' : 
+                  :class="photo?.pub ?
+                    'bg-green-50 text-green-600 hover:bg-green-100 border border-green-200' :
                     'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'"
                   @click="toggleVisibility"
                   title="Click to toggle visibility"
@@ -289,16 +295,19 @@ const toggleVisibility = async () => {
                   <span>{{ photo?.pub ? 'Public' : 'Private' }}</span>
                 </span>
               </div>
-              
+
               <!-- Existing details -->
               <div class="mb-1"><span class="font-medium">Size:</span> {{ photo?.size }}</div>
               <div class="mb-1"><span class="font-medium">Date:</span> {{ photo?.displayDate }}</div>
-              <!-- 移除 v-if 条件，初始化 tags 数组 -->
-              <div class="flex flex-wrap gap-2">
-                <!-- Show existing tags -->
+              <div v-if="locationList.length" class="mb-1">
+                <span class="font-medium">Location:</span>
+                <span class="ml-1 text-gray-600">{{ locationList[0] }}</span>
+              </div>
+              <div class="mb-1 flex items-center">
+                <span class="font-medium">Tags:</span>
                 <span v-for="(tag, index) in (photo?.tags || [])"
                   :key="tag"
-                  class="px-2 py-1 rounded cursor-pointer hover:opacity-80"
+                  class="ml-1 px-2 py-0.5 rounded cursor-pointer hover:opacity-80"
                   :class="getTagColor(index)"
                   @mouseenter="hoveredTag = tag"
                   @mouseleave="hoveredTag = null">
@@ -310,11 +319,9 @@ const toggleVisibility = async () => {
                     ×
                   </button>
                 </span>
-
-                <!-- Unified Manage Tags button -->
-                <button class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-1"
+                <button class="ml-1 w-5 h-5 rounded-full bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center text-sm"
                   @click.stop="showAutoTagModal = true">
-                  <span class="font-medium">Add Tags</span>
+                  +
                 </button>
               </div>
 
