@@ -161,7 +161,7 @@ const handleManualTagInput = (e) => {
 // 修改分享处理方法
 const handleShare = () => {
   if (!props.photo || !props.userId) return;
-  const shareUrl = `${window.location.origin}/#/share/photo/${props.userId}/${props.photo.id}`;
+  const shareUrl = `http://10.16.60.67:5173/#/share/photo/${props.userId}/${props.photo.id}`;
   navigator.clipboard.writeText(shareUrl).then(() => {
     emit('action', 'share');
   }).catch((error) => {

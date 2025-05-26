@@ -136,7 +136,7 @@ const handleAlbumDelete = (event, albumId) => {
 // 添加分享处理函数
 const handleShareAlbum = (event, album) => {
   event.stopPropagation()
-  const shareUrl = `${window.location.origin}/#/share/album/${mainStore.userId}/${album.id}`
+  const shareUrl = `http://10.16.60.67:5173/#/share/album/${mainStore.userId}/${album.id}`
   navigator.clipboard.writeText(shareUrl).then(() => {
     toast.success('Share link copied to clipboard!')
   }).catch((error) => {
